@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Situacional — Segulimp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#182A38; --ink-soft:#4C6070;
+    --paper:#EAF2F7; --paper-2:#D3E3EC; --card:#FFFFFF;
+    --brand:#245B84; --brand-dark:#163C58; --brand-light:#7EC1E0;
+    --line:#C7D8E2;
+    --good:#3F8F5D; --mid:#D89B2E; --low:#C0392B;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:720px; margin:0 auto; padding:28px 20px 60px;}
+  .brand{display:flex; align-items:center; gap:14px; margin-bottom:22px; border-bottom:3px solid var(--brand); padding-bottom:14px;}
+  .brand img{height:52px; width:52px; border-radius:50%; flex:none;}
+  .brand .txt .name{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; color:var(--brand-dark); text-transform:uppercase; line-height:1;}
+  .brand .txt .tag{font-family:'Inter',sans-serif; font-size:12px; color:var(--ink-soft); margin-top:3px;}
+  .route-label{font-family:'Inter',sans-serif; font-size:12px; color:var(--ink-soft); margin-bottom:8px; display:flex; justify-content:space-between;}
+  .route{display:flex; align-items:center; gap:4px; margin:0 0 30px;}
+  .route .seg{flex:1; height:6px; background:var(--paper-2); border-radius:3px; position:relative; overflow:hidden;}
+  .route .seg.filled{background:var(--brand);}
+  .route .seg.current::after{content:''; position:absolute; top:0; right:0; bottom:0; width:40%; background:var(--brand-light);}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:32px 28px; box-shadow:0 2px 10px rgba(22,60,88,0.06);}
+  .eyebrow{font-family:'Inter',sans-serif; font-weight:600; font-size:12px; color:var(--brand); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;}
+  h1{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:38px; line-height:1.05; margin:0 0 8px; color:var(--brand-dark);}
+  h2{font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:23px; margin:0 0 4px; text-transform:uppercase; color:var(--brand-dark);}
+  p.desc{color:var(--ink-soft); line-height:1.55; font-size:15px; margin:0 0 20px;}
+  .scenario-box{
+    background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--brand);
+    border-radius:6px; padding:16px 18px; margin-bottom:18px; font-size:14.5px; line-height:1.55;
+  }
+  label{display:block; font-size:13px; font-weight:600; margin:14px 0 6px;}
+  input[type=text]{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; font-family:'Inter',sans-serif; font-size:15px; color:var(--ink);}
+  input:focus{outline:2px solid var(--brand); outline-offset:1px;}
+  .options{display:flex; flex-direction:column; gap:10px; margin-top:4px;}
+  .opt{
+    border:1.5px solid var(--line); background:#fff; border-radius:6px; padding:14px 16px;
+    cursor:pointer; display:flex; gap:14px; align-items:flex-start; transition:border-color .15s, background .15s;
+  }
+  .opt:hover{border-color:var(--brand-light);}
+  .opt.selected{border-color:var(--brand); background:#EAF3FA;}
+  .opt .letter{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:13px; width:22px; height:22px;
+    flex:none; border-radius:50%; border:1.5px solid var(--ink-soft); display:flex; align-items:center;
+    justify-content:center; color:var(--ink-soft);
+  }
+  .opt.selected .letter{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .opt .txt{font-size:14.5px; line-height:1.45;}
+  .nav{display:flex; justify-content:space-between; align-items:center; margin-top:24px;}
+  button{font-family:'Inter',sans-serif; font-weight:600; font-size:14px; padding:12px 22px; border-radius:6px; border:none; cursor:pointer;}
+  .btn-primary{background:var(--brand); color:#fff;}
+  .btn-primary:hover{background:var(--brand-dark);}
+  .btn-primary:disabled{background:var(--paper-2); color:var(--ink-soft); cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--ink-soft); color:var(--ink);}
+
+  .thanks{text-align:center; padding:20px 0;}
+  .thanks .icon{
+    width:64px; height:64px; border-radius:50%; background:var(--brand); color:#fff;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 18px; font-size:30px;
+  }
+  .thanks h2{color:var(--brand-dark);}
+  .thanks p{color:var(--ink-soft); font-size:15px; line-height:1.6; max-width:440px; margin:0 auto;}
+
+  @media (max-width:480px){
+    h1{font-size:30px;}
+    .card{padding:24px 18px;}
+    .brand img{height:44px; width:44px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <img src="data:image/png;base64,__LOGO_BASE64__" alt="Segulimp">
+    <div class="txt">
+      <div class="name">Segulimp</div>
+      <div class="tag">Selección comercial · Test situacional</div>
+    </div>
+  </div>
+  <div id="route-block">
+    <div class="route-label"><span id="route-text">Inicio</span><span id="route-count"></span></div>
+    <div class="route" id="route"></div>
+  </div>
+  <div class="card" id="app"></div>
+</div>
+
+
+<script>
+// Cada escenario tiene 4 opciones con puntaje 0-3 (3 = respuesta más alineada al perfil buscado)
+const ESCENARIOS = [
+  {
+    key: "s1",
+    titulo: "Prioridad de agenda",
+    escenario: "Es lunes a la mañana y tenés la agenda libre. En tu cartera hay un cliente grande que compra regularmente, tres clientes medianos que no compran hace 4 meses, y dos clientes nuevos que pidieron una cotización la semana pasada.",
+    pregunta: "¿Qué hacés primero?",
+    opciones: [
+      { txt: "Visito al cliente grande, es el que más factura y no quiero perderlo.", pts: 1 },
+      { txt: "Respondo primero las cotizaciones nuevas y agendo el resto de la semana para cubrir inactivos y cliente grande.", pts: 3 },
+      { txt: "Llamo a los tres clientes inactivos, sin agendar nada más por ahora.", pts: 2 },
+      { txt: "Espero a ver si algún cliente me contacta antes de planificar el día.", pts: 0 }
+    ]
+  },
+  {
+    key: "s2",
+    titulo: "Pedido de descuento",
+    escenario: "Un cliente mediano te pide 15% de descuento para cerrar una compra grande, argumentando que otro proveedor se lo ofrece.",
+    pregunta: "¿Cómo respondés?",
+    opciones: [
+      { txt: "Le doy el descuento para no perder la venta.", pts: 0 },
+      { txt: "Le digo que no puedo hacer descuentos y corto la negociación ahí.", pts: 1 },
+      { txt: "Exploro qué puedo ofrecer sin resignar tanto margen (volumen, plazo, combo de productos) antes de bajar precio.", pts: 3 },
+      { txt: "Consulto internamente y mientras tanto no le doy ninguna respuesta al cliente.", pts: 2 }
+    ]
+  },
+  {
+    key: "s3",
+    titulo: "Cliente sin vendedor asignado",
+    escenario: "Te enterás de que hay clientes que compran directo, sin vendedor asignado, y con buen margen. Nadie les hace seguimiento activo.",
+    pregunta: "¿Qué actitud tomás?",
+    opciones: [
+      { txt: "No es mi cartera, no me meto para no pisar a nadie.", pts: 0 },
+      { txt: "Le pregunto a mi jefe si puedo sumarlos a mi cartera y armar un plan de seguimiento.", pts: 3 },
+      { txt: "Los contacto directamente por mi cuenta sin avisar a nadie.", pts: 1 },
+      { txt: "Los tengo en cuenta pero solo si me sobra tiempo en la semana.", pts: 2 }
+    ]
+  },
+  {
+    key: "s4",
+    titulo: "Zona extensa, día ajustado",
+    escenario: "Tu zona incluye visitas en la ciudad y en localidades a más de una hora, donde hay obras y clientes industriales en crecimiento. Hoy solo te alcanza para una de las dos.",
+    pregunta: "¿Cómo decidís?",
+    opciones: [
+      { txt: "Me quedo en la ciudad, es más cómodo y visito más clientes en menos tiempo.", pts: 1 },
+      { txt: "Reviso qué clientes de cada zona tienen mayor potencial o urgencia real antes de decidir.", pts: 3 },
+      { txt: "Voy a la localidad lejana porque ahí hay menos competencia, sin chequear nada más.", pts: 2 },
+      { txt: "Dejo que mi jefe decida por mí.", pts: 0 }
+    ]
+  },
+  {
+    key: "s5",
+    titulo: "Reporte de actividad",
+    escenario: "La empresa te pide empezar a cargar tus visitas y ventas en un sistema para llevar el seguimiento de la cartera.",
+    pregunta: "¿Cuál es tu reacción más probable?",
+    opciones: [
+      { txt: "Lo cargo cuando me acuerdo, prefiero enfocarme en vender.", pts: 1 },
+      { txt: "Lo veo como una herramienta útil y lo incorporo a mi rutina diaria.", pts: 3 },
+      { txt: "Prefiero seguir con mis propios métodos, ya me funcionan.", pts: 0 },
+      { txt: "Lo uso, pero solo para lo mínimo indispensable que me pidan.", pts: 2 }
+    ]
+  },
+  {
+    key: "s6",
+    titulo: "Reclamo de un cliente",
+    escenario: "Un cliente te llama enojado porque un pedido llegó incompleto, y no es un error tuyo sino de logística.",
+    pregunta: "¿Qué hacés?",
+    opciones: [
+      { txt: "Le explico que no es mi responsabilidad y lo derivo a logística.", pts: 0 },
+      { txt: "Me hago cargo del reclamo frente al cliente y gestiono internamente la solución.", pts: 3 },
+      { txt: "Le pido disculpas pero no hago seguimiento posterior.", pts: 1 },
+      { txt: "Le ofrezco un descuento en la próxima compra para calmarlo, sin resolver la causa.", pts: 2 }
+    ]
+  }
+];
+
+let step = 0; // 0 = intro, 1..N = escenarios, N+1 = agradecimiento
+const TOTAL_STEPS = ESCENARIOS.length + 2;
+let candidato = { nombre: "" };
+let respuestas = {};
+
+function renderRoute(){
+  const routeEl = document.getElementById('route');
+  const textEl = document.getElementById('route-text');
+  const countEl = document.getElementById('route-count');
+  routeEl.innerHTML = "";
+  for(let i=0;i<TOTAL_STEPS;i++){
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    if(i < step) seg.classList.add('filled');
+    if(i === step) seg.classList.add('current');
+    routeEl.appendChild(seg);
+  }
+  if(step === 0) textEl.textContent = "Datos del candidato";
+  else if(step <= ESCENARIOS.length) textEl.textContent = ESCENARIOS[step-1].titulo;
+  else textEl.textContent = "¡Listo!";
+  countEl.textContent = step < TOTAL_STEPS-1 ? (step+1) + " / " + (TOTAL_STEPS-1) : "";
+}
+
+function renderIntro(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="eyebrow">Test situacional</div>
+    <h1>Situaciones del día a día como vendedor</h1>
+    <p class="desc">Vas a ver ${ESCENARIOS.length} situaciones que pueden pasar en el trabajo diario de un vendedor
+    de Segulimp. Elegí la opción que más se acerca a lo que realmente harías, no la que te parece "la respuesta correcta".
+    No hay límite de tiempo.</p>
+    <label for="nombre">Nombre y apellido</label>
+    <input type="text" id="nombre" placeholder="Ej: Ana Pérez" value="${candidato.nombre}">
+    <div class="nav">
+      <span></span>
+      <button class="btn-primary" id="btn-start">Comenzar test →</button>
+    </div>
+  `;
+  document.getElementById('btn-start').onclick = () => {
+    const val = document.getElementById('nombre').value.trim();
+    if(!val) return;
+    candidato.nombre = val;
+    step = 1;
+    render();
+  };
+}
+
+function renderEscenario(idx){
+  const e = ESCENARIOS[idx];
+  const app = document.getElementById('app');
+  const seleccion = respuestas[e.key];
+  app.innerHTML = `
+    <div class="eyebrow">Situación ${idx+1} de ${ESCENARIOS.length}</div>
+    <h2>${e.titulo}</h2>
+    <div class="scenario-box">${e.escenario}</div>
+    <p class="desc" style="margin-bottom:10px; font-weight:600; color:var(--ink);">${e.pregunta}</p>
+    <div class="options">
+      ${e.opciones.map((op, i) => `
+        <div class="opt ${seleccion === i ? 'selected' : ''}" data-idx="${i}">
+          <div class="letter">${String.fromCharCode(65+i)}</div>
+          <div class="txt">${op.txt}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="nav">
+      <button class="btn-ghost" id="btn-back">← Atrás</button>
+      <button class="btn-primary" id="btn-next" ${seleccion !== undefined ? '' : 'disabled'}>
+        ${idx === ESCENARIOS.length - 1 ? 'Finalizar →' : 'Siguiente →'}
+      </button>
+    </div>
+  `;
+  app.querySelectorAll('.opt').forEach(el => {
+    el.onclick = () => {
+      respuestas[e.key] = parseInt(el.dataset.idx, 10);
+      renderEscenario(idx);
+    };
+  });
+  document.getElementById('btn-back').onclick = () => { step -= 1; render(); };
+  document.getElementById('btn-next').onclick = () => { step += 1; render(); };
+}
+
+function calcularResultado(){
+  let total = 0;
+  const detalle = ESCENARIOS.map(e => {
+    const idx = respuestas[e.key];
+    const pts = idx !== undefined ? e.opciones[idx].pts : 0;
+    total += pts;
+    return { titulo: e.titulo, pts };
+  });
+  const max = ESCENARIOS.length * 3;
+  let tier;
+  if(total >= max * 0.75) tier = "Avanza a entrevista";
+  else if(total >= max * 0.5) tier = "Evaluar con cautela";
+  else tier = "No avanza";
+  return { total, max, tier, detalle };
+}
+
+const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function enviarResultados(r){
+  try{
+    const { data: existentes } = await supabase
+      .from('candidatos')
+      .select('id')
+      .ilike('nombre', candidato.nombre.trim())
+      .limit(1);
+
+    if(existentes && existentes.length){
+      await supabase.from('candidatos').update({
+        puntaje_test: r.total,
+        tier_test: r.tier,
+        detalle_test: r.detalle.map(d => d.titulo + ": " + d.pts + "/3").join(" | "),
+        etapa: 'Test completado'
+      }).eq('id', existentes[0].id);
+    }
+  } catch(err){
+    console.error("No se pudo guardar el resultado del test:", err);
+  }
+}
+
+function renderAgradecimiento(){
+  const app = document.getElementById('app');
+  const r = calcularResultado();
+  enviarResultados(r);
+  app.innerHTML = `
+    <div class="thanks">
+      <div class="icon">✓</div>
+      <h2>¡Gracias, ${candidato.nombre.split(' ')[0] || 'candidato/a'}!</h2>
+      <p>Registramos tus respuestas correctamente. El equipo de Segulimp va a revisar tu perfil
+      y se va a contactar con vos para contarte los próximos pasos del proceso.</p>
+    </div>
+  `;
+}
+
+function render(){
+  renderRoute();
+  if(step === 0) renderIntro();
+  else if(step <= ESCENARIOS.length) renderEscenario(step-1);
+  else renderAgradecimiento();
+  window.scrollTo(0,0);
+}
+
+render();
+</script>
+</body>
+</html>
