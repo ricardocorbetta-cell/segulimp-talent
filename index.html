@@ -66,6 +66,7 @@
 </div>
 
 <script>
+(function(){
 const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -210,6 +211,7 @@ async function enviarPostulacion(){
 }
 
 cargarPuestos();
+})();
 </script>
 </body>
 </html>
