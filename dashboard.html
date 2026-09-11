@@ -142,6 +142,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+(function(){
 // ====== CONFIGURACIÓN ======
 const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
@@ -348,6 +349,12 @@ document.getElementById('search').addEventListener('input', renderTabla);
 document.getElementById('filterEtapa').addEventListener('change', renderTabla);
 
 cargarDatos();
+
+// Exponemos solo lo que necesitan los botones onclick del HTML generado
+window.cambiarEtapa = cambiarEtapa;
+window.marcarTestEnviado = marcarTestEnviado;
+window.marcarEntrevistaAgendada = marcarEntrevistaAgendada;
+})();
 </script>
 </body>
 </html>
