@@ -259,7 +259,9 @@ const TESTS = {
     escenarios: ESCENARIOS_REPARTIDOR
   }
 };
-const TEST = TESTS[new URLSearchParams(location.search).get('tipo')] || TESTS.vendedor;
+const TIPO_PEDIDO = new URLSearchParams(location.search).get('tipo');
+const TIPO = TESTS[TIPO_PEDIDO] ? TIPO_PEDIDO : 'vendedor';
+const TEST = TESTS[TIPO];
 // Las opciones se muestran en orden aleatorio para que la mejor no quede siempre en la misma letra
 function mezclar(lista){
   const copia = [...lista];
@@ -380,7 +382,8 @@ async function enviarResultados(r){
       p_nombre: candidato.nombre.trim(),
       p_puntaje: r.total,
       p_tier: r.tier,
-      p_detalle: r.detalle.map(d => d.titulo + ": " + d.pts + "/3").join(" | ")
+      p_detalle: r.detalle.map(d => d.titulo + ": " + d.pts + "/3").join(" | "),
+      p_tipo: TIPO
     });
     if(error) throw error;
   } catch(err){
