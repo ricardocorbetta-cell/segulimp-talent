@@ -95,8 +95,9 @@
 
 <script>
 (function(){
-// Cada escenario tiene 4 opciones con puntaje 0-3 (3 = respuesta más alineada al perfil buscado)
-const ESCENARIOS = [
+// Cada escenario tiene 4 opciones con puntaje 0-3 (3 = respuesta más alineada al perfil buscado).
+// Cada test tiene 6 escenarios (máximo 18 puntos, lo valida registrar_test en la base).
+const ESCENARIOS_VENDEDOR = [
   {
     key: "s1",
     titulo: "Prioridad de agenda",
@@ -171,6 +172,106 @@ const ESCENARIOS = [
   }
 ];
 
+const ESCENARIOS_REPARTIDOR = [
+  {
+    key: "r1",
+    titulo: "Pedido incompleto al cargar",
+    escenario: "Estás cargando la camioneta a primera hora y notás que a un pedido le falta una caja respecto de lo que dice el remito.",
+    pregunta: "¿Qué hacés?",
+    opciones: [
+      { txt: "Lo cargo igual; si el cliente reclama, que lo resuelva la oficina.", pts: 0 },
+      { txt: "Aviso en el depósito antes de salir, pido que lo completen o que corrijan el remito, y le aviso al cliente si va a llegar incompleto.", pts: 3 },
+      { txt: "Lo anoto en el remito y lo entrego así, sin avisar a nadie más.", pts: 1 },
+      { txt: "Busco yo mismo una caja parecida en el depósito y la agrego sin consultar.", pts: 2 }
+    ]
+  },
+  {
+    key: "r2",
+    titulo: "Cliente cerrado",
+    escenario: "Llegás a entregar a una clínica y la recepción de mercadería está cerrada. No hay nadie que firme el remito.",
+    pregunta: "¿Cómo seguís?",
+    opciones: [
+      { txt: "Dejo la mercadería en la puerta para no perder tiempo.", pts: 0 },
+      { txt: "Llamo al contacto del cliente o a la oficina, y si no se resuelve en unos minutos sigo la ruta y reprogramo la entrega avisando.", pts: 3 },
+      { txt: "Me vuelvo al depósito con el pedido y lo informo al final del día.", pts: 1 },
+      { txt: "Espero en la puerta todo lo que haga falta hasta que alguien abra.", pts: 2 }
+    ]
+  },
+  {
+    key: "r3",
+    titulo: "Día con demoras",
+    escenario: "Por un corte de calle y el tránsito vas atrasado. Te quedan 6 entregas y a ese ritmo no llegás a todas antes de que cierren.",
+    pregunta: "¿Qué hacés?",
+    opciones: [
+      { txt: "Sigo el orden de la hoja de ruta y lo que no llegue, queda para mañana.", pts: 1 },
+      { txt: "Reordeno la ruta, priorizo los clientes que cierran antes o que tienen urgencia, y aviso a la oficina y a los clientes que pueden quedar para más tarde.", pts: 3 },
+      { txt: "Manejo más rápido para intentar llegar a todo.", pts: 0 },
+      { txt: "Llamo a la oficina para que me digan qué hacer.", pts: 2 }
+    ]
+  },
+  {
+    key: "r4",
+    titulo: "Producto dañado en la camioneta",
+    escenario: "Al abrir la caja de la camioneta ves que un bidón de químico se rajó y perdió líquido sobre otras cajas.",
+    pregunta: "¿Qué hacés?",
+    opciones: [
+      { txt: "Entrego las cajas mojadas igual; si están cerradas, no debería haber problema.", pts: 0 },
+      { txt: "Aíslo el bidón, reviso qué se dañó, informo con fotos y no entrego nada en mal estado sin avisar al cliente.", pts: 3 },
+      { txt: "Tiro el bidón y sigo, sin decir nada para no complicarme.", pts: 0 },
+      { txt: "Sigo la ruta y lo aviso cuando vuelvo al depósito.", pts: 1 }
+    ]
+  },
+  {
+    key: "r5",
+    titulo: "Pedido extra del cliente",
+    escenario: "Un cliente te pide en el momento dos cajas más de papel que llevás en la camioneta para otro cliente, y te ofrece pagarte en efectivo.",
+    pregunta: "¿Cómo respondés?",
+    opciones: [
+      { txt: "Se las doy y cobro; después veo cómo lo arreglo con el otro cliente.", pts: 0 },
+      { txt: "Le explico que esa mercadería ya está asignada, le tomo el pedido y lo paso a la oficina para que se lo agenden.", pts: 3 },
+      { txt: "Le digo que no puedo y sigo, sin tomar el pedido.", pts: 1 },
+      { txt: "Llamo a la oficina para consultar si puedo dárselas.", pts: 2 }
+    ]
+  },
+  {
+    key: "r6",
+    titulo: "Antes de salir",
+    escenario: "Al arrancar la camioneta se enciende una luz de advertencia en el tablero que ayer no estaba.",
+    pregunta: "¿Qué hacés?",
+    opciones: [
+      { txt: "Salgo igual; si anda, después se ve.", pts: 0 },
+      { txt: "Reviso lo básico (aceite, agua, neumáticos), aviso al responsable y consulto si es seguro salir antes de cargar la ruta.", pts: 3 },
+      { txt: "Aviso y espero sin hacer nada hasta que alguien lo revise.", pts: 2 },
+      { txt: "Salgo y lo comento al final del día.", pts: 1 }
+    ]
+  }
+];
+
+const TESTS = {
+  vendedor: {
+    etiqueta: "Selección comercial · Test situacional",
+    rol: "un vendedor",
+    escenarios: ESCENARIOS_VENDEDOR
+  },
+  repartidor: {
+    etiqueta: "Selección de repartidores · Test situacional",
+    rol: "un repartidor",
+    escenarios: ESCENARIOS_REPARTIDOR
+  }
+};
+const TEST = TESTS[new URLSearchParams(location.search).get('tipo')] || TESTS.vendedor;
+// Las opciones se muestran en orden aleatorio para que la mejor no quede siempre en la misma letra
+function mezclar(lista){
+  const copia = [...lista];
+  for(let i = copia.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+  }
+  return copia;
+}
+const ESCENARIOS = TEST.escenarios.map(e => ({ ...e, opciones: mezclar(e.opciones) }));
+document.querySelector('.tag').textContent = TEST.etiqueta;
+
 let step = 0; // 0 = intro, 1..N = escenarios, N+1 = agradecimiento
 const TOTAL_STEPS = ESCENARIOS.length + 2;
 let candidato = { nombre: "" };
@@ -198,8 +299,8 @@ function renderIntro(){
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="eyebrow">Test situacional</div>
-    <h1>Situaciones del día a día como vendedor</h1>
-    <p class="desc">Vas a ver ${ESCENARIOS.length} situaciones que pueden pasar en el trabajo diario de un vendedor
+    <h1>Situaciones del día a día como ${TEST.rol.replace(/^un /, '')}</h1>
+    <p class="desc">Vas a ver ${ESCENARIOS.length} situaciones que pueden pasar en el trabajo diario de ${TEST.rol}
     de Segulimp. Elegí la opción que más se acerca a lo que realmente harías, no la que te parece "la respuesta correcta".
     No hay límite de tiempo.</p>
     <label for="nombre">Nombre y apellido</label>
