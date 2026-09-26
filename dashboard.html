@@ -65,6 +65,9 @@
   .tier-no{background:var(--low-bg); color:var(--low);}
   .tier-revisar{background:var(--mid-bg); color:var(--mid);}
 
+  .test-envio{display:inline-flex; gap:4px; align-items:center;}
+  select.test-select{padding:5px 6px; border-radius:6px; border:1px solid #BFE3CC; font-size:12px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink);}
+  .test-info{font-size:12px; color:var(--ink-soft); margin-top:6px;}
   select.etapa-select{padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-size:12.5px; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); max-width:180px;}
 
   .actions{display:flex; gap:6px; flex-wrap:wrap;}
@@ -183,14 +186,30 @@ const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
 // Link del test situacional (una vez publicado). Se usa en el botón "Enviar test".
 const TEST_LINK = "https://segulimp-talent.vercel.app/test.html";
-// Test por puesto (test.html?tipo=...). Los puestos que no figuran usan el test de ventas.
+// Tests situacionales disponibles (test.html?tipo=...; ver TESTS en test.html)
+const TESTS = { vendedor: 'Vendedor', repartidor: 'Repartidor' };
+// Test que se propone por defecto según el puesto; se puede cambiar antes de enviarlo
 const TEST_POR_PUESTO = { 'Repartidor': 'repartidor' };
 // Respuestas del formulario que significan "no cumple el requisito" (ver CONFIG_PUESTOS en index.html)
 const RESPUESTAS_NO_CUMPLE = ['No', 'No tengo', 'No tengo experiencia'];
 
-function linkTest(puestoNombre){
-  const tipo = TEST_POR_PUESTO[puestoNombre];
-  return tipo ? `${TEST_LINK}?tipo=${tipo}` : TEST_LINK;
+function tipoTestPorDefecto(c, puestoNombre){
+  if(TESTS[c.test_tipo]) return c.test_tipo;
+  return TEST_POR_PUESTO[puestoNombre] || 'vendedor';
+}
+
+function linkWhatsappTest(c, tipo){
+  return linkWhatsapp(c, `Hola ${c.nombre.split(' ')[0]}! Fuiste seleccionado/a para la siguiente etapa del proceso de Segulimp: un breve test situacional. Podés completarlo acá: ${TEST_LINK}?tipo=${tipo}`);
+}
+
+function htmlTest(c){
+  const nombreTest = TESTS[c.test_tipo] || '';
+  if(c.puntaje_test !== null && c.puntaje_test !== undefined){
+    return `<div class="test-info">Test${nombreTest ? ' ' + esc(nombreTest) : ''}: <strong>${esc(c.puntaje_test)}/18</strong>
+      <span class="tier-pill ${tierPillClass(c.tier_test)}">${esc(c.tier_test || '')}</span></div>`;
+  }
+  if(nombreTest && c.etapa === 'Test enviado') return `<div class="test-info">Test enviado: ${esc(nombreTest)}</div>`;
+  return '';
 }
 
 function htmlRequisitos(req){
@@ -367,7 +386,8 @@ function renderTabla(){
   tbody.innerHTML = filtrados.map(c => {
     const waLink = linkWhatsapp(c, `Hola ${c.nombre.split(' ')[0]}! Te escribimos de Segulimp por tu postulación.`);
     const puestoNombre = c.puestos ? c.puestos.nombre : '';
-    const waTestLink = linkWhatsapp(c, `Hola ${c.nombre.split(' ')[0]}! Fuiste seleccionado/a para la siguiente etapa del proceso de Segulimp: un breve test situacional. Podés completarlo acá: ${linkTest(puestoNombre)}`);
+    const tipoTest = tipoTestPorDefecto(c, puestoNombre);
+    const waTestLink = linkWhatsappTest(c, tipoTest);
     const calLink = linkCalendar(c);
     const id = Number(c.id);
     const rutaCv = rutaCvStorage(c.cv_url);
@@ -396,11 +416,18 @@ function renderTabla(){
         <select class="etapa-select" onchange="cambiarEtapa(${id}, this.value)" ${puedeEditar ? '' : 'disabled'}>
           ${ETAPAS.map(e => `<option value="${e}" ${e === c.etapa ? 'selected' : ''}>${e}</option>`).join('')}
         </select>
+        ${htmlTest(c)}
       </td>
       <td data-label="Acciones">
         <div class="actions">
           ${waLink ? `<a class="btn-icon wa" href="${esc(waLink)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
-          ${puedeEditar && waTestLink ? `<a class="btn-icon wa" href="${esc(waTestLink)}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${id})">Enviar test</a>` : ''}
+          ${puedeEditar && waTestLink ? `
+            <span class="test-envio">
+              <select class="test-select" data-id="${id}" title="Test a enviar">
+                ${Object.entries(TESTS).map(([tipo, nombre]) => `<option value="${tipo}" ${tipo === tipoTest ? 'selected' : ''}>Test ${nombre}</option>`).join('')}
+              </select>
+              <a class="btn-icon wa" data-test-link="${id}" href="${esc(waTestLink)}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${id})">Enviar test</a>
+            </span>` : ''}
           ${puedeEditar ? `<a class="btn-icon cal" href="${esc(calLink)}" target="_blank" rel="noopener" onclick="marcarEntrevistaAgendada(${id})">Agendar entrevista</a>` : ''}
         </div>
       </td>
@@ -420,12 +447,15 @@ async function cambiarEtapa(id, nuevaEtapa){
 
 async function marcarTestEnviado(id){
   const c = candidatos.find(c => c.id === id);
+  const sel = document.querySelector(`select.test-select[data-id="${id}"]`);
+  const tipo = sel && TESTS[sel.value] ? sel.value : 'vendedor';
   if(c && c.etapa !== 'Test completado' && c.etapa !== 'Contratado'){
-    await supabase.from('candidatos').update({ etapa: 'Test enviado' }).eq('id', id);
+    await supabase.from('candidatos').update({ etapa: 'Test enviado', test_tipo: tipo }).eq('id', id);
     c.etapa = 'Test enviado';
+    c.test_tipo = tipo;
     renderFunnel();
     renderTabla();
-    toast('Marcado como "Test enviado"');
+    toast(`Marcado como "Test enviado" (${TESTS[tipo]})`);
   }
 }
 
@@ -442,6 +472,15 @@ async function marcarEntrevistaAgendada(id){
 
 document.getElementById('search').addEventListener('input', renderTabla);
 document.getElementById('filterEtapa').addEventListener('change', renderTabla);
+// Al elegir otro test, el botón "Enviar test" pasa a mandar ese link
+document.getElementById('tbody').addEventListener('change', e => {
+  const sel = e.target.closest('select.test-select');
+  if(!sel) return;
+  const c = candidatos.find(x => String(x.id) === sel.dataset.id);
+  const link = document.querySelector(`a[data-test-link="${sel.dataset.id}"]`);
+  if(c && link && TESTS[sel.value]) link.href = linkWhatsappTest(c, sel.value);
+});
+
 document.getElementById('tbody').addEventListener('click', e => {
   const link = e.target.closest('a[data-cv]');
   if(!link) return;
