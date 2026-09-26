@@ -1,5 +1,6 @@
 -- Parte 2: cierra el acceso público. Aplicar DESPUÉS de publicar el dashboard con login
--- y de cargar al menos un email en public.equipo.
+-- y de tener al menos un administrador en public.perfiles (migración 003, ya aplicada).
+-- Ver: es_equipo() = administrador, rrhh o consulta. Modificar: puede_editar_talento() = administrador o rrhh.
 
 -- ===== candidatos =====
 drop policy if exists "Acceso total anon a candidatos" on public.candidatos;
@@ -19,16 +20,18 @@ create policy "Cualquiera puede postularse" on public.candidatos
 create policy "Equipo ve candidatos" on public.candidatos
   for select to authenticated using (public.es_equipo());
 create policy "Equipo edita candidatos" on public.candidatos
-  for update to authenticated using (public.es_equipo()) with check (public.es_equipo());
+  for update to authenticated using (public.puede_editar_talento()) with check (public.puede_editar_talento());
 create policy "Equipo borra candidatos" on public.candidatos
-  for delete to authenticated using (public.es_equipo());
+  for delete to authenticated using (public.puede_editar_talento());
 
 -- ===== puestos =====
 drop policy if exists "Acceso total anon a puestos" on public.puestos;
 -- "Lectura pública de puestos activos" se mantiene para el formulario
 
+create policy "Equipo ve puestos" on public.puestos
+  for select to authenticated using (public.es_equipo());
 create policy "Equipo gestiona puestos" on public.puestos
-  for all to authenticated using (public.es_equipo()) with check (public.es_equipo());
+  for all to authenticated using (public.puede_editar_talento()) with check (public.puede_editar_talento());
 
 -- ===== CVs (storage) =====
 update storage.buckets

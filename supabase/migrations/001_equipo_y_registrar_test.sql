@@ -1,4 +1,5 @@
 -- Parte 1 (no rompe nada): lista del equipo con acceso al panel y función del test situacional.
+-- La tabla equipo y es_equipo() fueron reemplazadas por perfiles y roles en la 003.
 
 create table if not exists public.equipo (
   email text primary key check (email = lower(email)),

@@ -119,7 +119,7 @@
 
   <form class="login-card hidden" id="login">
     <h1>Ingresar</h1>
-    <p>Acceso solo para el equipo de Segulimp.</p>
+    <p>Usá el mismo usuario y contraseña del HUB de Segulimp.</p>
     <label for="loginEmail">Email</label>
     <input type="email" id="loginEmail" autocomplete="username" required>
     <label for="loginPassword">Contraseña</label>
@@ -195,6 +195,7 @@ const ETAPAS = [
 let candidatos = [];
 let puestos = [];
 let puestoActivo = "todos";
+let puedeEditar = false; // "Solo consulta" ve el panel sin poder cambiar etapas
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -363,15 +364,15 @@ function renderTabla(){
         <span class="tier-pill ${tierPillClass(c.tier_cv)}">${esc(c.tier_cv || 'Sin evaluar')}</span>
       </td>
       <td data-label="Etapa">
-        <select class="etapa-select" onchange="cambiarEtapa(${id}, this.value)">
+        <select class="etapa-select" onchange="cambiarEtapa(${id}, this.value)" ${puedeEditar ? '' : 'disabled'}>
           ${ETAPAS.map(e => `<option value="${e}" ${e === c.etapa ? 'selected' : ''}>${e}</option>`).join('')}
         </select>
       </td>
       <td data-label="Acciones">
         <div class="actions">
           ${waLink ? `<a class="btn-icon wa" href="${esc(waLink)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
-          ${waTestLink ? `<a class="btn-icon wa" href="${esc(waTestLink)}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${id})">Enviar test</a>` : ''}
-          <a class="btn-icon cal" href="${esc(calLink)}" target="_blank" rel="noopener" onclick="marcarEntrevistaAgendada(${id})">Agendar entrevista</a>
+          ${puedeEditar && waTestLink ? `<a class="btn-icon wa" href="${esc(waTestLink)}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${id})">Enviar test</a>` : ''}
+          ${puedeEditar ? `<a class="btn-icon cal" href="${esc(calLink)}" target="_blank" rel="noopener" onclick="marcarEntrevistaAgendada(${id})">Agendar entrevista</a>` : ''}
         </div>
       </td>
     </tr>
@@ -429,12 +430,16 @@ function mostrarLogin(mensaje){
 }
 
 async function mostrarPanel(session){
-  const { data: esEquipo, error } = await supabase.rpc('es_equipo');
+  const [{ data: esEquipo, error }, { data: editar }] = await Promise.all([
+    supabase.rpc('es_equipo'),
+    supabase.rpc('puede_editar_talento')
+  ]);
   if(error || !esEquipo){
     await supabase.auth.signOut();
     mostrarLogin('Tu usuario no tiene acceso a este panel.');
     return;
   }
+  puedeEditar = !!editar;
   document.getElementById('login').classList.add('hidden');
   document.getElementById('sessionEmail').textContent = session.user.email;
   document.getElementById('session').classList.remove('hidden');
