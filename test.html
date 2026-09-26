@@ -274,20 +274,14 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 async function enviarResultados(r){
   try{
-    const { data: existentes } = await supabase
-      .from('candidatos')
-      .select('id')
-      .ilike('nombre', candidato.nombre.trim())
-      .limit(1);
-
-    if(existentes && existentes.length){
-      await supabase.from('candidatos').update({
-        puntaje_test: r.total,
-        tier_test: r.tier,
-        detalle_test: r.detalle.map(d => d.titulo + ": " + d.pts + "/3").join(" | "),
-        etapa: 'Test completado'
-      }).eq('id', existentes[0].id);
-    }
+    // La función de la base busca al candidato por nombre y guarda solo el resultado del test
+    const { error } = await supabase.rpc('registrar_test', {
+      p_nombre: candidato.nombre.trim(),
+      p_puntaje: r.total,
+      p_tier: r.tier,
+      p_detalle: r.detalle.map(d => d.titulo + ": " + d.pts + "/3").join(" | ")
+    });
+    if(error) throw error;
   } catch(err){
     console.error("No se pudo guardar el resultado del test:", err);
   }
