@@ -43,6 +43,11 @@
   .btn-primary:hover{background:var(--brand-dark);}
   .btn-primary:disabled{background:var(--paper-2); color:var(--ink-soft); cursor:not-allowed;}
   .error-box{background:#FBEAE4; border:1px solid var(--low); color:#9A3320; padding:12px 14px; border-radius:6px; font-size:13.5px; margin-top:14px;}
+  fieldset.pregunta{border:none; padding:0; margin:16px 0 0;}
+  fieldset.pregunta legend{font-size:13px; font-weight:600; margin-bottom:6px; padding:0;}
+  label.opcion{display:flex; align-items:center; gap:10px; margin:0 0 6px; padding:10px 12px; border:1px solid var(--line); border-radius:6px; font-weight:500; font-size:14.5px; cursor:pointer;}
+  label.opcion:has(input:checked){border-color:var(--brand); background:#EAF3FA;}
+  label.opcion input{margin:0; accent-color:var(--brand);}
   .thanks{text-align:center; padding:20px 0;}
   .thanks .icon{
     width:64px; height:64px; border-radius:50%; background:var(--brand); color:#fff;
@@ -71,17 +76,74 @@ const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+
+// Preguntas de requisitos por puesto (por nombre del puesto en la base).
+// "noCumple": respuestas que el dashboard marca como requisito no cumplido.
+const CONFIG_PUESTOS = {
+  'Repartidor': {
+    cvOpcional: true,
+    preguntas: [
+      { id: 'secundario', txt: '¿Tenés el secundario completo?', opciones: ['Sí', 'No'], noCumple: ['No'] },
+      { id: 'licencia', txt: '¿Tenés licencia de conducir vigente?',
+        opciones: ['Sí, auto (B1)', 'Sí, camioneta o utilitario (B2)', 'Sí, profesional (C o superior)', 'No tengo'], noCumple: ['No tengo'] },
+      { id: 'experiencia', txt: '¿Tenés experiencia como repartidor o chofer?',
+        opciones: ['Más de 3 años', 'Entre 1 y 3 años', 'Menos de 1 año', 'No tengo experiencia'], noCumple: ['No tengo experiencia'] },
+      { id: 'antecedentes', txt: '¿Podés presentar certificado de antecedentes penales?',
+        opciones: ['Sí, ya lo tengo', 'Sí, puedo tramitarlo', 'No'], noCumple: ['No'] },
+      { id: 'zona', txt: '¿Qué zonas, barrios o localidades conocés bien para moverte?', abierta: true,
+        placeholder: 'Ej: centro, zona norte, localidades cercanas…' }
+    ]
+  }
+};
+
 let puestos = [];
+let puestoId = null;
 let archivo = null;
-let enviando = false;
-let error = null;
 let enviado = false;
+const valores = {}; // lo que ya escribió la persona, para no perderlo al cambiar de puesto
+
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function configPuesto(){
+  const p = puestos.find(x => String(x.id) === String(puestoId));
+  return (p && CONFIG_PUESTOS[p.nombre]) || { cvOpcional: false, preguntas: [] };
+}
 
 async function cargarPuestos(){
   const { data, error: err } = await supabase.from('puestos').select('*').eq('activo', true).order('nombre');
   if(err){ console.error(err); puestos = []; }
   else puestos = data || [];
+  if(puestos.length) puestoId = puestos[0].id;
   render();
+}
+
+function guardarValores(){
+  document.querySelectorAll('#app [data-campo]').forEach(el => {
+    if(el.type === 'radio'){ if(el.checked) valores[el.name] = el.value; }
+    else valores[el.dataset.campo] = el.value;
+  });
+}
+
+function htmlPregunta(q){
+  if(q.abierta){
+    return `
+      <label for="q_${q.id}">${esc(q.txt)}</label>
+      <input type="text" id="q_${q.id}" data-campo="q_${q.id}" placeholder="${esc(q.placeholder || '')}" value="${esc(valores['q_' + q.id])}">
+    `;
+  }
+  return `
+    <fieldset class="pregunta">
+      <legend>${esc(q.txt)}</legend>
+      ${q.opciones.map(op => `
+        <label class="opcion">
+          <input type="radio" name="q_${q.id}" data-campo="q_${q.id}" value="${esc(op)}" ${valores['q_' + q.id] === op ? 'checked' : ''}>
+          ${esc(op)}
+        </label>
+      `).join('')}
+    </fieldset>
+  `;
 }
 
 function render(){
@@ -92,7 +154,7 @@ function render(){
         <div class="icon">✓</div>
         <h2>¡Postulación recibida!</h2>
         <p>Gracias por tu interés en Segulimp. Vamos a revisar tu perfil y nos vamos a contactar
-        con vos si tu CV avanza a la siguiente etapa del proceso.</p>
+        con vos si avanzás a la siguiente etapa del proceso.</p>
       </div>
     `;
     return;
@@ -103,36 +165,44 @@ function render(){
     return;
   }
 
+  const cfg = configPuesto();
+
   app.innerHTML = `
     <h1>Postulate a Segulimp</h1>
-    <p class="desc">Completá tus datos y subí tu CV. En unos días te contactamos si tu perfil avanza en el proceso.</p>
+    <p class="desc">Completá tus datos${cfg.cvOpcional ? '' : ' y subí tu CV'}. En unos días te contactamos si tu perfil avanza en el proceso.</p>
 
     <label for="puesto">Puesto al que te postulás</label>
     <select id="puesto">
-      ${puestos.map(p => `<option value="${p.id}">${p.nombre}</option>`).join('')}
+      ${puestos.map(p => `<option value="${p.id}" ${String(p.id) === String(puestoId) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}
     </select>
 
     <label for="nombre">Nombre y apellido</label>
-    <input type="text" id="nombre" placeholder="Ej: Ana Pérez" required>
+    <input type="text" id="nombre" data-campo="nombre" placeholder="Ej: Ana Pérez" value="${esc(valores.nombre)}" required>
 
     <label for="telefono">Teléfono (WhatsApp)</label>
-    <input type="tel" id="telefono" placeholder="Ej: 299 5551234" required>
+    <input type="tel" id="telefono" data-campo="telefono" placeholder="Ej: 299 5551234" value="${esc(valores.telefono)}" required>
 
     <label for="email">Email</label>
-    <input type="email" id="email" placeholder="tu@email.com" required>
+    <input type="email" id="email" data-campo="email" placeholder="tu@email.com" value="${esc(valores.email)}" required>
 
-    <label>Tu CV (PDF o Word)</label>
-    <div class="file-drop" id="fileDrop">
-      <span id="fileDropText">Hacé click para elegir el archivo, o arrastralo acá</span>
+    ${cfg.preguntas.map(htmlPregunta).join('')}
+
+    <label>Tu CV (PDF o Word)${cfg.cvOpcional ? ' — opcional' : ''}</label>
+    <div class="file-drop ${archivo ? 'has-file' : ''}" id="fileDrop">
+      <span id="fileDropText">${archivo ? esc(archivo.name) : 'Hacé click para elegir el archivo, o arrastralo acá'}</span>
       <input type="file" id="cvFile" accept=".pdf,.doc,.docx">
     </div>
 
-    ${error ? `<div class="error-box">${error}</div>` : ''}
+    <div class="error-box" id="errorBox" hidden></div>
 
-    <button class="btn-primary" id="btnEnviar" ${enviando ? 'disabled' : ''}>
-      ${enviando ? 'Enviando…' : 'Enviar postulación'}
-    </button>
+    <button class="btn-primary" id="btnEnviar">Enviar postulación</button>
   `;
+
+  document.getElementById('puesto').onchange = e => {
+    guardarValores();
+    puestoId = e.target.value;
+    render();
+  };
 
   const drop = document.getElementById('fileDrop');
   const fileInput = document.getElementById('cvFile');
@@ -160,53 +230,69 @@ function render(){
   document.getElementById('btnEnviar').onclick = enviarPostulacion;
 }
 
+function mostrarError(msg){
+  const box = document.getElementById('errorBox');
+  box.textContent = msg;
+  box.hidden = false;
+}
+
 async function enviarPostulacion(){
-  const puestoId = document.getElementById('puesto').value;
-  const nombre = document.getElementById('nombre').value.trim();
-  const telefono = document.getElementById('telefono').value.trim();
-  const email = document.getElementById('email').value.trim();
+  guardarValores();
+  const cfg = configPuesto();
+  const nombre = (valores.nombre || '').trim();
+  const telefono = (valores.telefono || '').trim();
+  const email = (valores.email || '').trim();
 
-  error = null;
+  document.getElementById('errorBox').hidden = true;
   if(!nombre || !telefono || !email){
-    error = "Completá nombre, teléfono y email.";
-    render();
-    return;
-  }
-  if(!archivo){
-    error = "Subí tu CV antes de enviar.";
-    render();
+    mostrarError("Completá nombre, teléfono y email.");
     return;
   }
 
-  enviando = true;
-  render();
+  const requisitos = {};
+  for(const q of cfg.preguntas){
+    const r = (valores['q_' + q.id] || '').trim();
+    if(!r){ mostrarError(`Respondé: ${q.txt}`); return; }
+    requisitos[q.txt] = r.slice(0, 300);
+  }
+
+  if(!archivo && !cfg.cvOpcional){
+    mostrarError("Subí tu CV antes de enviar.");
+    return;
+  }
+
+  const btn = document.getElementById('btnEnviar');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
 
   try{
-    const ext = archivo.name.split('.').pop();
-    const path = `${Date.now()}_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
-
-    const { error: uploadErr } = await supabase.storage.from('cvs').upload(path, archivo);
-    if(uploadErr) throw uploadErr;
-
-    const { data: urlData } = supabase.storage.from('cvs').getPublicUrl(path);
-    const cvUrl = urlData.publicUrl;
+    let cvUrl = null;
+    if(archivo){
+      const ext = archivo.name.split('.').pop();
+      const path = `${Date.now()}_${nombre.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from('cvs').upload(path, archivo);
+      if(uploadErr) throw uploadErr;
+      cvUrl = supabase.storage.from('cvs').getPublicUrl(path).data.publicUrl;
+    }
 
     const { error: insertErr } = await supabase.from('candidatos').insert({
       puesto_id: puestoId,
       nombre, telefono, email,
       cv_url: cvUrl,
+      requisitos: cfg.preguntas.length ? requisitos : null,
       etapa: 'CV recibido'
     });
     if(insertErr) throw insertErr;
 
     enviado = true;
-    enviando = false;
     render();
   } catch(err){
     console.error(err);
-    error = "No se pudo enviar la postulación. Intentá de nuevo en unos minutos.";
-    enviando = false;
-    render();
+    mostrarError(/mime|size|large/i.test(err.message || '')
+      ? "El CV tiene que ser PDF o Word y pesar menos de 10 MB."
+      : "No se pudo enviar la postulación. Intentá de nuevo en unos minutos.");
+    btn.disabled = false;
+    btn.textContent = 'Enviar postulación';
   }
 }
 
