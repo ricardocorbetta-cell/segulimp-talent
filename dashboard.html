@@ -82,6 +82,18 @@
   }
   .toast.show{opacity:1;}
 
+  header .session{margin-left:auto; display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--ink-soft);}
+  .hidden{display:none !important;}
+
+  .login-card{max-width:380px; margin:40px auto; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:28px;}
+  .login-card h1{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; color:var(--brand-dark); margin:0 0 6px;}
+  .login-card p{font-size:13.5px; color:var(--ink-soft); margin:0 0 18px;}
+  .login-card label{display:block; font-size:12.5px; font-weight:600; margin:12px 0 5px;}
+  .login-card input{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;}
+  .login-card .btn-primary{width:100%; margin-top:18px; padding:11px; border:none; border-radius:8px; background:var(--brand); color:#fff; font-weight:600; font-size:14px; cursor:pointer;}
+  .login-card .btn-primary:disabled{opacity:.6; cursor:default;}
+  .login-error{margin-top:12px; font-size:13px; color:#B3372F;}
+
   @media (max-width:720px){
     table, thead, tbody, th, td, tr{display:block;}
     thead{display:none;}
@@ -99,8 +111,24 @@
       <div class="name">Segulimp</div>
       <div class="tag">Seguimiento del proceso de selección</div>
     </div>
+    <div class="session hidden" id="session">
+      <span id="sessionEmail"></span>
+      <button class="btn-icon" id="btnLogout" type="button">Salir</button>
+    </div>
   </header>
 
+  <form class="login-card hidden" id="login">
+    <h1>Ingresar</h1>
+    <p>Usá el mismo usuario y contraseña del HUB de Segulimp.</p>
+    <label for="loginEmail">Email</label>
+    <input type="email" id="loginEmail" autocomplete="username" required>
+    <label for="loginPassword">Contraseña</label>
+    <input type="password" id="loginPassword" autocomplete="current-password" required>
+    <button class="btn-primary" id="btnLogin" type="submit">Ingresar</button>
+    <div class="login-error" id="loginError"></div>
+  </form>
+
+  <div id="panel" class="hidden">
   <div class="puesto-tabs" id="puestoTabs"></div>
 
   <div class="funnel" id="funnel"></div>
@@ -137,6 +165,7 @@
       </tbody>
     </table>
   </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -166,12 +195,43 @@ const ETAPAS = [
 let candidatos = [];
 let puestos = [];
 let puestoActivo = "todos";
+let puedeEditar = false; // "Solo consulta" ve el panel sin poder cambiar etapas
 
 function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Los datos vienen del formulario público: todo texto se escapa antes de ir al HTML
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function urlSegura(u){
+  return /^https?:\/\//i.test(u || '') ? u : '';
+}
+
+// Los CV subidos por el formulario están en el bucket privado "cvs": se abren con un link temporal
+const CV_PREFIJO = '/storage/v1/object/public/cvs/';
+function rutaCvStorage(url){
+  const i = (url || '').indexOf(CV_PREFIJO);
+  return i === -1 ? null : decodeURIComponent(url.slice(i + CV_PREFIJO.length));
+}
+
+async function abrirCv(ruta){
+  const ventana = window.open('', '_blank');
+  if(ventana) ventana.opener = null;
+  const { data, error } = await supabase.storage.from('cvs').createSignedUrl(ruta, 300);
+  if(error || !data){
+    if(ventana) ventana.close();
+    toast('No se pudo abrir el CV.');
+    console.error(error);
+    return;
+  }
+  if(ventana) ventana.location = data.signedUrl;
+  else window.location = data.signedUrl;
 }
 
 function tierPillClass(tier){
@@ -213,7 +273,7 @@ async function cargarDatos(){
 
   if(cErr || pErr){
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="5" class="empty">No se pudo conectar con la base de datos.<br>Revisá la configuración de Supabase en el código.</td></tr>`;
+      `<tr><td colspan="5" class="empty">No se pudo conectar con la base de datos.<br>Probá recargar la página en unos minutos.</td></tr>`;
     console.error(cErr || pErr);
     return;
   }
@@ -233,7 +293,7 @@ function renderPuestoTabs(){
   const el = document.getElementById('puestoTabs');
   el.innerHTML = `
     <div class="puesto-tab ${puestoActivo === 'todos' ? 'active' : ''}" data-id="todos">Todos los puestos</div>
-    ${puestos.map(p => `<div class="puesto-tab ${String(puestoActivo) === String(p.id) ? 'active' : ''}" data-id="${p.id}">${p.nombre}</div>`).join('')}
+    ${puestos.map(p => `<div class="puesto-tab ${String(puestoActivo) === String(p.id) ? 'active' : ''}" data-id="${esc(p.id)}">${esc(p.nombre)}</div>`).join('')}
   `;
   el.querySelectorAll('.puesto-tab').forEach(tab => {
     tab.onclick = () => {
@@ -281,32 +341,38 @@ function renderTabla(){
     const waTestLink = linkWhatsapp(c, `Hola ${c.nombre.split(' ')[0]}! Fuiste seleccionado/a para la siguiente etapa del proceso de Segulimp: un breve test situacional. Podés completarlo acá: ${TEST_LINK}`);
     const calLink = linkCalendar(c);
     const puestoNombre = c.puestos ? c.puestos.nombre : '';
+    const id = Number(c.id);
+    const rutaCv = rutaCvStorage(c.cv_url);
+    const cvExterno = rutaCv ? '' : urlSegura(c.cv_url);
+    let cvHtml = '';
+    if(rutaCv) cvHtml = `<br><a class="cv-link" href="#" data-cv="${esc(rutaCv)}">Ver CV</a>`;
+    else if(cvExterno) cvHtml = `<br><a class="cv-link" href="${esc(cvExterno)}" target="_blank" rel="noopener">Ver CV</a>`;
 
     return `
-    <tr data-id="${c.id}">
+    <tr data-id="${id}">
       <td data-label="Candidato" class="name-cell">
-        ${c.nombre}
-        ${puestoNombre ? `<span class="puesto-badge">${puestoNombre}</span>` : ''}
-        ${c.motivo_cv ? `<div class="motivo-text">${c.motivo_cv}</div>` : ''}
+        ${esc(c.nombre)}
+        ${puestoNombre ? `<span class="puesto-badge">${esc(puestoNombre)}</span>` : ''}
+        ${c.motivo_cv ? `<div class="motivo-text">${esc(c.motivo_cv)}</div>` : ''}
       </td>
       <td data-label="Contacto" class="contact-cell">
-        ${c.telefono || '—'}<br>${c.email || ''}
-        ${c.cv_url ? `<br><a class="cv-link" href="${c.cv_url}" target="_blank" rel="noopener">Ver CV</a>` : ''}
+        ${esc(c.telefono || '—')}<br>${esc(c.email)}
+        ${cvHtml}
       </td>
       <td data-label="Puntaje CV">
-        <span class="score">${c.puntaje_cv ?? '—'}</span>
-        <span class="tier-pill ${tierPillClass(c.tier_cv)}">${c.tier_cv || 'Sin evaluar'}</span>
+        <span class="score">${esc(c.puntaje_cv ?? '—')}</span>
+        <span class="tier-pill ${tierPillClass(c.tier_cv)}">${esc(c.tier_cv || 'Sin evaluar')}</span>
       </td>
       <td data-label="Etapa">
-        <select class="etapa-select" onchange="cambiarEtapa(${c.id}, this.value)">
+        <select class="etapa-select" onchange="cambiarEtapa(${id}, this.value)" ${puedeEditar ? '' : 'disabled'}>
           ${ETAPAS.map(e => `<option value="${e}" ${e === c.etapa ? 'selected' : ''}>${e}</option>`).join('')}
         </select>
       </td>
       <td data-label="Acciones">
         <div class="actions">
-          ${waLink ? `<a class="btn-icon wa" href="${waLink}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
-          ${waTestLink ? `<a class="btn-icon wa" href="${waTestLink}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${c.id})">Enviar test</a>` : ''}
-          <a class="btn-icon cal" href="${calLink}" target="_blank" rel="noopener" onclick="marcarEntrevistaAgendada(${c.id})">Agendar entrevista</a>
+          ${waLink ? `<a class="btn-icon wa" href="${esc(waLink)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+          ${puedeEditar && waTestLink ? `<a class="btn-icon wa" href="${esc(waTestLink)}" target="_blank" rel="noopener" onclick="marcarTestEnviado(${id})">Enviar test</a>` : ''}
+          ${puedeEditar ? `<a class="btn-icon cal" href="${esc(calLink)}" target="_blank" rel="noopener" onclick="marcarEntrevistaAgendada(${id})">Agendar entrevista</a>` : ''}
         </div>
       </td>
     </tr>
@@ -347,8 +413,69 @@ async function marcarEntrevistaAgendada(id){
 
 document.getElementById('search').addEventListener('input', renderTabla);
 document.getElementById('filterEtapa').addEventListener('change', renderTabla);
+document.getElementById('tbody').addEventListener('click', e => {
+  const link = e.target.closest('a[data-cv]');
+  if(!link) return;
+  e.preventDefault();
+  abrirCv(link.dataset.cv);
+});
 
-cargarDatos();
+// ====== ACCESO ======
+function mostrarLogin(mensaje){
+  document.getElementById('panel').classList.add('hidden');
+  document.getElementById('session').classList.add('hidden');
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('loginError').textContent = mensaje || '';
+  document.getElementById('btnLogin').disabled = false;
+}
+
+async function mostrarPanel(session){
+  const [{ data: esEquipo, error }, { data: editar }] = await Promise.all([
+    supabase.rpc('es_equipo'),
+    supabase.rpc('puede_editar_talento')
+  ]);
+  if(error || !esEquipo){
+    await supabase.auth.signOut();
+    mostrarLogin('Tu usuario no tiene acceso a este panel.');
+    return;
+  }
+  puedeEditar = !!editar;
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('sessionEmail').textContent = session.user.email;
+  document.getElementById('session').classList.remove('hidden');
+  document.getElementById('panel').classList.remove('hidden');
+  cargarDatos();
+}
+
+document.getElementById('login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  btn.disabled = true;
+  document.getElementById('loginError').textContent = '';
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: document.getElementById('loginEmail').value.trim(),
+    password: document.getElementById('loginPassword').value
+  });
+  if(error){
+    mostrarLogin('Email o contraseña incorrectos.');
+    return;
+  }
+  document.getElementById('loginPassword').value = '';
+  mostrarPanel(data.session);
+});
+
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  candidatos = [];
+  puestos = [];
+  document.getElementById('tbody').innerHTML = '';
+  mostrarLogin();
+});
+
+supabase.auth.getSession().then(({ data }) => {
+  if(data.session) mostrarPanel(data.session);
+  else mostrarLogin();
+});
 
 // Exponemos solo lo que necesitan los botones onclick del HTML generado
 window.cambiarEtapa = cambiarEtapa;
