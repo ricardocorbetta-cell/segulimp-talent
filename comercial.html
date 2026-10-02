@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<!-- Seguimiento Comercial · Segulimp Hub · v1.1 (2026-10-01) -->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento Comercial — Segulimp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#182A38; --ink-soft:#4C6070;
+    --paper:#EAF2F7; --paper-2:#D3E3EC; --card:#FFFFFF;
+    --brand:#245B84; --brand-dark:#163C58; --brand-light:#7EC1E0;
+    --line:#C7D8E2;
+    --good:#3F8F5D; --good-bg:#E6F4EB;
+    --mid:#D89B2E; --mid-bg:#FBF1DD;
+    --low:#8C97A0; --low-bg:#EEF2F5;
+    --bad:#B3372F; --bad-bg:#FBE9E7;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px; margin:0 auto; padding:24px 20px 60px;}
+  header{display:flex; align-items:center; gap:14px; margin-bottom:20px; border-bottom:3px solid var(--brand); padding-bottom:16px;}
+  header img{height:52px; width:52px; border-radius:50%; flex:none;}
+  header .name{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:28px; color:var(--brand-dark); text-transform:uppercase; line-height:1;}
+  header .tag{font-size:13.5px; color:var(--ink-soft); margin-top:4px;}
+  header .session{margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end; font-size:13px; color:var(--ink-soft);}
+  header .session #sessionNombre{font-weight:600; color:var(--ink);}
+  .link-btn{background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--brand); cursor:pointer; text-decoration:none;}
+  .link-btn:hover{color:var(--brand-dark); text-decoration:underline;}
+  .hidden{display:none !important;}
+
+  .tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px;}
+  .tabs button{padding:9px 16px; border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;}
+  .tabs button:hover{border-color:var(--brand); color:var(--brand-dark);}
+  .tabs button.active{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .tabs .spacer{flex:1;}
+
+  h2.sec{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; color:var(--brand-dark); text-transform:uppercase; margin:26px 0 4px;}
+  p.sub{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5;}
+  .muted{color:var(--ink-soft); font-size:12.5px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px;}
+
+  /* Tarjetas de indicadores */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:8px;}
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 16px 14px;}
+  .tile .label{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  .tile .value{font-size:28px; font-weight:600; color:var(--ink); line-height:1.15; margin-top:6px;}
+  .tile .value.chico{font-size:22px; line-height:1.45;}
+  .tile .note{font-size:12px; color:var(--ink-soft); margin-top:4px; overflow-wrap:anywhere;}
+  .tile.alerta .value::after{content:''; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--bad); margin-left:8px; vertical-align:middle;}
+
+  /* Barra de avance: relleno de marca sobre pista del mismo tono */
+  .meter{display:flex; align-items:center; gap:8px; min-width:120px;}
+  .meter .track{flex:1; height:8px; border-radius:4px; background:var(--paper-2); overflow:hidden;}
+  .meter .fill{height:100%; border-radius:4px; background:var(--brand);}
+  .meter .pct{font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:600; width:38px; text-align:right;}
+
+  .table-wrap{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; padding:11px 12px; background:var(--paper); color:var(--ink-soft); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em; border-bottom:1px solid var(--line); white-space:nowrap;}
+  thead th.sortable{cursor:pointer;}
+  thead th.sortable:hover{color:var(--brand-dark);}
+  tbody td{padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  table.resumen thead th{white-space:normal; vertical-align:bottom; padding:10px 9px;}
+  table.resumen tbody td{padding:11px 9px;}
+  table.resumen td:first-child{min-width:150px;}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover td{background:#F5F9FC;}
+  tr.sin-vendedor td{background:#FBFCFD; font-style:italic;}
+
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:2px 9px; border-radius:10px; background:var(--low-bg); color:var(--ink); font-size:11.5px; font-weight:600; white-space:nowrap;}
+  .chip::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--low);}
+  .chip.alta{background:var(--bad-bg);} .chip.alta::before{background:var(--bad);}
+  .chip.media{background:var(--mid-bg);} .chip.media::before{background:var(--mid);}
+  .chip.ok{background:var(--good-bg);} .chip.ok::before{background:var(--good);}
+  .chip.plano::before{display:none;}
+  .vencido{color:var(--bad); font-weight:600;}
+
+  .filtros{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;}
+  .filtros input[type=search], .filtros select, .gestion select, .gestion input, select.mini, .form input, .form select{
+    padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px; background:#fff; color:var(--ink);
+  }
+  .filtros input[type=search]{flex:1; min-width:200px;}
+  .presets{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+  .preset{padding:5px 11px; border-radius:14px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer;}
+  .preset:hover{border-color:var(--brand);}
+  .preset.active{background:var(--brand-dark); border-color:var(--brand-dark); color:#fff;}
+  .preset b{font-weight:700; margin-left:4px;}
+  .conteo{font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;}
+
+  .gestion{min-width:230px;}
+  .gestion select{width:100%; margin-bottom:6px;}
+  .gestion .linea{display:flex; gap:6px;}
+  .gestion input{flex:1; min-width:0;}
+  select.mini{padding:4px 6px; font-size:12px; margin-top:6px; max-width:200px;}
+
+  .btn-primary{padding:10px 16px; border:none; border-radius:8px; background:var(--brand); color:#fff; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;}
+  .btn-primary:hover{background:var(--brand-dark);}
+  .btn-primary:disabled{opacity:.45; cursor:default; background:var(--brand);}
+  .btn-primary.small{padding:8px 12px; font-size:12.5px;}
+  .btn-ghost{padding:9px 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap;}
+  .btn-ghost:hover{border-color:var(--brand); color:var(--brand-dark);}
+  .btn-ghost.small{padding:5px 9px; font-size:12px;}
+  .mas{display:block; margin:14px auto 0;}
+
+  .msg-box{padding:12px 16px; border-radius:10px; font-size:13.5px; line-height:1.6; margin-bottom:16px;}
+  .msg-box.ok{background:var(--good-bg); color:#24573A; border:1px solid #BFE3CC;}
+  .msg-box.error{background:var(--bad-bg); color:#8A2C24; border:1px solid #F2C6C0;}
+  .msg-box.info{background:#EAF3FA; color:var(--brand-dark); border:1px solid var(--line);}
+
+  .form-card{max-width:400px; margin:30px auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px;}
+  .form-card h2{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; color:var(--brand-dark); text-transform:uppercase; margin:0 0 6px;}
+  .form-card label{display:block; font-size:12.5px; font-weight:600; margin:14px 0 5px;}
+  .form-card input{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:14px;}
+  .form-card .btn-primary{width:100%; margin-top:20px;}
+  .msg-error{margin-top:12px; font-size:13px; color:var(--bad);}
+
+  .dropzone{border:2px dashed var(--brand-light); border-radius:12px; background:#F5F9FC; padding:34px 20px; text-align:center; color:var(--ink-soft); font-size:14px; cursor:pointer;}
+  .dropzone.dragging, .dropzone:hover{border-color:var(--brand); background:#EAF3FA;}
+  .dropzone strong{color:var(--brand-dark);}
+  .cols{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 12px;}
+  .form{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px;}
+  .form label{font-size:12.5px; font-weight:600;}
+  .progress{height:10px; border-radius:5px; background:var(--paper-2); overflow:hidden; margin-top:10px;}
+  .progress div{height:100%; background:var(--brand); border-radius:5px; transition:width .2s;}
+
+  .feed{list-style:none; margin:0; padding:0;}
+  .feed li{padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px; line-height:1.5;}
+  .feed li:last-child{border-bottom:none;}
+
+  footer{margin-top:40px; font-size:12px; color:var(--ink-soft); text-align:center;}
+
+  @media (max-width:860px){
+    table.apilar, table.apilar thead, table.apilar tbody, table.apilar th, table.apilar td, table.apilar tr{display:block;}
+    table.apilar thead{display:none;}
+    table.apilar tbody tr{border-bottom:1px solid var(--line); padding:12px 14px;}
+    table.apilar tbody tr:last-child{border-bottom:none;}
+    table.apilar tbody td{border:none; padding:4px 0; text-align:left;}
+    table.apilar tbody td[data-label]:not([data-label=""])::before{content:attr(data-label); display:block; font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin-bottom:1px;}
+    table.apilar td.num{text-align:left;}
+    .gestion{min-width:0;}
+    header{flex-wrap:wrap;}
+    header .session{width:100%; justify-content:flex-start; margin-left:0;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img id="logo" alt="Segulimp" class="hidden">
+    <div>
+      <div class="name">Seguimiento Comercial</div>
+      <div class="tag">Fuerza de Ventas · Segulimp Hub</div>
+    </div>
+    <div class="session hidden" id="session">
+      <span id="sessionNombre"></span>
+      <a class="link-btn" href="https://segulimp-hub.vercel.app/">← Volver al Hub</a>
+      <button class="link-btn" id="btnSalir" type="button">Salir</button>
+    </div>
+  </header>
+
+  <div class="tabs hidden" id="tabs"></div>
+  <div id="content"><p class="sub">Cargando…</p></div>
+
+  <footer>Segulimp — Panel interno. No compartir estos links fuera del equipo.</footer>
+</div>
+
+<script>
+(function(){
+const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const XLSX_URL = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+
+const ESTADOS = ['Pendiente', 'En conversación', 'Pausado', 'Ganado', 'Descartado'];
+const POR_PAGINA = 50;
+const TAM_LOTE = 500;
+
+// Estado de la página
+const S = {
+  perfil: null, esAdmin: false, veTodo: false, esComercial: false,
+  plan: [], vendedores: [], snapshots: [], log: [], usuarios: [],
+  misVendedores: new Set(),
+  tab: null, aviso: null,
+  filtros: { q: '', vendedor: '', estado: '', prioridad: '', segmento: '', preset: '', orden: 'prioridad' },
+  mostrar: POR_PAGINA,
+  ordenResumen: { campo: 'n', desc: true },
+  importacion: null
+};
+
+const $ = id => document.getElementById(id);
+const content = () => $('content');
+
+// ====== UTILIDADES ======
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function norm(v){
+  return String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function hoyISO(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function fechaCorta(iso){
+  if(!iso) return '—';
+  const [a, m, d] = String(iso).slice(0, 10).split('-');
+  return `${d}/${m}/${a}`;
+}
+function fechaHora(v){
+  if(!v) return '—';
+  return new Date(v).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+function haceCuanto(ms){
+  if(!ms) return 'Sin gestiones';
+  const dias = Math.floor((Date.now() - ms) / 864e5);
+  if(dias <= 0) return 'Hoy';
+  if(dias === 1) return 'Ayer';
+  return `Hace ${dias} días`;
+}
+const nf = new Intl.NumberFormat('es-AR');
+function num(v){ return v == null ? '—' : nf.format(v); }
+function plata(v){
+  if(v == null) return '—';
+  const n = Number(v), a = Math.abs(n);
+  if(a >= 1e9) return '$' + nf.format(Math.round(n / 1e8) / 10) + ' MM';
+  if(a >= 1e6) return '$' + nf.format(Math.round(n / 1e5) / 10) + ' M';
+  if(a >= 1e3) return '$' + nf.format(Math.round(n / 1e3)) + ' K';
+  return '$' + nf.format(Math.round(n));
+}
+function pct(a, b){ return b ? Math.round(a / b * 100) : 0; }
+
+// ====== REGLAS DE SEGUIMIENTO ======
+function snapsCompletos(){
+  return S.snapshots.filter(s => s.completo).sort((a, b) => a.fecha === b.fecha ? b.id - a.id : (a.fecha < b.fecha ? 1 : -1));
+}
+function snapActual(){ return snapsCompletos()[0] || null; }
+function snapAnterior(){ return snapsCompletos()[1] || null; }
+function vencido(r){ return r.estado === 'Pendiente' && !!r.fecha_objetivo && r.fecha_objetivo < hoyISO(); }
+function altoValor(r){ return /alto|estrat/i.test(r.nivel_valor || ''); }
+function comproDesdeAnterior(r){ const a = snapAnterior(); return !!a && !!r.ultima_compra && r.ultima_compra > a.fecha; }
+function puedeEditar(r){ return S.esAdmin || (S.esComercial && S.misVendedores.has(r.vendedor_id)); }
+
+const PRESETS = [
+  { id: 'vencidos', nombre: 'Objetivo vencido', test: vencido },
+  { id: 'alto', nombre: 'Alto valor sin gestión', test: r => altoValor(r) && r.estado === 'Pendiente' },
+  { id: 'compro', nombre: 'Compraron sin gestión', test: r => comproDesdeAnterior(r) && r.estado === 'Pendiente', requiereAnterior: true },
+  { id: 'ganado', nombre: 'Ganados sin compra', test: r => r.estado === 'Ganado' && !comproDesdeAnterior(r), requiereAnterior: true }
+];
+
+function rangoPrioridad(p){
+  const n = norm(p);
+  if(n.startsWith('alta') || n.startsWith('urg')) return 0;
+  if(n.startsWith('media')) return 1;
+  if(n.startsWith('baja')) return 2;
+  return 3;
+}
+function chipPrioridad(p){
+  if(!p) return '<span class="muted">—</span>';
+  const r = rangoPrioridad(p);
+  return `<span class="chip ${r === 0 ? 'alta' : r === 1 ? 'media' : ''}">${esc(p)}</span>`;
+}
+
+// ====== DATOS ======
+async function traerTodo(tabla, columnas, orden, filtro){
+  const filas = [], paso = 1000;
+  for(let desde = 0; ; desde += paso){
+    let q = sb.from(tabla).select(columnas).order(orden, { ascending: true }).range(desde, desde + paso - 1);
+    if(filtro) q = filtro(q);
+    const { data, error } = await q;
+    if(error) throw error;
+    filas.push(...data);
+    if(data.length < paso) break;
+  }
+  return filas;
+}
+
+async function cargarDatos(){
+  const desde = new Date(Date.now() - 30 * 864e5).toISOString();
+  const [plan, vendedores, snapshots, log] = await Promise.all([
+    traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
+    traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo', 'id'),
+    traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
+    traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde))
+  ]);
+  S.plan = plan; S.vendedores = vendedores; S.snapshots = snapshots; S.log = log;
+  S.misVendedores = new Set(vendedores.filter(v => v.user_id === S.perfil.user_id && v.activo).map(v => v.id));
+  if(S.esAdmin){
+    const { data, error } = await sb.rpc('comercial_usuarios');
+    S.usuarios = error ? [] : (data || []);
+  }
+}
+
+// ====== ACCESO ======
+function renderLogin(mensaje){
+  S.perfil = null;
+  $('session').classList.add('hidden');
+  $('tabs').classList.add('hidden');
+  content().innerHTML = `
+    <form class="form-card" id="formLogin">
+      <h2>Ingresar</h2>
+      <p class="sub">Usá el mismo usuario y contraseña del Hub.</p>
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" autocomplete="username" required>
+      <label for="loginClave">Contraseña</label>
+      <input type="password" id="loginClave" autocomplete="current-password" required>
+      <button class="btn-primary" type="submit">Ingresar</button>
+      <div class="msg-error">${esc(mensaje || '')}</div>
+    </form>`;
+  $('formLogin').onsubmit = async e => {
+    e.preventDefault();
+    e.target.querySelector('button').disabled = true;
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: $('loginEmail').value.trim(),
+      password: $('loginClave').value
+    });
+    if(error){ renderLogin('Email o contraseña incorrectos.'); return; }
+    iniciar(data.session);
+  };
+}
+
+async function iniciar(session){
+  const { data, error } = await sb.from('perfiles')
+    .select('user_id, email, nombre, roles, activo, debe_cambiar_clave')
+    .eq('user_id', session.user.id).maybeSingle();
+  if(error || !data || !data.activo){
+    await sb.auth.signOut();
+    renderLogin('Tu usuario no tiene acceso. Consultá con un administrador.');
+    return;
+  }
+  S.perfil = data;
+  $('session').classList.remove('hidden');
+  $('sessionNombre').textContent = data.nombre;
+  if(data.debe_cambiar_clave){
+    content().innerHTML = `<div class="msg-box info">Antes de seguir tenés que elegir tu contraseña. <a class="link-btn" href="https://segulimp-hub.vercel.app/">Entrá al Hub</a> y volvé a esta herramienta.</div>`;
+    return;
+  }
+  S.esAdmin = data.roles.includes('administrador');
+  S.veTodo = S.esAdmin || data.roles.includes('consulta');
+  S.esComercial = data.roles.includes('comercial');
+  if(!S.veTodo && !S.esComercial){
+    content().innerHTML = `<div class="msg-box info">Tu usuario no tiene acceso a Fuerza de Ventas. Pedile a un administrador el rol Comercial.</div>`;
+    return;
+  }
+  await recargar(S.veTodo ? 'seguimiento' : 'cartera');
+}
+
+async function recargar(tab){
+  content().innerHTML = `<p class="sub">Cargando datos…</p>`;
+  try{
+    await cargarDatos();
+  } catch(e){
+    content().innerHTML = `<div class="msg-box error">No se pudieron cargar los datos: ${esc(e.message || e)}</div>`;
+    return;
+  }
+  ir(tab || S.tab || 'cartera');
+}
+
+// ====== NAVEGACIÓN ======
+function pestanas(){
+  const t = [];
+  if(S.veTodo) t.push(['seguimiento', 'Seguimiento por vendedor']);
+  t.push(['cartera', S.veTodo ? 'Cartera de clientes' : 'Mi plan']);
+  if(S.esAdmin){ t.push(['importar', 'Cargar reporte']); t.push(['vendedores', 'Vendedores']); }
+  return t;
+}
+function ir(tab){
+  if(!pestanas().some(p => p[0] === tab)) tab = pestanas()[0][0];
+  S.tab = tab;
+  const el = $('tabs');
+  el.classList.remove('hidden');
+  el.innerHTML = pestanas().map(([id, nombre]) =>
+    `<button type="button" data-tab="${id}" class="${id === tab ? 'active' : ''}">${nombre}</button>`).join('') +
+    `<span class="spacer"></span><button type="button" data-tab="_recargar">↻ Actualizar</button>`;
+  const aviso = S.aviso ? `<div class="msg-box ${S.aviso.tipo}">${S.aviso.html}</div>` : '';
+  S.aviso = null;
+  if(tab === 'seguimiento') renderSeguimiento(aviso);
+  else if(tab === 'cartera') renderCartera(aviso);
+  else if(tab === 'importar') renderImportar(aviso);
+  else if(tab === 'vendedores') renderVendedores(aviso);
+}
+function sinDatos(aviso){
+  content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">
+    ${S.esAdmin ? 'Todavía no hay ningún reporte cargado. Empezá por <button class="link-btn" data-tab="importar">cargar el primer reporte de ventas</button>.'
+      : (S.veTodo ? 'Todavía no hay reportes cargados.' : (S.misVendedores.size ? 'Todavía no hay clientes en tu cartera.' : 'Tu usuario todavía no está vinculado a una cartera. Pedile a un administrador que lo vincule desde la pestaña Vendedores.'))}
+  </p></div>`;
+}
+
+// ====== SEGUIMIENTO POR VENDEDOR ======
+function resumenVendedores(){
+  const hace7 = Date.now() - 7 * 864e5;
+  const m = new Map();
+  const fila = (id, nombre) => {
+    const k = id ?? 0;
+    if(!m.has(k)) m.set(k, { id: id ?? null, nombre, n: 0, gest: 0, pend: 0, venc: 0, conv: 0, gan: 0, ventas: 0, recompra: 0, g7: 0, ult: 0, vinculado: false });
+    return m.get(k);
+  };
+  const inactivos = new Set(S.vendedores.filter(v => !v.activo).map(v => v.id));
+  const grupo = id => id == null ? null : (inactivos.has(id) ? '_inactivos' : id);
+  for(const v of S.vendedores) if(v.activo){ fila(v.id, v.nombre).vinculado = !!v.user_id; }
+  for(const r of S.plan){
+    const g = grupo(r.vendedor_id);
+    const o = fila(g, g === null ? 'Sin vendedor' : (g === '_inactivos' ? 'Vendedores inactivos' : (r.vendedor || 'Vendedor')));
+    o.n++;
+    o.ventas += Number(r.ventas || 0);
+    if(r.estado === 'Pendiente') o.pend++; else o.gest++;
+    if(r.estado === 'En conversación') o.conv++;
+    if(r.estado === 'Ganado') o.gan++;
+    if(vencido(r)) o.venc++;
+    if(comproDesdeAnterior(r)) o.recompra++;
+    if(r.gestion_actualizada_por && r.gestion_actualizada_en){
+      const t = Date.parse(r.gestion_actualizada_en);
+      if(t > o.ult) o.ult = t;
+    }
+  }
+  for(const l of S.log){
+    const o = m.get(grupo(l.vendedor_id) ?? 0);
+    if(!o) continue;
+    const t = Date.parse(l.creado_en);
+    if(t >= hace7) o.g7++;
+    if(t > o.ult) o.ult = t;
+  }
+  return [...m.values()].filter(o => o.n > 0 || o.vinculado);
+}
+
+function renderSeguimiento(aviso){
+  if(!S.plan.length){ sinDatos(aviso); return; }
+  const filas = resumenVendedores();
+  const total = S.plan.length;
+  const gest = S.plan.filter(r => r.estado !== 'Pendiente').length;
+  const venc = S.plan.filter(vencido).length;
+  const idsInactivos = new Set(S.vendedores.filter(v => !v.activo).map(v => v.id));
+  const sinV = S.plan.filter(r => !r.vendedor_id || idsInactivos.has(r.vendedor_id)).length;
+  const hace7 = Date.now() - 7 * 864e5;
+  const log7 = S.log.filter(l => Date.parse(l.creado_en) >= hace7);
+  const activos7 = new Set(log7.map(l => l.vendedor_id).filter(Boolean)).size;
+  const act = snapActual(), ant = snapAnterior();
+  const recompra = S.plan.filter(comproDesdeAnterior).length;
+
+  const { campo, desc } = S.ordenResumen;
+  const esGrupo = o => o.id === null || o.id === '_inactivos';
+  const conV = filas.filter(o => !esGrupo(o)).sort((a, b) => {
+    const x = campo === 'nombre' ? a.nombre.localeCompare(b.nombre) : (campo === 'pg' ? pct(a.gest, a.n) - pct(b.gest, b.n) : a[campo] - b[campo]);
+    return desc ? -x : x;
+  });
+  const grupos = [filas.find(o => o.id === '_inactivos'), filas.find(o => o.id === null)].filter(o => o && o.n > 0);
+  const th = (c, t, cls) => `<th class="sortable ${cls || ''}" data-orden="${c}">${t}${campo === c ? (desc ? ' ↓' : ' ↑') : ''}</th>`;
+  const tr = o => `
+    <tr class="clickable ${esGrupo(o) ? 'sin-vendedor' : ''}" data-ver-vendedor="${o.id === null ? '_sin' : o.id}">
+      <td data-label="Vendedor"><strong>${esc(o.nombre)}</strong>${esGrupo(o) ? '<div class="muted">Cartera para reasignar</div>' : (!o.vinculado ? '<div class="muted">Sin usuario vinculado</div>' : '')}</td>
+      <td data-label="Clientes" class="num">${num(o.n)}</td>
+      <td data-label="Gestionados"><div class="meter"><div class="track"><div class="fill" style="width:${pct(o.gest, o.n)}%"></div></div><span class="pct">${pct(o.gest, o.n)}%</span></div></td>
+      <td data-label="Pendientes" class="num">${num(o.pend)}</td>
+      <td data-label="Objetivo vencido" class="num">${o.venc ? `<span class="vencido">${num(o.venc)}</span>` : '0'}</td>
+      <td data-label="En conversación" class="num">${num(o.conv)}</td>
+      <td data-label="Ganados" class="num">${num(o.gan)}</td>
+      <td data-label="Gestiones 7 días" class="num">${num(o.g7)}</td>
+      <td data-label="Última gestión">${haceCuanto(o.ult)}</td>
+      ${ant ? `<td data-label="Compraron" class="num">${num(o.recompra)}</td>` : ''}
+      <td data-label="Ventas de la cartera" class="num">${plata(o.ventas)}</td>
+    </tr>`;
+
+  const mapa = new Map(S.plan.map(r => [r.cliente_id, r]));
+  const vend = new Map(S.vendedores.map(v => [v.id, v.nombre]));
+  const feed = [...S.log].sort((a, b) => b.id - a.id).slice(0, 15);
+
+  content().innerHTML = aviso + `
+    <div class="tiles">
+      <div class="tile"><div class="label">Clientes en el plan</div><div class="value">${num(total)}</div><div class="note">${num(sinV)} sin vendedor activo</div></div>
+      <div class="tile"><div class="label">Clientes gestionados</div><div class="value">${pct(gest, total)}%</div><div class="note">${num(gest)} de ${num(total)} con algún avance</div></div>
+      <div class="tile ${venc ? 'alerta' : ''}"><div class="label">Objetivos vencidos</div><div class="value">${num(venc)}</div><div class="note">Pendientes con fecha objetivo pasada</div></div>
+      <div class="tile"><div class="label">Gestiones, últimos 7 días</div><div class="value">${num(log7.length)}</div><div class="note">${activos7} ${activos7 === 1 ? 'cartera con actividad' : 'carteras con actividad'}</div></div>
+      ${ant ? `<div class="tile"><div class="label">Compraron desde el reporte anterior</div><div class="value">${num(recompra)}</div><div class="note">Compras posteriores al ${fechaCorta(ant.fecha)}</div></div>` : ''}
+      <div class="tile"><div class="label">Último reporte cargado</div><div class="value chico">${act ? fechaCorta(act.fecha) : '—'}</div><div class="note">${act ? esc(act.fuente || '') : ''}</div></div>
+    </div>
+
+    <h2 class="sec">Avance por vendedor</h2>
+    <p class="sub">Hacé clic en un vendedor para ver su cartera. "Gestionados" son los clientes que ya salieron de Pendiente.</p>
+    <div class="table-wrap">
+      <table class="apilar resumen">
+        <thead><tr>
+          ${th('nombre', 'Vendedor')}${th('n', 'Clientes', 'num')}${th('pg', 'Gestionados')}${th('pend', 'Pendientes', 'num')}
+          ${th('venc', 'Objetivo vencido', 'num')}${th('conv', 'En conversación', 'num')}${th('gan', 'Ganados', 'num')}
+          ${th('g7', 'Gestiones 7 días', 'num')}${th('ult', 'Última gestión')}${ant ? th('recompra', 'Compraron', 'num') : ''}${th('ventas', 'Ventas de la cartera', 'num')}
+        </tr></thead>
+        <tbody>${conV.map(tr).join('')}${grupos.map(tr).join('')}</tbody>
+      </table>
+    </div>
+
+    <h2 class="sec">Actividad reciente</h2>
+    <div class="card">
+      ${feed.length ? `<ul class="feed">${feed.map(l => {
+        const c = mapa.get(l.cliente_id);
+        return `<li><span class="muted">${fechaHora(l.creado_en)}</span> · <strong>${esc(l.usuario_nombre || 'Alguien')}</strong> pasó
+          <strong>${esc(c ? c.nombre : 'un cliente')}</strong>${l.estado_anterior !== l.estado_nuevo ? ` de ${esc(l.estado_anterior)} a <strong>${esc(l.estado_nuevo)}</strong>` : ` (sigue ${esc(l.estado_nuevo)})`}
+          <span class="muted">· cartera de ${esc(vend.get(l.vendedor_id) || 'sin vendedor')}</span>
+          ${l.comentario ? `<div class="muted">“${esc(l.comentario)}”</div>` : ''}</li>`;
+      }).join('')}</ul>` : `<p class="sub" style="margin:0">Todavía no hay gestiones registradas en los últimos 30 días.</p>`}
+    </div>`;
+}
+
+// ====== CARTERA ======
+function filtrarPlan(){
+  const f = S.filtros, q = norm(f.q);
+  const preset = PRESETS.find(p => p.id === f.preset);
+  const inactivos = new Set(S.vendedores.filter(v => !v.activo).map(v => v.id));
+  let filas = S.plan.filter(r => {
+    if(f.vendedor === '_sin'){ if(r.vendedor_id) return false; }
+    else if(f.vendedor === '_inactivos'){ if(!inactivos.has(r.vendedor_id)) return false; }
+    else if(f.vendedor && String(r.vendedor_id) !== f.vendedor) return false;
+    if(f.estado && r.estado !== f.estado) return false;
+    if(f.prioridad && (r.prioridad || '') !== f.prioridad) return false;
+    if(f.segmento && (r.segmento_recencia || '') !== f.segmento) return false;
+    if(preset && !preset.test(r)) return false;
+    if(q && !norm(r.nombre + ' ' + r.codigo + ' ' + (r.localidad || '')).includes(q)) return false;
+    return true;
+  });
+  const fin = '9999-12-31';
+  const cmp = {
+    prioridad: (a, b) => rangoPrioridad(a.prioridad) - rangoPrioridad(b.prioridad)
+      || (a.fecha_objetivo || fin).localeCompare(b.fecha_objetivo || fin) || Number(b.ventas || 0) - Number(a.ventas || 0),
+    ventas: (a, b) => Number(b.ventas || 0) - Number(a.ventas || 0),
+    dias: (a, b) => (b.dias_sin_compra ?? -1) - (a.dias_sin_compra ?? -1),
+    objetivo: (a, b) => (a.fecha_objetivo || fin).localeCompare(b.fecha_objetivo || fin),
+    gestion: (a, b) => (b.gestion_actualizada_por ? b.gestion_actualizada_en : '').localeCompare(a.gestion_actualizada_por ? a.gestion_actualizada_en : '')
+  }[f.orden];
+  return filas.sort(cmp);
+}
+
+function opciones(valores, actual, vacio){
+  return `<option value="">${vacio}</option>` + valores.map(v => `<option value="${esc(v)}" ${v === actual ? 'selected' : ''}>${esc(v)}</option>`).join('');
+}
+function distintos(campo){
+  return [...new Set(S.plan.map(r => r[campo]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function filaCliente(r){
+  const edita = puedeEditar(r);
+  const dias = r.dias_sin_compra != null ? `${num(r.dias_sin_compra)} días sin comprar` : '';
+  const reasignar = S.esAdmin ? `
+    <div><select class="mini" data-reasignar="${r.cliente_id}" title="Reasignar cliente">
+      <option value="">Sin vendedor</option>
+      ${S.vendedores.filter(v => v.activo || v.id === r.vendedor_id).map(v => `<option value="${v.id}" ${v.id === r.vendedor_id ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}
+    </select></div>` : (S.veTodo ? `<div class="muted">${esc(r.vendedor || 'Sin vendedor')}</div>` : '');
+  return `
+    <tr data-id="${r.cliente_id}">
+      <td data-label="Cliente"><strong>${esc(r.nombre)}</strong>
+        <div class="muted">${esc(r.codigo)}${r.localidad ? ' · ' + esc(r.localidad) : ''}</div>${reasignar}</td>
+      <td data-label="Prioridad">${chipPrioridad(r.prioridad)}${r.nivel_valor ? `<div class="muted" style="margin-top:4px">Valor ${esc(r.nivel_valor)}</div>` : ''}</td>
+      <td data-label="Última compra">${fechaCorta(r.ultima_compra)}
+        <div class="muted">${[dias, r.segmento_recencia ? esc(r.segmento_recencia) : ''].filter(Boolean).join(' · ')}</div>
+        ${comproDesdeAnterior(r) ? '<span class="chip ok" style="margin-top:4px">Compró desde el reporte anterior</span>' : ''}</td>
+      <td data-label="Ventas" class="num">${plata(r.ventas)}</td>
+      <td data-label="Acción sugerida">${esc(r.accion_sugerida || '—')}
+        ${r.fecha_objetivo ? `<div class="muted ${vencido(r) ? 'vencido' : ''}">Objetivo ${fechaCorta(r.fecha_objetivo)}${vencido(r) ? ' · vencido' : ''}</div>` : ''}</td>
+      <td data-label="Gestión" class="gestion">
+        ${edita ? `
+          <select data-estado aria-label="Estado de gestión">${ESTADOS.map(e => `<option ${e === r.estado ? 'selected' : ''}>${e}</option>`).join('')}</select>
+          <div class="linea">
+            <input type="text" data-comentario maxlength="500" placeholder="Comentario" value="${esc(r.comentario || '')}" aria-label="Comentario">
+            <button class="btn-primary small" data-guardar disabled>Guardar</button>
+          </div>` : `
+          <span class="chip plano">${esc(r.estado)}</span>
+          ${r.comentario ? `<div class="muted" style="margin-top:4px">${esc(r.comentario)}</div>` : ''}`}
+        ${r.gestion_actualizada_por ? `<div class="muted" style="margin-top:4px">Última gestión ${fechaHora(r.gestion_actualizada_en)}</div>` : ''}
+      </td>
+    </tr>`;
+}
+
+function renderCartera(aviso){
+  if(!S.plan.length){ sinDatos(aviso); return; }
+  const f = S.filtros;
+  const hace7 = Date.now() - 7 * 864e5;
+  const tiles = S.veTodo ? '' : (() => {
+    const pend = S.plan.filter(r => r.estado === 'Pendiente').length;
+    const venc = S.plan.filter(vencido).length;
+    const g7 = S.log.filter(l => Date.parse(l.creado_en) >= hace7).length;
+    return `<div class="tiles">
+      <div class="tile"><div class="label">Mis clientes</div><div class="value">${num(S.plan.length)}</div><div class="note">${pct(S.plan.length - pend, S.plan.length)}% gestionados</div></div>
+      <div class="tile"><div class="label">Pendientes</div><div class="value">${num(pend)}</div><div class="note">Sin gestión todavía</div></div>
+      <div class="tile ${venc ? 'alerta' : ''}"><div class="label">Objetivos vencidos</div><div class="value">${num(venc)}</div><div class="note">Pendientes con fecha objetivo pasada</div></div>
+      <div class="tile"><div class="label">Gestiones, últimos 7 días</div><div class="value">${num(g7)}</div><div class="note">Cambios de estado o comentarios</div></div>
+    </div>`;
+  })();
+  const ant = snapAnterior();
+  content().innerHTML = aviso + tiles + `
+    <div class="filtros">
+      <input type="search" id="fQ" placeholder="Buscar cliente, código o localidad" value="${esc(f.q)}">
+      ${S.veTodo ? `<select id="fVendedor"><option value="">Todos los vendedores</option><option value="_sin" ${f.vendedor === '_sin' ? 'selected' : ''}>Sin vendedor</option>
+        ${S.vendedores.some(v => !v.activo) ? `<option value="_inactivos" ${f.vendedor === '_inactivos' ? 'selected' : ''}>Vendedores inactivos</option>` : ''}
+        ${[...S.vendedores].sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${String(v.id) === f.vendedor ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}</select>` : ''}
+      <select id="fEstado">${opciones(ESTADOS, f.estado, 'Todos los estados')}</select>
+      <select id="fPrioridad">${opciones(distintos('prioridad'), f.prioridad, 'Toda prioridad')}</select>
+      <select id="fSegmento">${opciones(distintos('segmento_recencia'), f.segmento, 'Todo segmento')}</select>
+      <select id="fOrden" aria-label="Orden">
+        ${[['prioridad', 'Orden: prioridad'], ['ventas', 'Orden: mayores ventas'], ['dias', 'Orden: más días sin comprar'], ['objetivo', 'Orden: fecha objetivo'], ['gestion', 'Orden: última gestión']]
+          .map(([v, t]) => `<option value="${v}" ${f.orden === v ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+    </div>
+    <div class="presets">
+      ${PRESETS.filter(p => !p.requiereAnterior || ant).map(p =>
+        `<button type="button" class="preset ${f.preset === p.id ? 'active' : ''}" data-preset="${p.id}">${p.nombre}<b>${num(S.plan.filter(p.test).length)}</b></button>`).join('')}
+    </div>
+    <div id="lista"></div>`;
+  pintarLista();
+}
+
+function pintarLista(){
+  const filas = filtrarPlan();
+  const ventas = filas.reduce((s, r) => s + Number(r.ventas || 0), 0);
+  $('lista').innerHTML = `
+    <p class="conteo">${num(filas.length)} ${filas.length === 1 ? 'cliente' : 'clientes'} · ${plata(ventas)} en ventas</p>
+    ${filas.length ? `<div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Cliente</th><th>Prioridad</th><th>Última compra</th><th class="num">Ventas</th><th>Acción sugerida</th><th>Gestión</th></tr></thead>
+      <tbody>${filas.slice(0, S.mostrar).map(filaCliente).join('')}</tbody>
+    </table></div>
+    ${filas.length > S.mostrar ? `<button class="btn-ghost mas" id="btnMas">Ver ${Math.min(POR_PAGINA, filas.length - S.mostrar)} más</button>` : ''}`
+      : `<div class="card"><p class="sub" style="margin:0">No hay clientes con esos filtros.</p></div>`}`;
+}
+
+async function guardarGestion(tr){
+  const id = Number(tr.dataset.id);
+  const r = S.plan.find(x => x.cliente_id === id);
+  const btn = tr.querySelector('[data-guardar]');
+  const estado = tr.querySelector('[data-estado]').value;
+  const comentario = tr.querySelector('[data-comentario]').value.trim() || null;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { data, error } = await sb.from('comercial_gestion')
+    .update({ estado, comentario }).eq('cliente_id', id)
+    .select('estado, comentario, actualizado_en, actualizado_por');
+  if(error || !data || !data.length){
+    btn.disabled = false; btn.textContent = 'Reintentar';
+    btn.title = error ? error.message : 'No tenés permiso para editar este cliente.';
+    return;
+  }
+  S.log.push({ id: Date.now(), cliente_id: id, vendedor_id: r.vendedor_id, estado_anterior: r.estado, estado_nuevo: data[0].estado,
+    comentario: data[0].comentario, usuario_nombre: S.perfil.nombre, creado_en: new Date().toISOString() });
+  r.estado = data[0].estado; r.comentario = data[0].comentario;
+  r.gestion_actualizada_en = data[0].actualizado_en; r.gestion_actualizada_por = data[0].actualizado_por;
+  tr.outerHTML = filaCliente(r);
+}
+
+async function reasignar(select){
+  const id = Number(select.dataset.reasignar);
+  const r = S.plan.find(x => x.cliente_id === id);
+  const nuevo = select.value ? Number(select.value) : null;
+  select.disabled = true;
+  const { data, error } = await sb.from('comercial_clientes')
+    .update({ vendedor_id: nuevo, asignado_manual: true }).eq('id', id).select('id');
+  select.disabled = false;
+  if(error || !data || !data.length){
+    select.value = r.vendedor_id ?? '';
+    select.title = error ? error.message : 'No se pudo reasignar.';
+    return;
+  }
+  const v = S.vendedores.find(x => x.id === nuevo);
+  r.vendedor_id = nuevo; r.vendedor = v ? v.nombre : null; r.asignado_manual = true;
+}
+
+// ====== CARGA DE REPORTES ======
+const CAMPOS = {
+  codigo: ['codigo', 'cod', 'codigo cliente', 'cod cliente', 'codigo de cliente', 'nro cliente', 'id cliente'],
+  cliente: ['cliente', 'razon social', 'nombre', 'nombre cliente', 'nombre del cliente'],
+  localidad: ['localidad', 'ciudad'],
+  vendedor: ['vendedor', 'vendedor asignado'],
+  activo: ['activo'],
+  ultima_compra: ['ultima compra', 'fecha ultima compra', 'ult compra', 'ultcompra', 'fecha ult compra'],
+  dias_sin_compra: ['dias sin compra', 'dias sin comprar'],
+  segmento: ['segmento recencia', 'segmento de recencia', 'segmento'],
+  ventas: ['ventas', 'venta', 'ventas netas', 'total ventas'],
+  utilidad_neta: ['utilidad neta', 'utilidad'],
+  margen: ['margen'],
+  comprobantes: ['comprobantes', 'cantidad comprobantes', 'cant comprobantes'],
+  ticket_promedio: ['ticket promedio'],
+  rubro_principal: ['rubro principal', 'rubro'],
+  producto_principal: ['producto principal'],
+  nivel_valor: ['nivel de valor', 'nivel valor'],
+  prioridad: ['prioridad'],
+  accion_sugerida: ['proxima accion sugerida', 'accion sugerida', 'proxima accion'],
+  fecha_objetivo: ['fecha objetivo'],
+  estado: ['estado gestion', 'estado de gestion', 'estado'],
+  comentarios: ['comentarios', 'comentario', 'observaciones']
+};
+const ETIQUETAS = {
+  codigo: 'Código', cliente: 'Cliente', localidad: 'Localidad', vendedor: 'Vendedor', activo: 'Activo', ultima_compra: 'Última compra',
+  dias_sin_compra: 'Días sin compra', segmento: 'Segmento recencia', ventas: 'Ventas', utilidad_neta: 'Utilidad neta', margen: 'Margen',
+  comprobantes: 'Comprobantes', ticket_promedio: 'Ticket promedio', rubro_principal: 'Rubro principal', producto_principal: 'Producto principal',
+  nivel_valor: 'Nivel de valor', prioridad: 'Prioridad', accion_sugerida: 'Próxima acción sugerida', fecha_objetivo: 'Fecha objetivo',
+  estado: 'Estado gestión', comentarios: 'Comentarios'
+};
+const NUMERICOS = ['ventas', 'utilidad_neta', 'margen', 'comprobantes', 'ticket_promedio'];
+const FECHAS = ['ultima_compra', 'fecha_objetivo'];
+const SIN_VENDEDOR = ['SIN VENDEDOR', 'S/V', '-', 'SIN ASIGNAR'];
+
+function cargarLector(){
+  return new Promise((ok, mal) => {
+    if(window.XLSX) return ok();
+    const s = document.createElement('script');
+    s.src = XLSX_URL;
+    s.onload = () => ok();
+    s.onerror = () => mal(new Error('No se pudo cargar el lector de Excel. Revisá la conexión y volvé a intentar.'));
+    document.head.appendChild(s);
+  });
+}
+function mapearEncabezados(fila){
+  const mapa = {}, usados = new Set();
+  const cab = fila.map(norm);
+  for(const [campo, alias] of Object.entries(CAMPOS)){
+    let i = cab.findIndex((c, idx) => !usados.has(idx) && alias.includes(c));
+    if(i < 0 && campo === 'ventas') i = cab.findIndex((c, idx) => !usados.has(idx) && c.startsWith('ventas'));
+    if(i >= 0){ mapa[campo] = i; usados.add(i); }
+  }
+  return mapa;
+}
+function aNumero(v){
+  if(v == null || v === '') return null;
+  if(typeof v === 'number') return Number.isFinite(v) ? v : null;
+  let s = String(v).replace(/[^0-9,.\-]/g, '');
+  if(!s) return null;
+  if(s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function aFecha(v){
+  if(v == null || v === '') return null;
+  const p = n => String(n).padStart(2, '0');
+  if(v instanceof Date) return isNaN(v) ? null : `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+  if(typeof v === 'number'){
+    if(v < 20000 || v > 80000) return null;                       // número de serie de Excel
+    return new Date(Math.round((v - 25569) * 864e5)).toISOString().slice(0, 10);
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${p(m[2])}-${p(m[3])}`;
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(m){
+    const a = m[3].length === 2 ? '20' + m[3] : m[3];
+    if(+m[2] < 1 || +m[2] > 12 || +m[1] < 1 || +m[1] > 31) return null;
+    return `${a}-${p(m[2])}-${p(m[1])}`;
+  }
+  return null;
+}
+function aTexto(v){
+  if(v == null) return null;
+  const s = (typeof v === 'number' && Number.isInteger(v) ? String(v) : String(v)).trim();
+  return s || null;
+}
+function claveVendedor(v){ return v ? v.replace(/\s+/g, ' ').trim().toUpperCase() : null; }
+
+function leerLibro(buffer, nombreArchivo){
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const orden = [...wb.SheetNames].sort((a, b) => (norm(b) === 'plan de trabajo') - (norm(a) === 'plan de trabajo'));
+  for(const hoja of orden){
+    const filas = XLSX.utils.sheet_to_json(wb.Sheets[hoja], { header: 1, raw: true, defval: null, blankrows: false });
+    for(let i = 0; i < Math.min(filas.length, 25); i++){
+      const mapa = mapearEncabezados(filas[i] || []);
+      if(mapa.codigo == null || mapa.cliente == null) continue;
+      const porCodigo = new Map();
+      let descartadas = 0, duplicadas = 0;
+      for(const f of filas.slice(i + 1)){
+        const codigo = aTexto(f[mapa.codigo]), cliente = aTexto(f[mapa.cliente]);
+        if(!codigo || !cliente || /^total/i.test(codigo)){ descartadas++; continue; }
+        const o = { codigo, cliente };
+        for(const campo of Object.keys(CAMPOS)){
+          if(campo === 'codigo' || campo === 'cliente' || mapa[campo] == null) continue;
+          const v = f[mapa[campo]];
+          if(NUMERICOS.includes(campo)) o[campo] = aNumero(v);
+          else if(FECHAS.includes(campo)) o[campo] = aFecha(v);
+          else if(campo === 'dias_sin_compra'){ const n = aNumero(v); o[campo] = n == null ? null : Math.round(n); }
+          else o[campo] = aTexto(v);
+        }
+        if(o.margen != null && Math.abs(o.margen) > 1.5) o.margen = Math.round(o.margen * 1e4) / 1e6;   // 37,2 -> 0,372
+        if(porCodigo.has(codigo)) duplicadas++;
+        porCodigo.set(codigo, o);
+      }
+      return { archivo: nombreArchivo, hoja, mapa, filas: [...porCodigo.values()], descartadas, duplicadas };
+    }
+  }
+  throw new Error('No encontré una hoja con columnas "Código" y "Cliente". Revisá que sea el reporte correcto.');
+}
+
+function renderImportar(aviso){
+  const imp = S.importacion;
+  const cargas = [...S.snapshots].sort((a, b) => b.id - a.id);
+  let previa = '';
+  if(imp && imp.datos){
+    const d = imp.datos;
+    const conocidos = new Set(S.vendedores.map(v => v.nombre_erp));
+    const claves = [...new Set(d.filas.map(r => claveVendedor(r.vendedor)).filter(k => k && !SIN_VENDEDOR.includes(k)))];
+    const nuevos = claves.filter(k => !conocidos.has(k));
+    const sinV = d.filas.filter(r => { const k = claveVendedor(r.vendedor); return !k || SIN_VENDEDOR.includes(k); }).length;
+    const faltan = Object.keys(CAMPOS).filter(c => d.mapa[c] == null);
+    previa = `
+      <div class="card" style="margin-top:16px">
+        <p class="sub" style="margin-top:0"><strong>${esc(d.archivo)}</strong> · hoja “${esc(d.hoja)}” · <strong>${num(d.filas.length)}</strong> clientes
+          · ${claves.length} ${claves.length === 1 ? 'vendedor' : 'vendedores'}${nuevos.length ? ` (${nuevos.length} ${nuevos.length === 1 ? 'nuevo' : 'nuevos'})` : ''} · ${num(sinV)} sin vendedor
+          ${d.descartadas ? ` · ${num(d.descartadas)} ${d.descartadas === 1 ? 'fila descartada' : 'filas descartadas'} por no tener código o cliente` : ''}${d.duplicadas ? ` · ${num(d.duplicadas)} ${d.duplicadas === 1 ? 'código repetido' : 'códigos repetidos'} (queda la última fila)` : ''}</p>
+        <div class="muted">Columnas reconocidas</div>
+        <div class="cols">${Object.keys(d.mapa).map(c => `<span class="chip ok">${ETIQUETAS[c]}</span>`).join('')}</div>
+        ${faltan.length ? `<div class="muted">No están en el archivo (quedan vacías)</div><div class="cols">${faltan.map(c => `<span class="chip plano">${ETIQUETAS[c]}</span>`).join('')}</div>` : ''}
+        ${nuevos.length ? `<div class="muted">Vendedores nuevos que se van a crear</div><div class="cols">${nuevos.slice(0, 40).map(k => `<span class="chip plano">${esc(k)}</span>`).join('')}</div>` : ''}
+        <div class="form">
+          <label for="impFecha">Fecha del reporte</label>
+          <input type="date" id="impFecha" value="${esc(imp.fecha || hoyISO())}" max="${hoyISO()}">
+          <button class="btn-primary" id="btnImportar" ${imp.enCurso ? 'disabled' : ''}>Importar ${num(d.filas.length)} clientes</button>
+          <button class="btn-ghost" id="btnCancelarImp" ${imp.enCurso ? 'disabled' : ''}>Cancelar</button>
+        </div>
+        <div id="impProgreso"></div>
+      </div>`;
+  }
+  content().innerHTML = aviso + `
+    <h2 class="sec" style="margin-top:0">Cargar reporte de ventas</h2>
+    <p class="sub">Subí el Excel con el mismo formato que “Plan_Trabajo_Comercial_Clientes” (hoja “Plan de trabajo”). Cada carga actualiza ventas, última compra, segmento y prioridad de cada cliente.
+      <strong>Nunca pisa</strong> el estado ni los comentarios que ya cargaron los vendedores, ni las reasignaciones hechas acá.</p>
+    <div class="dropzone" id="dropzone">${imp && imp.error ? `<span class="vencido">${esc(imp.error)}</span><br>` : ''}
+      <strong>Arrastrá el Excel acá</strong> o hacé clic para elegirlo
+      <input type="file" id="impArchivo" accept=".xlsx,.xls,.csv" class="hidden">
+    </div>
+    ${previa}
+    <h2 class="sec">Reportes cargados</h2>
+    ${cargas.length ? `<div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Fecha del reporte</th><th>Archivo</th><th class="num">Clientes</th><th>Estado</th><th>Cargado</th><th></th></tr></thead>
+      <tbody>${cargas.map(s => `
+        <tr>
+          <td data-label="Fecha del reporte"><strong>${fechaCorta(s.fecha)}</strong></td>
+          <td data-label="Archivo">${esc(s.fuente || '—')}</td>
+          <td data-label="Clientes" class="num">${num(s.filas)}</td>
+          <td data-label="Estado">${s.completo ? (snapActual() && snapActual().id === s.id ? '<span class="chip ok">En uso</span>' : '<span class="chip plano">Anterior</span>') : '<span class="chip media">Incompleta</span>'}</td>
+          <td data-label="Cargado">${fechaHora(s.creado_en)}</td>
+          <td data-label=""><button class="btn-ghost small" data-borrar-carga="${s.id}">Eliminar</button></td>
+        </tr>`).join('')}</tbody></table></div>` : `<div class="card"><p class="sub" style="margin:0">Todavía no se cargó ningún reporte.</p></div>`}`;
+}
+
+async function elegirArchivo(file){
+  S.importacion = { datos: null, error: null };
+  try{
+    await cargarLector();
+    const datos = leerLibro(new Uint8Array(await file.arrayBuffer()), file.name);
+    if(!datos.filas.length) throw new Error('El archivo no tiene filas con código y cliente.');
+    S.importacion = { datos, fecha: hoyISO() };
+  } catch(e){
+    S.importacion = { datos: null, error: e.message || String(e) };
+  }
+  renderImportar('');
+}
+
+async function importar(){
+  const imp = S.importacion;
+  const fecha = $('impFecha').value || hoyISO();
+  imp.fecha = fecha; imp.enCurso = true;
+  $('btnImportar').disabled = true; $('btnCancelarImp').disabled = true;
+  const prog = (texto, p) => { $('impProgreso').innerHTML = `<p class="muted" style="margin:14px 0 0">${esc(texto)}</p><div class="progress"><div style="width:${p}%"></div></div>`; };
+  const base = Date.parse(fecha + 'T00:00:00Z');
+  const filas = imp.datos.filas.map(r => {
+    if(r.dias_sin_compra == null && r.ultima_compra){
+      const d = Math.round((base - Date.parse(r.ultima_compra + 'T00:00:00Z')) / 864e5);
+      return { ...r, dias_sin_compra: d >= 0 ? d : null };
+    }
+    return r;
+  });
+  let snap = null;
+  const tot = { clientes_nuevos: 0, vendedores_nuevos: 0 };
+  try{
+    prog('Preparando la carga…', 2);
+    let r = await sb.rpc('comercial_importar_inicio', { p_fecha: fecha, p_fuente: imp.datos.archivo });
+    if(r.error) throw r.error;
+    snap = r.data;
+    for(let i = 0; i < filas.length; i += TAM_LOTE){
+      prog(`Subiendo clientes ${num(i + 1)} a ${num(Math.min(i + TAM_LOTE, filas.length))} de ${num(filas.length)}…`, 5 + Math.round(i / filas.length * 90));
+      r = await sb.rpc('comercial_importar_lote', { p_snapshot: snap, p_filas: filas.slice(i, i + TAM_LOTE) });
+      if(r.error) throw r.error;
+      tot.clientes_nuevos += r.data.clientes_nuevos; tot.vendedores_nuevos += r.data.vendedores_nuevos;
+    }
+    prog('Cerrando la carga…', 97);
+    r = await sb.rpc('comercial_importar_fin', { p_snapshot: snap });
+    if(r.error) throw r.error;
+    S.importacion = null;
+    S.aviso = { tipo: 'ok', html: `Reporte cargado: <strong>${num(r.data)}</strong> clientes, ${num(tot.clientes_nuevos)} nuevos${tot.vendedores_nuevos ? `, ${tot.vendedores_nuevos} vendedores nuevos (vinculalos a su usuario en la pestaña Vendedores)` : ''}.` };
+    await recargar('importar');
+  } catch(e){
+    if(snap) await sb.from('comercial_snapshots').delete().eq('id', snap);   // no dejar una carga a medias
+    imp.enCurso = false;
+    S.aviso = { tipo: 'error', html: `No se pudo importar: ${esc(e.message || e)}. No se modificó el plan vigente.` };
+    await recargar('importar');
+  }
+}
+
+async function borrarCarga(id){
+  const s = S.snapshots.find(x => x.id === id);
+  if(!s) return;
+  const enUso = snapActual() && snapActual().id === id;
+  if(!confirm(`¿Eliminar el reporte del ${fechaCorta(s.fecha)}?${enUso ? ' Es el que está en uso: el plan va a volver al reporte anterior.' : ''} La gestión de los vendedores no se borra.`)) return;
+  const { error } = await sb.from('comercial_snapshots').delete().eq('id', id);
+  S.aviso = error ? { tipo: 'error', html: 'No se pudo eliminar: ' + esc(error.message) } : { tipo: 'ok', html: 'Reporte eliminado.' };
+  await recargar('importar');
+}
+
+// ====== VENDEDORES ======
+function sugerirUsuario(v){
+  // Mismo nombre (sin importar orden ni segundos nombres) y que ese usuario no esté ya vinculado.
+  // Solo se sugiere cuando la coincidencia es única en los dos sentidos.
+  const usados = new Set(S.vendedores.map(x => x.user_id).filter(Boolean));
+  const coincide = (vend, u) => {
+    const tv = new Set(norm(vend.nombre).split(' '));
+    const tu = norm(u.nombre).split(' ').filter(Boolean);
+    return tu.length >= 2 && tu.every(t => tv.has(t));
+  };
+  const cand = S.usuarios.filter(u => !usados.has(u.user_id) && coincide(v, u));
+  if(cand.length !== 1) return null;
+  const rivales = S.vendedores.filter(x => !x.user_id && coincide(x, cand[0]));
+  return rivales.length === 1 ? cand[0].user_id : null;
+}
+
+function renderVendedores(aviso){
+  const cuenta = new Map();
+  for(const r of S.plan) if(r.vendedor_id) cuenta.set(r.vendedor_id, (cuenta.get(r.vendedor_id) || 0) + 1);
+  const lista = [...S.vendedores].sort((a, b) => (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
+  const haySugeridos = lista.some(v => !v.user_id && sugerirUsuario(v));
+  content().innerHTML = aviso + `
+    <h2 class="sec" style="margin-top:0">Vendedores</h2>
+    <p class="sub">Los vendedores se crean solos a partir del reporte. Para que cada uno entre y vea <strong>solo su cartera</strong>:
+      creá su usuario en el Hub (Usuarios → Nuevo usuario, rol <strong>Comercial</strong>) y después vinculalo acá.
+      Si además le das el rol Solo consulta, ve todas las carteras pero edita solo la suya.
+      Los vendedores que ya no están se marcan como inactivos: sus clientes quedan agrupados como cartera para reasignar.</p>
+    <div class="form" style="margin:0 0 16px">
+      <input type="text" id="nvNombre" placeholder="Nombre y apellido" aria-label="Nombre y apellido del vendedor nuevo">
+      <input type="text" id="nvErp" placeholder="Como figura en el reporte (APELLIDO, NOMBRE)" aria-label="Nombre en el reporte" style="min-width:290px">
+      <button class="btn-ghost" id="btnNuevoVendedor">+ Agregar vendedor</button>
+      ${lista.some(v => v.activo && !v.user_id) && lista.some(v => v.user_id) ? `<button class="btn-ghost" id="btnSoloVinculados">Dejar activos solo los que tienen usuario</button>` : ''}
+    </div>
+    ${haySugeridos ? `<div class="msg-box info">Hay usuarios del Hub cuyo nombre coincide con un vendedor: ya quedaron preseleccionados. Revisalos y tocá <strong>Guardar</strong> en cada fila.</div>` : ''}
+    ${lista.length ? `<div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Nombre</th><th>Nombre en el reporte</th><th class="num">Clientes</th><th>Usuario del Hub</th><th>Activo</th><th></th></tr></thead>
+      <tbody>${lista.map(v => {
+        const sug = v.user_id ? null : sugerirUsuario(v);
+        const sel = v.user_id || sug || '';
+        const huerfano = v.user_id && !S.usuarios.some(u => u.user_id === v.user_id);
+        return `<tr data-vendedor="${v.id}">
+          <td data-label="Nombre"><input type="text" data-v-nombre value="${esc(v.nombre)}" class="mini-input" style="padding:7px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; width:100%; min-width:150px"></td>
+          <td data-label="Nombre en el reporte" class="muted">${esc(v.nombre_erp)}</td>
+          <td data-label="Clientes" class="num">${num(cuenta.get(v.id) || 0)}</td>
+          <td data-label="Usuario del Hub"><select data-v-usuario class="mini" style="margin:0; padding:7px 8px; font-size:13px; max-width:260px">
+            <option value="">Sin usuario</option>
+            ${huerfano ? `<option value="${esc(v.user_id)}" selected>Usuario sin rol comercial</option>` : ''}
+            ${S.usuarios.map(u => `<option value="${esc(u.user_id)}" ${u.user_id === sel ? 'selected' : ''}>${esc(u.nombre)} — ${esc(u.email)}</option>`).join('')}
+          </select>${sug ? '<div class="muted">Sugerido por nombre, falta guardar</div>' : ''}</td>
+          <td data-label="Activo"><input type="checkbox" data-v-activo ${v.activo ? 'checked' : ''} aria-label="Activo"></td>
+          <td data-label=""><button class="btn-primary small" data-v-guardar ${sug ? '' : 'disabled'}>Guardar</button></td>
+        </tr>`; }).join('')}</tbody></table></div>`
+      : `<div class="card"><p class="sub" style="margin:0">Todavía no hay vendedores: aparecen al cargar el primer reporte.</p></div>`}`;
+}
+
+async function guardarVendedor(tr){
+  const id = Number(tr.dataset.vendedor);
+  const v = S.vendedores.find(x => x.id === id);
+  const btn = tr.querySelector('[data-v-guardar]');
+  const nombre = tr.querySelector('[data-v-nombre]').value.trim();
+  if(!nombre){ btn.title = 'El nombre no puede quedar vacío.'; return; }
+  const cambios = { nombre, user_id: tr.querySelector('[data-v-usuario]').value || null, activo: tr.querySelector('[data-v-activo]').checked };
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { data, error } = await sb.from('comercial_vendedores').update(cambios).eq('id', id).select('id');
+  if(error || !data || !data.length){
+    btn.disabled = false; btn.textContent = 'Reintentar'; btn.title = error ? error.message : 'No se pudo guardar.';
+    return;
+  }
+  Object.assign(v, cambios);
+  for(const r of S.plan) if(r.vendedor_id === id) r.vendedor = nombre;
+  S.misVendedores = new Set(S.vendedores.filter(x => x.user_id === S.perfil.user_id && x.activo).map(x => x.id));
+  renderVendedores('');
+}
+
+async function agregarVendedor(){
+  const nombre = $('nvNombre').value.trim();
+  const erp = claveVendedor($('nvErp').value) || claveVendedor(nombre);
+  if(!nombre) { $('nvNombre').focus(); return; }
+  const { error } = await sb.from('comercial_vendedores').insert({ nombre, nombre_erp: erp }).select('id');
+  S.aviso = error
+    ? { tipo: 'error', html: /duplicate|unique/i.test(error.message) ? `Ya existe un vendedor que figura como “${esc(erp)}” en el reporte.` : 'No se pudo agregar: ' + esc(error.message) }
+    : { tipo: 'ok', html: `Vendedor <strong>${esc(nombre)}</strong> agregado. Cuando el reporte lo traiga como “${esc(erp)}”, sus clientes se le asignan solos.` };
+  await recargar('vendedores');
+}
+
+async function soloVinculados(){
+  const n = S.vendedores.filter(v => v.activo && !v.user_id).length;
+  if(!confirm(`¿Marcar como inactivos los ${n} vendedores sin usuario del Hub? Sus clientes no se borran: quedan agrupados para reasignar.`)) return;
+  const { error } = await sb.from('comercial_vendedores').update({ activo: false }).is('user_id', null).eq('activo', true).select('id');
+  S.aviso = error ? { tipo: 'error', html: 'No se pudo actualizar: ' + esc(error.message) } : { tipo: 'ok', html: `${n} vendedores quedaron inactivos.` };
+  await recargar('vendedores');
+}
+
+// ====== EVENTOS ======
+$('tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]');
+  if(!b) return;
+  if(b.dataset.tab === '_recargar') recargar(S.tab); else ir(b.dataset.tab);
+});
+
+content().addEventListener('click', e => {
+  const t = e.target;
+  let el;
+  if((el = t.closest('[data-tab]'))){ ir(el.dataset.tab); return; }
+  if((el = t.closest('[data-orden]'))){
+    const c = el.dataset.orden;
+    S.ordenResumen = { campo: c, desc: S.ordenResumen.campo === c ? !S.ordenResumen.desc : c !== 'nombre' };
+    renderSeguimiento(''); return;
+  }
+  if((el = t.closest('[data-ver-vendedor]'))){
+    S.filtros = { ...S.filtros, q: '', vendedor: el.dataset.verVendedor, estado: '', prioridad: '', segmento: '', preset: '' };
+    S.mostrar = POR_PAGINA;
+    ir('cartera'); window.scrollTo(0, 0); return;
+  }
+  if((el = t.closest('[data-preset]'))){
+    S.filtros.preset = S.filtros.preset === el.dataset.preset ? '' : el.dataset.preset;
+    S.mostrar = POR_PAGINA;
+    renderCartera(''); return;
+  }
+  if(t.id === 'btnMas'){ S.mostrar += POR_PAGINA; pintarLista(); return; }
+  if((el = t.closest('[data-guardar]'))){ guardarGestion(el.closest('tr')); return; }
+  if((el = t.closest('[data-v-guardar]'))){ guardarVendedor(el.closest('tr')); return; }
+  if((el = t.closest('[data-borrar-carga]'))){ borrarCarga(Number(el.dataset.borrarCarga)); return; }
+  if(t.id === 'btnNuevoVendedor'){ agregarVendedor(); return; }
+  if(t.id === 'btnSoloVinculados'){ soloVinculados(); return; }
+  if(t.id === 'btnImportar'){ importar(); return; }
+  if(t.id === 'btnCancelarImp'){ S.importacion = null; renderImportar(''); return; }
+  if(t.closest('#dropzone') && t.id !== 'impArchivo'){ $('impArchivo').click(); return; }
+});
+
+content().addEventListener('change', e => {
+  const t = e.target;
+  const f = { fVendedor: 'vendedor', fEstado: 'estado', fPrioridad: 'prioridad', fSegmento: 'segmento', fOrden: 'orden' }[t.id];
+  if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
+  if(t.matches('[data-reasignar]')){ reasignar(t); return; }
+  if(t.matches('[data-estado]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
+  if(t.matches('[data-v-usuario], [data-v-activo]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; return; }
+  if(t.id === 'impArchivo' && t.files[0]){ elegirArchivo(t.files[0]); return; }
+  if(t.id === 'impFecha' && S.importacion){ S.importacion.fecha = t.value; }
+});
+
+let esperaBusqueda = null;
+content().addEventListener('input', e => {
+  const t = e.target;
+  if(t.id === 'fQ'){
+    clearTimeout(esperaBusqueda);
+    esperaBusqueda = setTimeout(() => { S.filtros.q = t.value; S.mostrar = POR_PAGINA; pintarLista(); }, 200);
+    return;
+  }
+  if(t.matches('[data-comentario]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
+  if(t.matches('[data-v-nombre]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; }
+});
+content().addEventListener('keydown', e => {
+  if(e.key === 'Enter' && e.target.matches('[data-comentario]')){
+    const b = e.target.closest('tr').querySelector('[data-guardar]');
+    if(!b.disabled) guardarGestion(e.target.closest('tr'));
+  }
+});
+content().addEventListener('dragover', e => { const d = e.target.closest('#dropzone'); if(d){ e.preventDefault(); d.classList.add('dragging'); } });
+content().addEventListener('dragleave', e => { const d = e.target.closest('#dropzone'); if(d) d.classList.remove('dragging'); });
+content().addEventListener('drop', e => {
+  const d = e.target.closest('#dropzone');
+  if(!d) return;
+  e.preventDefault();
+  if(e.dataTransfer.files[0]) elegirArchivo(e.dataTransfer.files[0]);
+});
+
+$('btnSalir').onclick = async () => { await sb.auth.signOut(); renderLogin(); };
+
+// ====== ARRANQUE ======
+// El logo vive embebido en la página principal del Hub: se toma de ahí para no duplicarlo.
+fetch('./').then(r => r.ok ? r.text() : '').then(t => {
+  const m = t.match(/<img src="(data:image\/[^"]+)"/);
+  if(m){ $('logo').src = m[1]; $('logo').classList.remove('hidden'); }
+}).catch(() => {});
+
+sb.auth.getSession().then(({ data }) => {
+  if(data.session) iniciar(data.session);
+  else renderLogin();
+});
+})();
+</script>
+</body>
+</html>
