@@ -3,140 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Alerta Segulimp — Reportar</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root{
-    --paper:#F7F5F0; --ink:#1B2A2E; --alert:#C4501C; --alert-soft:#F1DFCF;
-    --ok:#3E6B4F; --muted:#6B7278; --line:#D8D3C7;
-  }
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; min-height:100vh; background:#DEDAD1; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--ink); }
-  .wrap{ max-width:440px; margin:0 auto; padding:32px 18px 50px; }
-  .brand{ text-align:center; font-size:11px; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; text-transform:uppercase; }
-  .card{ background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; padding:22px 20px; }
-  h1{ font-size:22px; margin:0 0 4px; font-weight:800; }
-  .sub{ font-size:13px; color:var(--muted); margin:0 0 18px; }
-  label{ font-size:12px; font-weight:600; display:block; margin-bottom:5px; color:var(--muted); }
-  select, textarea{
-    width:100%; border:1.5px solid var(--ink); border-radius:4px; padding:10px;
-    font-size:14px; font-family:inherit; background:#fff; color:var(--ink); margin-bottom:14px;
-  }
-  textarea{ min-height:56px; resize:vertical; }
-  .btn{ width:100%; border:none; background:var(--alert); color:#fff; font-weight:700; font-size:15px;
-    padding:13px; border-radius:5px; cursor:pointer; font-family:inherit; }
-  .btn:disabled{ opacity:.55; }
-  .msg{ text-align:center; padding:30px 6px 6px; }
-  .msg .ok{ color:var(--ok); font-size:34px; }
-  .msg h2{ font-size:18px; margin:10px 0 4px; }
-  .msg p{ font-size:13px; color:var(--muted); }
-  .error{ color:var(--alert); font-size:13px; text-align:center; padding:24px 6px; }
-  .loading{ text-align:center; color:var(--muted); font-size:13px; padding:24px 6px; }
-</style>
+<meta name="robots" content="noindex">
+<title>Alerta Segulimp</title>
+<script>
+  // El formulario de los stickers ahora vive en el HUB. Se conserva el código (?c=...).
+  location.replace('https://segulimp-hub.vercel.app/reporte.html' + location.search);
+</script>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand">Alerta Segulimp</div>
-  <div class="card" id="card">
-    <div class="loading">Cargando...</div>
-  </div>
-</div>
-
-<script>
-  const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
-  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  const MOTIVOS_DISPENSER = [
-    { v: "sin_producto", t: "Sin producto" },
-    { v: "roto", t: "Roto / no funciona" },
-    { v: "otro", t: "Otro" }
-  ];
-  const MOTIVOS_LAVARROPAS = [
-    { v: "roto", t: "No funciona" },
-    { v: "otro_mantenimiento", t: "Necesita mantenimiento" },
-    { v: "otro", t: "Otro" }
-  ];
-
-  function qs(name){
-    return new URLSearchParams(window.location.search).get(name);
-  }
-
-  async function init(){
-    const codigo = qs('c');
-    const card = document.getElementById('card');
-    if(!codigo){
-      card.innerHTML = '<div class="error">Falta el código del equipo en el link (?c=...).</div>';
-      return;
-    }
-
-    const { data: equipo, error } = await sb
-      .from('alertas_equipos')
-      .select('id, codigo, ubicacion, producto, tipo')
-      .eq('codigo', codigo)
-      .eq('activo', true)
-      .single();
-
-    if(error || !equipo){
-      card.innerHTML = '<div class="error">No encontramos este equipo. Verificá el código o avisá al responsable del lugar.</div>';
-      return;
-    }
-
-    const esLavarropas = equipo.tipo === 'lavarropas_industrial';
-    const motivos = esLavarropas ? MOTIVOS_LAVARROPAS : MOTIVOS_DISPENSER;
-    const titulo = esLavarropas ? 'Reportar lavarropas' : 'Reportar dispenser';
-
-    card.innerHTML = `
-      <h1>${titulo}</h1>
-      <p class="sub">${equipo.ubicacion}${equipo.producto ? ' · ' + equipo.producto : ''}</p>
-      <label>¿Qué pasa?</label>
-      <select id="sel-motivo">
-        ${motivos.map(m => `<option value="${m.v}">${m.t}</option>`).join('')}
-      </select>
-      <label>Comentario (opcional)</label>
-      <textarea id="txt-comentario" placeholder="Contanos algo más si hace falta"></textarea>
-      <button class="btn" id="btn-enviar">Enviar aviso</button>
-    `;
-
-    document.getElementById('btn-enviar').addEventListener('click', async () => {
-      const btn = document.getElementById('btn-enviar');
-      btn.disabled = true;
-      btn.textContent = 'Enviando...';
-
-      const motivo = document.getElementById('sel-motivo').value;
-      const comentario = document.getElementById('txt-comentario').value.trim() || null;
-
-      const { data: reporte, error: errInsert } = await sb
-        .from('alertas_reportes')
-        .insert({ equipo_id: equipo.id, motivo, comentario })
-        .select('id')
-        .single();
-
-      if(errInsert || !reporte){
-        btn.disabled = false;
-        btn.textContent = 'Enviar aviso';
-        alert('No se pudo enviar el reporte. Probá de nuevo.');
-        return;
-      }
-
-      // Dispara el aviso doble (responsable del sitio + distribuidora). No bloquea al usuario si tarda.
-      fetch(`${SUPABASE_URL}/functions/v1/notificar-reporte`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reporte_id: reporte.id })
-      }).catch(() => {});
-
-      card.innerHTML = `
-        <div class="msg">
-          <div class="ok">✓</div>
-          <h2>Aviso enviado</h2>
-          <p>Gracias por avisar. Ya se notificó al responsable del lugar.</p>
-        </div>
-      `;
-    });
-  }
-
-  init();
-</script>
+<p>Esta página se mudó. <a href="https://segulimp-hub.vercel.app/reporte.html">Abrir el formulario de Alerta Segulimp</a></p>
 </body>
 </html>
