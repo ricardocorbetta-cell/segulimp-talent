@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alerta Segulimp — Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F5F0; --ink:#1B2A2E; --alert:#C4501C; --alert-soft:#F1DFCF;
+    --ok:#3E6B4F; --ok-soft:#DFEBE2; --muted:#6B7278; --line:#D8D3C7;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100vh; background:#DEDAD1; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--ink); }
+  .wrap{ max-width:960px; margin:0 auto; padding:26px 18px 60px; }
+
+  /* login */
+  .login-wrap{ max-width:360px; margin:80px auto; }
+  .login-card{ background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; padding:26px; }
+  .login-card h1{ font-size:20px; margin:0 0 4px; }
+  .login-card p{ font-size:13px; color:var(--muted); margin:0 0 18px; }
+  input{ width:100%; border:1.5px solid var(--ink); border-radius:4px; padding:10px; font-size:14px;
+    font-family:inherit; background:#fff; color:var(--ink); margin-bottom:12px; }
+  .btn{ border:none; background:var(--alert); color:#fff; font-weight:700; font-size:14px;
+    padding:11px 18px; border-radius:5px; cursor:pointer; font-family:inherit; }
+  .btn:disabled{ opacity:.55; }
+  .btn.secondary{ background:transparent; color:var(--ink); border:1.5px solid var(--ink); }
+  .err{ color:var(--alert); font-size:12.5px; margin-top:2px; min-height:16px; }
+
+  /* header */
+  .top{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+  .top h1{ margin:0; font-size:21px; font-weight:800; }
+  .top .who{ font-size:12px; color:var(--muted); }
+  .top .who button{ background:none; border:none; color:var(--alert); text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .tab{ border:1.5px solid var(--ink); background:transparent; color:var(--ink); font-size:13px; font-weight:600;
+    padding:8px 16px; border-radius:3px; cursor:pointer; font-family:inherit; }
+  .tab.active{ background:var(--ink); color:var(--paper); }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+
+  .card{ background:var(--paper); border:1.5px solid var(--ink); border-radius:6px; padding:20px; margin-bottom:16px; }
+  .card h2{ margin:0 0 14px; font-size:15px; font-weight:700; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted);
+    border-bottom:1.5px solid var(--ink); padding:6px 8px; }
+  td{ padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .pill{ font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; }
+  .pill.pendiente{ background:var(--alert-soft); color:var(--alert); }
+  .pill.resuelto{ background:var(--ok-soft); color:var(--ok); }
+  .pill.enviado{ background:var(--ok-soft); color:var(--ok); }
+  .pill.error{ background:var(--alert-soft); color:var(--alert); }
+  .row-btn{ font-size:11px; border:1px solid var(--ink); background:transparent; color:var(--ink);
+    padding:4px 8px; border-radius:3px; cursor:pointer; font-family:inherit; }
+  .empty{ color:var(--muted); font-size:13px; padding:10px 4px; }
+
+  .grid-eq{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .eq-card{ background:#fff; border:1px solid var(--line); border-radius:5px; padding:12px; text-align:center; }
+  .eq-card .cod{ font-size:11px; color:var(--muted); margin-bottom:6px; }
+  .eq-card .ubic{ font-weight:700; font-size:13px; margin-bottom:2px; }
+  .eq-card .prod{ font-size:11.5px; color:var(--muted); margin-bottom:8px; }
+  .eq-card canvas, .eq-card img{ margin:0 auto; }
+  .eq-qr{ width:110px; height:110px; margin:0 auto 8px; }
+  .eq-card a{ font-size:10.5px; color:var(--alert); word-break:break-all; }
+
+  .form-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  select{ width:100%; border:1.5px solid var(--ink); border-radius:4px; padding:9px; font-size:13.5px;
+    font-family:inherit; background:#fff; color:var(--ink); margin-bottom:10px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-wrap" style="display:none;">
+  <div class="login-card">
+    <h1>Alerta Segulimp</h1>
+    <p>Panel de administración</p>
+    <input type="email" id="login-email" placeholder="Email">
+    <input type="password" id="login-pass" placeholder="Contraseña">
+    <button class="btn" id="btn-login" style="width:100%;">Ingresar</button>
+    <div class="err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app-screen" style="display:none;">
+  <div class="wrap">
+    <div class="top">
+      <h1 id="titulo-distribuidora">Alerta Segulimp</h1>
+      <div class="who"><span id="who-email"></span> · <button id="btn-logout">Salir</button></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="reportes">Reportes</button>
+      <button class="tab" data-tab="equipos">Equipos y QR</button>
+    </div>
+
+    <div class="panel active" id="panel-reportes">
+      <div class="card">
+        <h2>Reportes recibidos</h2>
+        <table>
+          <thead><tr><th>Fecha</th><th>Sitio</th><th>Equipo</th><th>Motivo</th><th>Estado</th><th>Avisos</th><th></th></tr></thead>
+          <tbody id="tbl-reportes"><tr><td colspan="7" class="empty">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-equipos">
+      <div class="card">
+        <h2>Equipos activos</h2>
+        <div class="grid-eq" id="grid-equipos"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  // El link del formulario público (reporte.html) publicado junto a este panel.
+  const REPORTE_BASE_URL = "reporte.html";
+
+  let miDistribuidora = null;
+
+  async function checarSesion(){
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      await cargarApp(session);
+    } else {
+      document.getElementById('login-screen').style.display = 'block';
+    }
+  }
+
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const err = document.getElementById('login-err');
+    err.textContent = '';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if(error){
+      err.textContent = 'No se pudo ingresar: revisá el email y la contraseña.';
+      return;
+    }
+    await cargarApp(data.session);
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    window.location.reload();
+  });
+
+  async function cargarApp(session){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('who-email').textContent = session.user.email;
+
+    const { data: usuario } = await sb
+      .from('alertas_usuarios')
+      .select('distribuidora_id, alertas_distribuidoras(nombre)')
+      .eq('auth_user_id', session.user.id)
+      .single();
+
+    if(!usuario){
+      document.getElementById('app-screen').innerHTML =
+        '<div class="wrap"><div class="card"><p>Tu usuario no está vinculado a ninguna distribuidora todavía. Pedile a un admin que te dé de alta en <code>alertas_usuarios</code>.</p></div></div>';
+      return;
+    }
+
+    miDistribuidora = usuario.distribuidora_id;
+    document.getElementById('titulo-distribuidora').textContent =
+      'Alerta ' + (usuario.alertas_distribuidoras?.nombre ?? '');
+
+    await cargarReportes();
+    await cargarEquipos();
+  }
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function motivoLegible(m){
+    return { sin_producto: 'Sin producto', roto: 'Roto / no funciona', otro_mantenimiento: 'Mantenimiento', otro: 'Otro' }[m] || m;
+  }
+
+  async function cargarReportes(){
+    const tbody = document.getElementById('tbl-reportes');
+    const { data: reportes, error } = await sb
+      .from('alertas_reportes')
+      .select(`
+        id, motivo, comentario, estado, creado_en,
+        alertas_equipos ( codigo, ubicacion, producto, alertas_sitios ( nombre ) )
+      `)
+      .order('creado_en', { ascending: false })
+      .limit(100);
+
+    if(error || !reportes || reportes.length === 0){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Todavía no hay reportes.</td></tr>';
+      return;
+    }
+
+    // Traer notificaciones asociadas en un solo pedido
+    const ids = reportes.map(r => r.id);
+    const { data: notifs } = await sb
+      .from('alertas_notificaciones')
+      .select('reporte_id, destinatario_rol, estado')
+      .in('reporte_id', ids);
+
+    tbody.innerHTML = reportes.map(r => {
+      const eq = r.alertas_equipos;
+      const sitio = eq?.alertas_sitios?.nombre ?? '';
+      const fecha = new Date(r.creado_en).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const misNotifs = (notifs || []).filter(n => n.reporte_id === r.id);
+      const avisos = misNotifs.length
+        ? misNotifs.map(n => `<span class="pill ${n.estado}">${n.destinatario_rol === 'distribuidora' ? 'Segulimp' : 'Sitio'}</span>`).join(' ')
+        : '<span class="empty" style="padding:0;font-size:11px;">—</span>';
+
+      return `
+        <tr>
+          <td>${fecha}</td>
+          <td>${sitio}</td>
+          <td>${eq?.ubicacion ?? ''}${eq?.producto ? ' · ' + eq.producto : ''}</td>
+          <td>${motivoLegible(r.motivo)}</td>
+          <td><span class="pill ${r.estado}">${r.estado === 'pendiente' ? 'Pendiente' : 'Resuelto'}</span></td>
+          <td>${avisos}</td>
+          <td>${r.estado === 'pendiente' ? `<button class="row-btn" onclick="marcarResuelto('${r.id}')">Marcar resuelto</button>` : ''}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.marcarResuelto = async function(id){
+    await sb.from('alertas_reportes').update({ estado: 'resuelto', resuelto_en: new Date().toISOString() }).eq('id', id);
+    await cargarReportes();
+  };
+
+  async function cargarEquipos(){
+    const grid = document.getElementById('grid-equipos');
+    const { data: equipos, error } = await sb
+      .from('alertas_equipos')
+      .select('id, codigo, ubicacion, producto, tipo, alertas_sitios(nombre)')
+      .eq('activo', true)
+      .order('codigo');
+
+    if(error || !equipos || equipos.length === 0){
+      grid.innerHTML = '<div class="empty">No hay equipos cargados.</div>';
+      return;
+    }
+
+    grid.innerHTML = equipos.map(e => `
+      <div class="eq-card">
+        <div class="cod">${e.codigo}</div>
+        <div class="eq-qr" id="qr-${e.codigo}"></div>
+        <div class="ubic">${e.ubicacion}</div>
+        <div class="prod">${e.alertas_sitios?.nombre ?? ''}${e.producto ? ' · ' + e.producto : ''}</div>
+        <a href="${REPORTE_BASE_URL}?c=${e.codigo}" target="_blank">${REPORTE_BASE_URL}?c=${e.codigo}</a>
+      </div>
+    `).join('');
+
+    equipos.forEach(e => {
+      new QRCode(document.getElementById('qr-' + e.codigo), {
+        text: window.location.origin + window.location.pathname.replace('panel.html', '') + REPORTE_BASE_URL + '?c=' + e.codigo,
+        width: 110, height: 110,
+        colorDark: "#1B2A2E", colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  }
+
+  checarSesion();
+</script>
+</body>
+</html>
