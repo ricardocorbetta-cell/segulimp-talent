@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v1.1 (2026-10-01) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v2.0 (2026-10-01) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -129,6 +129,29 @@
   .progress{height:10px; border-radius:5px; background:var(--paper-2); overflow:hidden; margin-top:10px;}
   .progress div{height:100%; background:var(--brand); border-radius:5px; transition:width .2s;}
 
+  .barra{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 14px;}
+  .mes-nav{display:flex; align-items:center; gap:6px;}
+  .mes-nav input[type=month], .mes-nav select, .mapa-grid select, .mapa-grid input, input.monto, .form input[type=date]{
+    padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:13.5px; background:#fff; color:var(--ink);
+  }
+  .back-btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--brand); cursor:pointer; margin-bottom:14px; background:none; border:none; padding:0; font-family:'Inter',sans-serif;}
+  .back-btn:hover{color:var(--brand-dark);}
+  .tile.ancho{grid-column:span 2;}
+  .tile .meter{margin-top:8px;}
+  .meter .track{position:relative; overflow:visible;}
+  .meter .fill{position:relative;}
+  .meter .marca{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); border-radius:1px; z-index:1;}
+  tr.total td{background:var(--paper); font-weight:600;}
+  tr.actual td{background:#F5F9FC;}
+  .plan-grid{display:grid; grid-template-columns:minmax(120px, 1fr) 110px 110px; gap:8px 12px; align-items:center; max-width:460px;}
+  .plan-grid .cab{font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft);}
+  .plan-grid label{font-size:14px; font-weight:500;}
+  .plan-grid input{padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:15px; width:100%; font-variant-numeric:tabular-nums;}
+  .plan-grid input:disabled, #planNota:disabled{background:var(--low-bg); color:var(--ink-soft);}
+  .mapa-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px 14px;}
+  .mapa-grid label{display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:600;}
+  .form label.check{display:flex; align-items:center; gap:6px; font-weight:500; font-size:13.5px;}
+  input.monto{width:100%; max-width:220px; font-variant-numeric:tabular-nums;}
   .feed{list-style:none; margin:0; padding:0;}
   .feed li{padding:10px 0; border-bottom:1px solid var(--line); font-size:13.5px; line-height:1.5;}
   .feed li:last-child{border-bottom:none;}
@@ -144,6 +167,8 @@
     table.apilar tbody td[data-label]:not([data-label=""])::before{content:attr(data-label); display:block; font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.03em; color:var(--ink-soft); margin-bottom:1px;}
     table.apilar td.num{text-align:left;}
     .gestion{min-width:0;}
+    .tile.ancho{grid-column:auto;}
+    .plan-grid{grid-template-columns:minmax(90px, 1fr) 84px 84px;}
     header{flex-wrap:wrap;}
     header .session{width:100%; justify-content:flex-start; margin-left:0;}
   }
@@ -159,7 +184,7 @@
     </div>
     <div class="session hidden" id="session">
       <span id="sessionNombre"></span>
-      <a class="link-btn" href="https://segulimp-hub.vercel.app/">← Volver al Hub</a>
+      <a class="link-btn" href="hub.html">← Volver al Hub</a>
       <button class="link-btn" id="btnSalir" type="button">Salir</button>
     </div>
   </header>
@@ -190,7 +215,9 @@ const S = {
   filtros: { q: '', vendedor: '', estado: '', prioridad: '', segmento: '', preset: '', orden: 'prioridad' },
   mostrar: POR_PAGINA,
   ordenResumen: { campo: 'n', desc: true },
-  importacion: null
+  importacion: null,
+  periodo: null, objetivos: [], ventas: [], actividades: [], cargas: [], alias: [],
+  semana: null, verVendedor: null, impVentas: null
 };
 
 const $ = id => document.getElementById(id);
@@ -284,7 +311,7 @@ async function cargarDatos(){
   const desde = new Date(Date.now() - 30 * 864e5).toISOString();
   const [plan, vendedores, snapshots, log] = await Promise.all([
     traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
-    traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo', 'id'),
+    traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email', 'id'),
     traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
     traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde))
   ]);
@@ -294,6 +321,10 @@ async function cargarDatos(){
     const { data, error } = await sb.rpc('comercial_usuarios');
     S.usuarios = error ? [] : (data || []);
   }
+  S.cargas = await traerTodo('comercial_ventas_cargas', 'id, archivo, desde, hasta, filas, total, creado_en', 'id', q => q.gte('hasta', sumarDias(hoyISO(), -400)));
+  S.alias = S.veTodo ? await traerTodo('comercial_vendedor_alias', 'alias, vendedor_id', 'alias') : [];
+  if(!S.periodo) S.periodo = hoyISO().slice(0, 7);
+  await cargarPeriodo();
 }
 
 // ====== ACCESO ======
@@ -337,7 +368,7 @@ async function iniciar(session){
   $('session').classList.remove('hidden');
   $('sessionNombre').textContent = data.nombre;
   if(data.debe_cambiar_clave){
-    content().innerHTML = `<div class="msg-box info">Antes de seguir tenés que elegir tu contraseña. <a class="link-btn" href="https://segulimp-hub.vercel.app/">Entrá al Hub</a> y volvé a esta herramienta.</div>`;
+    content().innerHTML = `<div class="msg-box info">Antes de seguir tenés que elegir tu contraseña. <a class="link-btn" href="hub.html">Entrá al Hub</a> y volvé a esta herramienta.</div>`;
     return;
   }
   S.esAdmin = data.roles.includes('administrador');
@@ -347,7 +378,7 @@ async function iniciar(session){
     content().innerHTML = `<div class="msg-box info">Tu usuario no tiene acceso a Fuerza de Ventas. Pedile a un administrador el rol Comercial.</div>`;
     return;
   }
-  await recargar(S.veTodo ? 'seguimiento' : 'cartera');
+  await recargar('avance');
 }
 
 async function recargar(tab){
@@ -358,15 +389,18 @@ async function recargar(tab){
     content().innerHTML = `<div class="msg-box error">No se pudieron cargar los datos: ${esc(e.message || e)}</div>`;
     return;
   }
-  ir(tab || S.tab || 'cartera');
+  ir(tab || S.tab || 'avance');
 }
 
 // ====== NAVEGACIÓN ======
 function pestanas(){
-  const t = [];
-  if(S.veTodo) t.push(['seguimiento', 'Seguimiento por vendedor']);
-  t.push(['cartera', S.veTodo ? 'Cartera de clientes' : 'Mi plan']);
-  if(S.esAdmin){ t.push(['importar', 'Cargar reporte']); t.push(['vendedores', 'Vendedores']); }
+  const t = [['avance', S.veTodo ? 'Avance de ventas' : 'Mi avance']];
+  if(S.esAdmin){ t.push(['ventas', 'Cargar ventas']); t.push(['objetivos', 'Objetivos']); t.push(['vendedores', 'Vendedores']); }
+  if(S.plan.length){
+    if(S.veTodo) t.push(['seguimiento', 'Cartera por vendedor']);
+    t.push(['cartera', S.veTodo ? 'Cartera de clientes' : 'Mi cartera']);
+  }
+  if(S.esAdmin) t.push(['importar', 'Cargar cartera']);
   return t;
 }
 function ir(tab){
@@ -379,14 +413,17 @@ function ir(tab){
     `<span class="spacer"></span><button type="button" data-tab="_recargar">↻ Actualizar</button>`;
   const aviso = S.aviso ? `<div class="msg-box ${S.aviso.tipo}">${S.aviso.html}</div>` : '';
   S.aviso = null;
-  if(tab === 'seguimiento') renderSeguimiento(aviso);
+  if(tab === 'avance') renderAvance(aviso);
+  else if(tab === 'ventas') renderVentas(aviso);
+  else if(tab === 'objetivos') renderObjetivos(aviso);
+  else if(tab === 'seguimiento') renderSeguimiento(aviso);
   else if(tab === 'cartera') renderCartera(aviso);
   else if(tab === 'importar') renderImportar(aviso);
   else if(tab === 'vendedores') renderVendedores(aviso);
 }
 function sinDatos(aviso){
   content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">
-    ${S.esAdmin ? 'Todavía no hay ningún reporte cargado. Empezá por <button class="link-btn" data-tab="importar">cargar el primer reporte de ventas</button>.'
+    ${S.esAdmin ? 'Todavía no hay ninguna cartera cargada. Podés <button class="link-btn" data-tab="importar">cargar la cartera de clientes</button>.'
       : (S.veTodo ? 'Todavía no hay reportes cargados.' : (S.misVendedores.size ? 'Todavía no hay clientes en tu cartera.' : 'Tu usuario todavía no está vinculado a una cartera. Pedile a un administrador que lo vincule desde la pestaña Vendedores.'))}
   </p></div>`;
 }
@@ -815,8 +852,8 @@ function renderImportar(aviso){
       </div>`;
   }
   content().innerHTML = aviso + `
-    <h2 class="sec" style="margin-top:0">Cargar reporte de ventas</h2>
-    <p class="sub">Subí el Excel con el mismo formato que “Plan_Trabajo_Comercial_Clientes” (hoja “Plan de trabajo”). Cada carga actualiza ventas, última compra, segmento y prioridad de cada cliente.
+    <h2 class="sec" style="margin-top:0">Cargar cartera de clientes</h2>
+    <p class="sub">Opcional: para seguir cliente por cliente. Subí el Excel con el mismo formato que “Plan_Trabajo_Comercial_Clientes” (hoja “Plan de trabajo”). Cada carga actualiza ventas, última compra, segmento y prioridad de cada cliente.
       <strong>Nunca pisa</strong> el estado ni los comentarios que ya cargaron los vendedores, ni las reasignaciones hechas acá.</p>
     <div class="dropzone" id="dropzone">${imp && imp.error ? `<span class="vencido">${esc(imp.error)}</span><br>` : ''}
       <strong>Arrastrá el Excel acá</strong> o hacé clic para elegirlo
@@ -911,6 +948,10 @@ function sugerirUsuario(v){
     const tu = norm(u.nombre).split(' ').filter(Boolean);
     return tu.length >= 2 && tu.every(t => tv.has(t));
   };
+  if(v.email){
+    const porEmail = S.usuarios.filter(u => !usados.has(u.user_id) && u.email === v.email.toLowerCase());
+    if(porEmail.length === 1) return porEmail[0].user_id;
+  }
   const cand = S.usuarios.filter(u => !usados.has(u.user_id) && coincide(v, u));
   if(cand.length !== 1) return null;
   const rivales = S.vendedores.filter(x => !x.user_id && coincide(x, cand[0]));
@@ -924,36 +965,34 @@ function renderVendedores(aviso){
   const haySugeridos = lista.some(v => !v.user_id && sugerirUsuario(v));
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Vendedores</h2>
-    <p class="sub">Los vendedores se crean solos a partir del reporte. Para que cada uno entre y vea <strong>solo su cartera</strong>:
-      creá su usuario en el Hub (Usuarios → Nuevo usuario, rol <strong>Comercial</strong>) y después vinculalo acá.
-      Si además le das el rol Solo consulta, ve todas las carteras pero edita solo la suya.
-      Los vendedores que ya no están se marcan como inactivos: sus clientes quedan agrupados como cartera para reasignar.</p>
+    <p class="sub">Para que cada vendedor entre y vea <strong>solo su avance</strong>: creá su usuario en el Hub (Usuarios → Nuevo usuario, rol <strong>Comercial</strong>, con el email que figura acá) y después vinculalo en esta pantalla.
+      Si además le das el rol Solo consulta, ve a todo el equipo pero carga solo lo suyo. Los que ya no venden se marcan como inactivos.</p>
     <div class="form" style="margin:0 0 16px">
       <input type="text" id="nvNombre" placeholder="Nombre y apellido" aria-label="Nombre y apellido del vendedor nuevo">
       <input type="text" id="nvErp" placeholder="Como figura en el reporte (APELLIDO, NOMBRE)" aria-label="Nombre en el reporte" style="min-width:290px">
       <button class="btn-ghost" id="btnNuevoVendedor">+ Agregar vendedor</button>
       ${lista.some(v => v.activo && !v.user_id) && lista.some(v => v.user_id) ? `<button class="btn-ghost" id="btnSoloVinculados">Dejar activos solo los que tienen usuario</button>` : ''}
     </div>
-    ${haySugeridos ? `<div class="msg-box info">Hay usuarios del Hub cuyo nombre coincide con un vendedor: ya quedaron preseleccionados. Revisalos y tocá <strong>Guardar</strong> en cada fila.</div>` : ''}
+    ${haySugeridos ? `<div class="msg-box info">Hay usuarios del Hub que coinciden con un vendedor por email o por nombre: ya quedaron preseleccionados. Revisalos y tocá <strong>Guardar</strong> en cada fila.</div>` : ''}
     ${lista.length ? `<div class="table-wrap"><table class="apilar">
-      <thead><tr><th>Nombre</th><th>Nombre en el reporte</th><th class="num">Clientes</th><th>Usuario del Hub</th><th>Activo</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Nombre en el sistema</th><th>Email</th><th>Usuario del Hub</th><th>Activo</th><th></th></tr></thead>
       <tbody>${lista.map(v => {
         const sug = v.user_id ? null : sugerirUsuario(v);
         const sel = v.user_id || sug || '';
         const huerfano = v.user_id && !S.usuarios.some(u => u.user_id === v.user_id);
         return `<tr data-vendedor="${v.id}">
           <td data-label="Nombre"><input type="text" data-v-nombre value="${esc(v.nombre)}" class="mini-input" style="padding:7px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; width:100%; min-width:150px"></td>
-          <td data-label="Nombre en el reporte" class="muted">${esc(v.nombre_erp)}</td>
-          <td data-label="Clientes" class="num">${num(cuenta.get(v.id) || 0)}</td>
+          <td data-label="Nombre en el sistema" class="muted">${esc(v.nombre_erp)}${cuenta.get(v.id) ? `<div>${num(cuenta.get(v.id))} clientes en cartera</div>` : ''}</td>
+          <td data-label="Email"><input type="email" data-v-email value="${esc(v.email || '')}" placeholder="usuario@segulimp.com.ar" style="padding:7px 9px; border:1px solid var(--line); border-radius:8px; font:inherit; width:100%; min-width:190px"></td>
           <td data-label="Usuario del Hub"><select data-v-usuario class="mini" style="margin:0; padding:7px 8px; font-size:13px; max-width:260px">
             <option value="">Sin usuario</option>
             ${huerfano ? `<option value="${esc(v.user_id)}" selected>Usuario sin rol comercial</option>` : ''}
             ${S.usuarios.map(u => `<option value="${esc(u.user_id)}" ${u.user_id === sel ? 'selected' : ''}>${esc(u.nombre)} — ${esc(u.email)}</option>`).join('')}
-          </select>${sug ? '<div class="muted">Sugerido por nombre, falta guardar</div>' : ''}</td>
+          </select>${sug ? '<div class="muted">Sugerido, falta guardar</div>' : ''}</td>
           <td data-label="Activo"><input type="checkbox" data-v-activo ${v.activo ? 'checked' : ''} aria-label="Activo"></td>
           <td data-label=""><button class="btn-primary small" data-v-guardar ${sug ? '' : 'disabled'}>Guardar</button></td>
         </tr>`; }).join('')}</tbody></table></div>`
-      : `<div class="card"><p class="sub" style="margin:0">Todavía no hay vendedores: aparecen al cargar el primer reporte.</p></div>`}`;
+      : `<div class="card"><p class="sub" style="margin:0">Todavía no hay vendedores cargados.</p></div>`}`;
 }
 
 async function guardarVendedor(tr){
@@ -962,7 +1001,8 @@ async function guardarVendedor(tr){
   const btn = tr.querySelector('[data-v-guardar]');
   const nombre = tr.querySelector('[data-v-nombre]').value.trim();
   if(!nombre){ btn.title = 'El nombre no puede quedar vacío.'; return; }
-  const cambios = { nombre, user_id: tr.querySelector('[data-v-usuario]').value || null, activo: tr.querySelector('[data-v-activo]').checked };
+  const cambios = { nombre, user_id: tr.querySelector('[data-v-usuario]').value || null, activo: tr.querySelector('[data-v-activo]').checked,
+    email: tr.querySelector('[data-v-email]').value.trim().toLowerCase() || null };
   btn.disabled = true; btn.textContent = 'Guardando…';
   const { data, error } = await sb.from('comercial_vendedores').update(cambios).eq('id', id).select('id');
   if(error || !data || !data.length){
@@ -994,17 +1034,477 @@ async function soloVinculados(){
   await recargar('vendedores');
 }
 
+// ====== AVANCE DE VENTAS: objetivos, ventas del sistema y actividades ======
+const ACTIVIDADES = [['visitas', 'Visitas'], ['llamadas', 'Llamadas'], ['whatsapp', 'WhatsApp'], ['presupuestos', 'Presupuestos'], ['otras', 'Otras gestiones']];
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function isoLocal(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function sumarDias(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoLocal(d); }
+function lunesDe(iso){ const d = new Date(iso + 'T12:00:00'); return sumarDias(iso, -((d.getDay() + 6) % 7)); }
+function esHabil(iso){ const w = new Date(iso + 'T12:00:00').getDay(); return w >= 1 && w <= 5; }
+function habilesEntre(desde, hasta){ let n = 0; for(let d = desde; d <= hasta; d = sumarDias(d, 1)) if(esHabil(d)) n++; return n; }
+function mesInfo(periodo){
+  const [a, m] = periodo.split('-').map(Number);
+  const dias = new Date(a, m, 0).getDate();
+  const p = periodo + '-';
+  return { desde: p + '01', hasta: p + String(dias).padStart(2, '0'), nombre: MESES[m - 1] + ' de ' + a };
+}
+function diaMes(iso){ return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+function pesos(v){ return v == null ? '—' : '$' + nf.format(Math.round(Number(v))); }
+function semanasDelMes(periodo){
+  const { desde, hasta } = mesInfo(periodo), out = [];
+  for(let l = lunesDe(desde); l <= hasta; l = sumarDias(l, 7)) out.push({ lunes: l, ini: l < desde ? desde : l, fin: sumarDias(l, 6) > hasta ? hasta : sumarDias(l, 6) });
+  return out;
+}
+// Fecha hasta la que hay ventas cargadas dentro del mes elegido
+function fechaCorte(){
+  const { desde, hasta } = mesInfo(S.periodo);
+  let c = null;
+  for(const k of S.cargas) if(k.hasta >= desde && k.desde <= hasta){ const h = k.hasta > hasta ? hasta : k.hasta; if(!c || h > c) c = h; }
+  return c;
+}
+function avanceDe(ids){
+  const { desde, hasta } = mesInfo(S.periodo);
+  const set = ids === null ? null : new Set(ids);
+  const mias = S.ventas.filter(v => set === null ? true : set.has(v.vendedor_id));
+  const ventas = mias.reduce((s, v) => s + Number(v.importe || 0), 0);
+  const objetivo = S.objetivos.filter(o => set === null ? true : set.has(o.vendedor_id)).reduce((s, o) => s + Number(o.monto || 0), 0);
+  const corte = fechaCorte();
+  const total = habilesEntre(desde, hasta);
+  const pasados = corte ? habilesEntre(desde, corte) : 0;
+  const restantes = total - pasados;
+  const proyeccion = pasados > 0 ? ventas / pasados * total : null;
+  const falta = Math.max(objetivo - ventas, 0);
+  return { ventas, objetivo, corte, total, pasados, restantes, proyeccion, falta,
+    pct: objetivo ? ventas / objetivo * 100 : null, ritmo: total ? pasados / total * 100 : 0,
+    esperado: objetivo * (total ? pasados / total : 0), porDia: restantes > 0 ? falta / restantes : null };
+}
+function actividadDe(vendedorId, lunes){ return S.actividades.find(a => a.vendedor_id === vendedorId && a.semana === lunes) || null; }
+function sumaAct(a, suf){ return a ? ACTIVIDADES.reduce((s, [k]) => s + Number(a[k + '_' + suf] || 0), 0) : 0; }
+function puedeEditarVend(id){ return S.esAdmin || (S.esComercial && S.misVendedores.has(id)); }
+
+function medidor(pct, ritmo){
+  const w = Math.max(0, Math.min(100, pct || 0));
+  return `<div class="meter"><div class="track">${ritmo != null ? `<span class="marca" style="left:${Math.min(100, ritmo)}%" title="Ritmo esperado"></span>` : ''}<div class="fill" style="width:${w}%"></div></div><span class="pct">${pct == null ? '—' : Math.round(pct) + '%'}</span></div>`;
+}
+function selectorMes(){
+  return `<div class="mes-nav"><button class="btn-ghost small" data-mes="-1" aria-label="Mes anterior">‹</button>
+    <input type="month" id="selMes" value="${S.periodo}" aria-label="Mes">
+    <button class="btn-ghost small" data-mes="1" aria-label="Mes siguiente">›</button></div>`;
+}
+
+async function cargarPeriodo(){
+  const { desde, hasta } = mesInfo(S.periodo);
+  const [objetivos, ventas, actividades] = await Promise.all([
+    traerTodo('comercial_objetivos', 'vendedor_id, periodo, monto', 'vendedor_id', q => q.eq('periodo', desde)),
+    traerTodo('comercial_ventas_dia', 'fecha, vendedor_clave, vendedor_id, importe, operaciones', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)),
+    traerTodo('comercial_actividades', '*', 'semana', q => q.gte('semana', lunesDe(desde)).lte('semana', hasta))
+  ]);
+  S.objetivos = objetivos; S.ventas = ventas; S.actividades = actividades;
+}
+async function cambiarMes(periodo){
+  if(!/^\d{4}-\d{2}$/.test(periodo)) return;
+  S.periodo = periodo; S.semana = null;
+  try{ await cargarPeriodo(); } catch(e){ S.aviso = { tipo: 'error', html: 'No se pudieron cargar los datos del mes: ' + esc(e.message || e) }; }
+  ir(S.tab);
+}
+
+function renderAvance(aviso){
+  if(!S.veTodo){
+    const id = [...S.misVendedores][0];
+    if(!id){ content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">Tu usuario todavía no está vinculado a un vendedor. Pedile a un administrador que lo vincule desde la pestaña Vendedores.</p></div>`; return; }
+    renderDetalleVendedor(aviso, id); return;
+  }
+  if(S.verVendedor){ renderDetalleVendedor(aviso, S.verVendedor); return; }
+  const mes = mesInfo(S.periodo);
+  const lunes = lunesDe(hoyISO());
+  const activos = S.vendedores.filter(v => v.activo);
+  const idsActivos = new Set(activos.map(v => v.id));
+  const filas = activos.map(v => ({ v, a: avanceDe([v.id]), act: actividadDe(v.id, lunes) }))
+    .sort((x, y) => (y.a.objetivo - x.a.objetivo) || (y.a.ventas - x.a.ventas) || x.v.nombre.localeCompare(y.v.nombre));
+  const otros = S.ventas.filter(x => !idsActivos.has(x.vendedor_id)).reduce((s, x) => s + Number(x.importe || 0), 0);
+  const tot = avanceDe(null);
+  const conObj = avanceDe(activos.filter(v => S.objetivos.some(o => o.vendedor_id === v.id)).map(v => v.id));
+  content().innerHTML = aviso + `
+    <div class="barra"><h2 class="sec" style="margin:0">Avance de ventas · ${mes.nombre}</h2>${selectorMes()}</div>
+    ${tot.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas de ${mes.nombre}.${S.esAdmin ? ' Subí el archivo del sistema en <button class="link-btn" data-tab="ventas">Cargar ventas</button>.' : ''}</div>`}
+    <div class="tiles">
+      <div class="tile"><div class="label">Ventas del mes</div><div class="value">${plata(tot.ventas)}</div><div class="note">${tot.corte ? 'Datos al ' + diaMes(tot.corte) : 'Sin datos cargados'}</div></div>
+      <div class="tile"><div class="label">Objetivo del equipo</div><div class="value">${plata(tot.objetivo)}</div><div class="note">${S.objetivos.length} ${S.objetivos.length === 1 ? 'vendedor con objetivo' : 'vendedores con objetivo'}</div></div>
+      <div class="tile"><div class="label">Avance sobre el objetivo</div><div class="value">${conObj.pct == null ? '—' : Math.round(conObj.pct) + '%'}</div><div class="note">Ritmo esperado a la fecha: ${Math.round(tot.ritmo)}%</div></div>
+      <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${conObj.proyeccion == null ? '—' : plata(conObj.proyeccion)}</div><div class="note">Al ritmo actual, vendedores con objetivo</div></div>
+      <div class="tile"><div class="label">Días hábiles</div><div class="value">${tot.pasados} de ${tot.total}</div><div class="note">Lunes a viernes, sin contar feriados</div></div>
+    </div>
+    <p class="sub">Hacé clic en un vendedor para ver su detalle y su plan semanal. La marca en la barra es el ritmo esperado a la fecha.</p>
+    <div class="table-wrap"><table class="apilar resumen">
+      <thead><tr><th>Vendedor</th><th class="num">Objetivo</th><th class="num">Ventas</th><th>Avance</th><th class="num">Falta</th><th class="num">Proyección</th><th class="num">Actividades de esta semana<br>hechas / planificadas</th></tr></thead>
+      <tbody>
+        ${filas.map(({ v, a, act }) => `
+          <tr class="clickable" data-detalle="${v.id}">
+            <td data-label="Vendedor"><strong>${esc(v.nombre)}</strong>${v.user_id ? '' : '<div class="muted">Sin usuario vinculado</div>'}</td>
+            <td data-label="Objetivo" class="num">${a.objetivo ? pesos(a.objetivo) : '<span class="muted">Sin objetivo</span>'}</td>
+            <td data-label="Ventas" class="num">${pesos(a.ventas)}</td>
+            <td data-label="Avance">${a.objetivo ? medidor(a.pct, a.ritmo) : '<span class="muted">—</span>'}</td>
+            <td data-label="Falta" class="num">${a.objetivo ? pesos(a.falta) : '—'}</td>
+            <td data-label="Proyección" class="num">${a.proyeccion == null ? '—' : pesos(a.proyeccion)}</td>
+            <td data-label="Actividades de esta semana" class="num">${act ? sumaAct(act, 'real') + ' / ' + sumaAct(act, 'plan') : '<span class="muted">Sin plan</span>'}</td>
+          </tr>`).join('')}
+        ${otros ? `<tr class="sin-vendedor"><td data-label="Vendedor"><strong>Otros / sin vendedor</strong><div class="muted">Ventas del archivo sin vendedor asignado</div></td><td class="num">—</td><td data-label="Ventas" class="num">${pesos(otros)}</td><td>—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>` : ''}
+        <tr class="total"><td data-label=""><strong>Total</strong></td><td data-label="Objetivo" class="num">${pesos(tot.objetivo)}</td><td data-label="Ventas" class="num">${pesos(tot.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+      </tbody>
+    </table></div>`;
+}
+
+function renderDetalleVendedor(aviso, id){
+  const v = S.vendedores.find(x => x.id === id);
+  const mes = mesInfo(S.periodo);
+  const a = avanceDe([id]);
+  const edita = puedeEditarVend(id);
+  const hoyLunes = lunesDe(hoyISO());
+  const semanas = semanasDelMes(S.periodo);
+  if(!S.semana || !semanas.some(s => s.lunes === S.semana)) S.semana = (semanas.find(s => s.lunes === hoyLunes) || semanas[0]).lunes;
+  const act = actividadDe(id, S.semana) || {};
+  const dif = a.ventas - a.esperado;
+  const ventasSem = s => S.ventas.filter(x => x.vendedor_id === id && x.fecha >= s.ini && x.fecha <= s.fin).reduce((t, x) => t + Number(x.importe || 0), 0);
+  const celda = (r, k) => r ? `${Number(r[k + '_real'] || 0)} / ${Number(r[k + '_plan'] || 0)}` : '<span class="muted">—</span>';
+  content().innerHTML = aviso + `
+    ${S.veTodo ? `<button class="back-btn" data-volver-avance>← Todos los vendedores</button>` : ''}
+    <div class="barra"><h2 class="sec" style="margin:0">${S.veTodo ? esc(v ? v.nombre : 'Vendedor') : 'Mi avance'} · ${mes.nombre}</h2>${selectorMes()}</div>
+    ${a.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas de ${mes.nombre}.</div>`}
+    <div class="tiles">
+      <div class="tile"><div class="label">Ventas del mes</div><div class="value">${plata(a.ventas)}</div><div class="note">${pesos(a.ventas)}${a.corte ? ' · datos al ' + diaMes(a.corte) : ''}</div></div>
+      <div class="tile"><div class="label">Objetivo del mes</div><div class="value">${a.objetivo ? plata(a.objetivo) : '—'}</div><div class="note">${a.objetivo ? pesos(a.objetivo) : 'Todavía sin objetivo cargado'}</div></div>
+      <div class="tile ancho"><div class="label">Avance sobre el objetivo</div><div class="value">${a.pct == null ? '—' : Math.round(a.pct) + '%'}</div>
+        ${a.objetivo ? medidor(a.pct, a.ritmo) : ''}
+        <div class="note">${a.objetivo && a.corte ? `Ritmo esperado a la fecha: ${Math.round(a.ritmo)}%. ${dif >= 0 ? 'Vas ' + pesos(dif) + ' arriba del ritmo.' : 'Vas ' + pesos(-dif) + ' abajo del ritmo.'}` : 'La marca muestra el ritmo esperado a la fecha.'}</div></div>
+      <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="note">${a.proyeccion != null && a.objetivo ? Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo, al ritmo actual' : 'Al ritmo actual'}</div></div>
+      <div class="tile"><div class="label">Para llegar al objetivo</div><div class="value">${a.objetivo ? (a.falta === 0 ? 'Cumplido' : (a.porDia == null ? '—' : plata(a.porDia))) : '—'}</div><div class="note">${a.objetivo && a.falta > 0 ? `por día hábil · faltan ${pesos(a.falta)} y ${a.restantes} ${a.restantes === 1 ? 'día' : 'días'}` : (a.objetivo ? 'Objetivo alcanzado' : '')}</div></div>
+    </div>
+
+    <h2 class="sec">Plan de la semana</h2>
+    <p class="sub">Cuántas gestiones comerciales ${S.veTodo ? 'planifica' : 'vas a hacer'} en la semana y cuántas ${S.veTodo ? 'hizo' : 'llevás hechas'}. Se compara abajo con las ventas de cada semana.</p>
+    <div class="card" id="planSemana" data-vendedor="${id}">
+      <div class="mes-nav" style="margin-bottom:14px">
+        <label for="selSemana" class="muted">Semana</label>
+        <select id="selSemana">${semanas.map(s => `<option value="${s.lunes}" ${s.lunes === S.semana ? 'selected' : ''}>del ${diaMes(s.lunes)} al ${diaMes(sumarDias(s.lunes, 6))}${s.lunes === hoyLunes ? ' (esta semana)' : ''}</option>`).join('')}</select>
+      </div>
+      <div class="plan-grid">
+        <div class="cab"></div><div class="cab">Planificadas</div><div class="cab">Hechas</div>
+        ${ACTIVIDADES.map(([k, n]) => `
+          <label for="p_${k}">${n}</label>
+          <input type="number" min="0" step="1" inputmode="numeric" id="p_${k}" data-act="${k}_plan" value="${Number(act[k + '_plan'] || 0)}" ${edita ? '' : 'disabled'} aria-label="${n} planificadas">
+          <input type="number" min="0" step="1" inputmode="numeric" data-act="${k}_real" value="${Number(act[k + '_real'] || 0)}" ${edita ? '' : 'disabled'} aria-label="${n} hechas">`).join('')}
+      </div>
+      <input type="text" id="planNota" maxlength="300" placeholder="Nota de la semana (zona, clientes clave, etc.)" value="${esc(act.nota || '')}" ${edita ? '' : 'disabled'} style="width:100%; margin-top:12px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:13.5px">
+      ${edita ? `<div class="form"><button class="btn-primary" id="btnGuardarPlan">Guardar plan</button><span class="muted" id="planEstado">${act.actualizado_en ? 'Última actualización ' + fechaHora(act.actualizado_en) : ''}</span></div>` : ''}
+    </div>
+
+    <h2 class="sec">Semana a semana</h2>
+    <p class="sub">En cada actividad: hechas / planificadas. Las ventas son las del sistema dentro del mes.</p>
+    <div class="table-wrap"><table class="apilar resumen">
+      <thead><tr><th>Semana</th>${ACTIVIDADES.map(([, n]) => `<th class="num">${n}</th>`).join('')}<th class="num">Ventas</th></tr></thead>
+      <tbody>
+        ${semanas.map(s => { const r = actividadDe(id, s.lunes); return `
+          <tr ${s.lunes === hoyLunes ? 'class="actual"' : ''}>
+            <td data-label="Semana"><strong>${diaMes(s.ini)} al ${diaMes(s.fin)}</strong>${s.lunes === hoyLunes ? '<div class="muted">Esta semana</div>' : ''}</td>
+            ${ACTIVIDADES.map(([k, n]) => `<td data-label="${n}" class="num">${celda(r, k)}</td>`).join('')}
+            <td data-label="Ventas" class="num">${a.corte && s.ini <= a.corte ? pesos(ventasSem(s)) : '<span class="muted">—</span>'}</td>
+          </tr>`; }).join('')}
+        <tr class="total"><td data-label=""><strong>Total del mes</strong></td>
+          ${ACTIVIDADES.map(([k, n]) => { const rs = semanas.map(s => actividadDe(id, s.lunes)).filter(Boolean); return `<td data-label="${n}" class="num">${rs.reduce((t, r) => t + Number(r[k + '_real'] || 0), 0)} / ${rs.reduce((t, r) => t + Number(r[k + '_plan'] || 0), 0)}</td>`; }).join('')}
+          <td data-label="Ventas" class="num">${pesos(a.ventas)}</td></tr>
+      </tbody>
+    </table></div>`;
+}
+
+async function guardarPlan(){
+  const caja = $('planSemana');
+  const id = Number(caja.dataset.vendedor);
+  const btn = $('btnGuardarPlan');
+  const fila = { vendedor_id: id, semana: S.semana, nota: $('planNota').value.trim() || null };
+  for(const inp of caja.querySelectorAll('[data-act]')){
+    const n = Math.round(Number(inp.value));
+    if(!Number.isFinite(n) || n < 0){ $('planEstado').textContent = 'Revisá las cantidades: tienen que ser números de 0 en adelante.'; inp.focus(); return; }
+    fila[inp.dataset.act] = n;
+  }
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  const { data, error } = await sb.from('comercial_actividades').upsert(fila, { onConflict: 'vendedor_id,semana' }).select('*');
+  btn.disabled = false; btn.textContent = 'Guardar plan';
+  if(error || !data || !data.length){ $('planEstado').textContent = 'No se pudo guardar' + (error ? ': ' + error.message : '.'); return; }
+  S.actividades = S.actividades.filter(a => !(a.vendedor_id === id && a.semana === S.semana)).concat(data[0]);
+  S.aviso = { tipo: 'ok', html: 'Plan de la semana guardado.' };
+  ir('avance');
+}
+
+// ====== OBJETIVOS ======
+function renderObjetivos(aviso){
+  const mes = mesInfo(S.periodo);
+  const activos = S.vendedores.filter(v => v.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const total = S.objetivos.reduce((s, o) => s + Number(o.monto || 0), 0);
+  content().innerHTML = aviso + `
+    <div class="barra"><h2 class="sec" style="margin:0">Objetivos de venta · ${mes.nombre}</h2>${selectorMes()}</div>
+    <p class="sub">Objetivo mensual de ventas de cada vendedor, en pesos. Dejá vacío al que no tiene objetivo ese mes.</p>
+    <div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Vendedor</th><th>Objetivo del mes ($)</th></tr></thead>
+      <tbody>${activos.map(v => { const o = S.objetivos.find(x => x.vendedor_id === v.id); return `
+        <tr><td data-label="Vendedor"><strong>${esc(v.nombre)}</strong></td>
+          <td data-label="Objetivo del mes ($)"><input type="text" inputmode="numeric" class="monto" data-objetivo="${v.id}" value="${o ? nf.format(Number(o.monto)) : ''}" placeholder="Sin objetivo" aria-label="Objetivo de ${esc(v.nombre)}"></td></tr>`; }).join('')}
+        <tr class="total"><td><strong>Total del equipo</strong></td><td class="num" style="text-align:left"><strong>${pesos(total)}</strong></td></tr>
+      </tbody></table></div>
+    <div class="form">
+      <button class="btn-primary" id="btnGuardarObjetivos">Guardar objetivos</button>
+      <button class="btn-ghost" id="btnCopiarObjetivos">Copiar los del mes anterior</button>
+      <span class="muted" id="objEstado"></span>
+    </div>`;
+}
+
+async function guardarObjetivos(){
+  const { desde } = mesInfo(S.periodo);
+  const guardar = [], quitar = [];
+  for(const inp of content().querySelectorAll('[data-objetivo]')){
+    const id = Number(inp.dataset.objetivo), txt = inp.value.trim();
+    const actual = S.objetivos.find(o => o.vendedor_id === id);
+    if(!txt){ if(actual) quitar.push(id); continue; }
+    const n = aNumero(txt);
+    if(n == null || n < 0){ $('objEstado').textContent = 'Hay un monto que no es un número válido.'; inp.focus(); return; }
+    if(!actual || Number(actual.monto) !== n) guardar.push({ vendedor_id: id, periodo: desde, monto: n });
+  }
+  if(!guardar.length && !quitar.length){ $('objEstado').textContent = 'No hay cambios para guardar.'; return; }
+  $('btnGuardarObjetivos').disabled = true;
+  let error = null;
+  if(guardar.length) ({ error } = await sb.from('comercial_objetivos').upsert(guardar, { onConflict: 'vendedor_id,periodo' }).select('vendedor_id'));
+  for(const id of quitar){ if(error) break; ({ error } = await sb.from('comercial_objetivos').delete().eq('vendedor_id', id).eq('periodo', desde)); }
+  S.aviso = error ? { tipo: 'error', html: 'No se pudieron guardar los objetivos: ' + esc(error.message) } : { tipo: 'ok', html: 'Objetivos guardados.' };
+  try{ await cargarPeriodo(); } catch(_){}
+  ir('objetivos');
+}
+
+async function copiarObjetivos(){
+  const [a, m] = S.periodo.split('-').map(Number);
+  const ant = m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`;
+  const { data, error } = await sb.from('comercial_objetivos').select('vendedor_id, monto').eq('periodo', ant + '-01');
+  if(error || !data || !data.length){ $('objEstado').textContent = error ? 'No se pudo leer el mes anterior.' : 'El mes anterior no tiene objetivos cargados.'; return; }
+  let n = 0;
+  for(const o of data){ const inp = content().querySelector(`[data-objetivo="${o.vendedor_id}"]`); if(inp && !inp.value.trim()){ inp.value = nf.format(Number(o.monto)); n++; } }
+  $('objEstado').textContent = n ? `Se completaron ${n} objetivos con los de ${mesInfo(ant).nombre}. Revisalos y tocá Guardar.` : 'Los vendedores con objetivo el mes anterior ya tienen uno cargado acá.';
+}
+
+// ====== CARGA DE VENTAS DEL SISTEMA ======
+const CAMPOS_VENTAS = {
+  vendedor: ['vendedor', 'nombre vendedor', 'vendedor asignado', 'viajante', 'vendedores'],
+  importe: ['importe', 'total', 'importe total', 'total neto', 'neto', 'importe neto', 'neto gravado', 'monto', 'venta', 'ventas', 'subtotal', 'total venta', 'total comprobante', 'venta neta', 'ventas netas'],
+  fecha: ['fecha', 'fecha comprobante', 'fecha emision', 'fecha de emision', 'emision', 'fecha factura', 'dia', 'fecha venta']
+};
+function mapearVentas(fila){
+  const cab = (fila || []).map(norm), mapa = {};
+  for(const [campo, alias] of Object.entries(CAMPOS_VENTAS)){
+    let i = cab.findIndex(c => alias.includes(c));
+    if(i < 0 && campo === 'importe') i = cab.findIndex(c => /^(total|importe|ventas?|neto)\b/.test(c));
+    if(i >= 0) mapa[campo] = i;
+  }
+  return mapa;
+}
+function leerVentas(buffer, nombre){
+  const wb = XLSX.read(buffer, { type: 'array' });
+  let mejor = null;
+  for(const hoja of wb.SheetNames){
+    const filas = XLSX.utils.sheet_to_json(wb.Sheets[hoja], { header: 1, raw: true, defval: null, blankrows: true });
+    if(!filas.length) continue;
+    for(let i = 0; i < Math.min(filas.length, 30); i++){
+      const mapa = mapearVentas(filas[i]);
+      if(mapa.vendedor != null && mapa.importe != null) return { archivo: nombre, hoja, filas, cabecera: i, mapa };
+    }
+    if(!mejor) mejor = { archivo: nombre, hoja, filas, cabecera: 0, mapa: mapearVentas(filas[0]) };
+  }
+  if(!mejor) throw new Error('El archivo no tiene datos.');
+  return mejor;
+}
+// Busca a qué vendedor corresponde un nombre del archivo: nombre del sistema, alias guardado o parecido único
+function resolverVendedor(clave){
+  if(!clave) return '';
+  const v = S.vendedores.find(x => x.nombre_erp === clave);
+  if(v) return String(v.id);
+  const al = S.alias.find(x => x.alias === clave);
+  if(al) return String(al.vendedor_id);
+  const tk = norm(clave).split(' ').filter(t => t.length > 1);
+  if(!tk.length) return '';
+  const cand = S.vendedores.filter(x => { const tv = new Set(norm(x.nombre + ' ' + x.nombre_erp).split(' ')); return tk.every(t => tv.has(t)); });
+  return cand.length === 1 ? String(cand[0].id) : '';
+}
+function procesarVentas(){
+  const im = S.impVentas, m = im.mapa;
+  const datos = im.filas.slice(im.cabecera + 1);
+  const hayFecha = m.fecha != null;
+  const fechaFija = im.fecha || hoyISO();
+  const filas = [];
+  let sinImporte = 0, sinFecha = 0;
+  if(m.vendedor != null && m.importe != null) for(const f of datos){
+    const nombre = aTexto(f[m.vendedor]);
+    const importe = aNumero(f[m.importe]);
+    if(nombre && /^total/i.test(nombre)) continue;
+    if(importe == null){ if(nombre) sinImporte++; continue; }
+    let fecha = fechaFija;
+    if(hayFecha){ fecha = aFecha(f[m.fecha]); if(!fecha){ sinFecha++; continue; } }
+    filas.push({ fecha, clave: claveVendedor(nombre) || '', importe });
+  }
+  const porNombre = new Map();
+  for(const r of filas){ const o = porNombre.get(r.clave) || { clave: r.clave, n: 0, total: 0 }; o.n++; o.total += r.importe; porNombre.set(r.clave, o); }
+  for(const o of porNombre.values()) if(!(o.clave in im.asignacion)) im.asignacion[o.clave] = resolverVendedor(o.clave) || (o.clave ? '_nuevo' : '');
+  let desde = null, hasta = null;
+  if(filas.length){
+    if(hayFecha){ desde = filas.reduce((a, r) => r.fecha < a ? r.fecha : a, filas[0].fecha); hasta = filas.reduce((a, r) => r.fecha > a ? r.fecha : a, filas[0].fecha); }
+    else { hasta = fechaFija; desde = im.modo === 'dia' ? fechaFija : fechaFija.slice(0, 8) + '01'; }
+  }
+  return { filas, nombres: [...porNombre.values()].sort((a, b) => b.total - a.total), sinImporte, sinFecha, desde, hasta, total: filas.reduce((s, r) => s + r.importe, 0), hayFecha };
+}
+
+function renderVentas(aviso){
+  const im = S.impVentas;
+  let previa = '';
+  if(im && im.filas){
+    const p = procesarVentas();
+    const cols = (im.filas[im.cabecera] || []).map((c, i) => ({ i, t: aTexto(c) || 'Columna ' + (i + 1) }));
+    const sel = (campo, vacio) => `<select data-mapa="${campo}">${vacio ? `<option value="">${vacio}</option>` : ''}${cols.map(c => `<option value="${c.i}" ${im.mapa[campo] === c.i ? 'selected' : ''}>${esc(c.t)}</option>`).join('')}</select>`;
+    const listo = p.filas.length > 0;
+    previa = `
+      <div class="card" style="margin-top:16px">
+        <p class="sub" style="margin-top:0"><strong>${esc(im.archivo)}</strong> · hoja “${esc(im.hoja)}”</p>
+        <div class="mapa-grid">
+          <label>Fila de títulos<input type="number" min="1" max="${Math.min(im.filas.length, 60)}" id="vCabecera" value="${im.cabecera + 1}"></label>
+          <label>Vendedor${sel('vendedor', im.mapa.vendedor == null ? 'Elegí la columna' : '')}</label>
+          <label>Importe de la venta${sel('importe', im.mapa.importe == null ? 'Elegí la columna' : '')}</label>
+          <label>Fecha${sel('fecha', 'No está en el archivo')}</label>
+        </div>
+        ${p.hayFecha ? '' : `
+          <div class="form" style="margin-top:12px">
+            <label for="vFecha">Fecha de los datos</label><input type="date" id="vFecha" value="${esc(im.fecha || hoyISO())}" max="${hoyISO()}">
+            <label class="check"><input type="radio" name="vModo" value="mes" ${im.modo !== 'dia' ? 'checked' : ''}> Es el acumulado del mes hasta esa fecha</label>
+            <label class="check"><input type="radio" name="vModo" value="dia" ${im.modo === 'dia' ? 'checked' : ''}> Son las ventas de ese día solamente</label>
+          </div>`}
+        ${listo ? `
+          <p class="sub" style="margin:16px 0 8px"><strong>${num(p.filas.length)}</strong> ventas · total <strong>${pesos(p.total)}</strong> · ${p.desde === p.hasta ? 'del ' + fechaCorta(p.desde) : 'del ' + fechaCorta(p.desde) + ' al ' + fechaCorta(p.hasta)}
+            ${p.sinImporte ? ` · ${num(p.sinImporte)} ${p.sinImporte === 1 ? 'fila sin importe, descartada' : 'filas sin importe, descartadas'}` : ''}${p.sinFecha ? ` · ${num(p.sinFecha)} ${p.sinFecha === 1 ? 'fila sin fecha válida, descartada' : 'filas sin fecha válida, descartadas'}` : ''}</p>
+          <div class="table-wrap"><table class="apilar">
+            <thead><tr><th>Como figura en el archivo</th><th class="num">Ventas</th><th class="num">Total</th><th>Corresponde a</th></tr></thead>
+            <tbody>${p.nombres.map(o => `
+              <tr><td data-label="Como figura en el archivo">${o.clave ? esc(o.clave) : '<span class="muted">(sin vendedor)</span>'}</td>
+                <td data-label="Ventas" class="num">${num(o.n)}</td><td data-label="Total" class="num">${pesos(o.total)}</td>
+                <td data-label="Corresponde a"><select data-asignar="${esc(o.clave)}">
+                  <option value="">Sin vendedor</option>
+                  ${o.clave ? `<option value="_nuevo" ${im.asignacion[o.clave] === '_nuevo' ? 'selected' : ''}>Crear vendedor nuevo</option>` : ''}
+                  ${[...S.vendedores].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}
+                </select></td></tr>`).join('')}</tbody></table></div>
+          <p class="muted" style="margin:10px 0 0">Al cargar, las ventas ${p.desde === p.hasta ? 'del ' + fechaCorta(p.desde) : 'entre el ' + fechaCorta(p.desde) + ' y el ' + fechaCorta(p.hasta)} quedan exactamente como dice este archivo: si ya había datos de esas fechas, se reemplazan.</p>`
+          : `<div class="msg-box info" style="margin:16px 0 0">Elegí qué columna tiene el vendedor y cuál el importe. Si los títulos no están en la fila indicada, cambiá el número de fila.</div>`}
+        <div class="form">
+          <button class="btn-primary" id="btnCargarVentas" ${listo && !im.enCurso ? '' : 'disabled'}>Cargar ventas</button>
+          <button class="btn-ghost" id="btnCancelarVentas">Cancelar</button>
+          <span class="muted" id="ventasEstado"></span>
+        </div>
+      </div>`;
+  }
+  const cargas = [...S.cargas].sort((a, b) => b.id - a.id).slice(0, 15);
+  content().innerHTML = aviso + `
+    <h2 class="sec" style="margin-top:0">Cargar ventas del sistema</h2>
+    <p class="sub">Subí todos los días el archivo de ventas que sale del sistema (Excel o CSV). Alcanza con que tenga una columna con el vendedor y otra con el importe; si trae la fecha de cada venta, mejor.
+      Cada vendedor ve su avance contra el objetivo apenas se carga.</p>
+    <div class="dropzone" id="dropVentas">${im && im.error ? `<span class="vencido">${esc(im.error)}</span><br>` : ''}
+      <strong>Arrastrá el archivo de ventas acá</strong> o hacé clic para elegirlo
+      <input type="file" id="ventasArchivo" accept=".xlsx,.xls,.csv" class="hidden">
+    </div>
+    ${previa}
+    <h2 class="sec">Últimas cargas</h2>
+    ${cargas.length ? `<div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Cargado</th><th>Archivo</th><th>Fechas que cubre</th><th class="num">Filas</th><th class="num">Total</th></tr></thead>
+      <tbody>${cargas.map(c => `<tr><td data-label="Cargado">${fechaHora(c.creado_en)}</td><td data-label="Archivo">${esc(c.archivo || '—')}</td>
+        <td data-label="Fechas que cubre">${c.desde === c.hasta ? fechaCorta(c.desde) : fechaCorta(c.desde) + ' al ' + fechaCorta(c.hasta)}</td>
+        <td data-label="Filas" class="num">${num(c.filas)}</td><td data-label="Total" class="num">${pesos(c.total)}</td></tr>`).join('')}</tbody></table></div>`
+      : `<div class="card"><p class="sub" style="margin:0">Todavía no se cargó ningún archivo de ventas.</p></div>`}`;
+}
+
+async function elegirVentas(file){
+  S.impVentas = { error: null };
+  try{
+    await cargarLector();
+    S.impVentas = { ...leerVentas(new Uint8Array(await file.arrayBuffer()), file.name), asignacion: {}, fecha: hoyISO(), modo: 'mes' };
+  } catch(e){ S.impVentas = { error: e.message || String(e) }; }
+  renderVentas('');
+}
+
+async function cargarVentas(){
+  const im = S.impVentas, p = procesarVentas();
+  if(!p.filas.length) return;
+  im.enCurso = true;
+  $('btnCargarVentas').disabled = true;
+  const estado = t => { $('ventasEstado').textContent = t; };
+  try{
+    // 1) vendedores nuevos
+    const ids = {}, creados = new Set();
+    for(const o of p.nombres){
+      const a = im.asignacion[o.clave];
+      if(a === '_nuevo'){
+        estado('Creando vendedor ' + o.clave + '…');
+        const nombre = o.clave.includes(',') ? o.clave.split(',').reverse().map(s => s.trim()).join(' ') : o.clave;
+        const { data, error } = await sb.from('comercial_vendedores').insert({ nombre: nombre.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()), nombre_erp: o.clave }).select('id');
+        if(error) throw error;
+        ids[o.clave] = data[0].id;
+        im.asignacion[o.clave] = String(data[0].id);
+        creados.add(o.clave);
+      } else ids[o.clave] = a ? Number(a) : null;
+    }
+    // 2) recordar cómo figura cada vendedor en el archivo
+    const alias = p.nombres.filter(o => o.clave && ids[o.clave] && !creados.has(o.clave) && !S.vendedores.some(v => v.id === ids[o.clave] && v.nombre_erp === o.clave))
+      .map(o => ({ alias: o.clave, vendedor_id: ids[o.clave] }));
+    if(alias.length){
+      const { error } = await sb.from('comercial_vendedor_alias').upsert(alias, { onConflict: 'alias' }).select('alias');
+      if(error) throw error;
+    }
+    // 3) resumen por día y vendedor, en una sola operación
+    const agg = new Map();
+    for(const r of p.filas){
+      const k = r.fecha + '|' + r.clave;
+      const o = agg.get(k) || { fecha: r.fecha, vendedor: r.clave || null, vendedor_id: ids[r.clave] ?? null, importe: 0, operaciones: 0 };
+      o.importe += r.importe; o.operaciones++; agg.set(k, o);
+    }
+    const filas = [...agg.values()].map(o => ({ ...o, importe: Math.round(o.importe * 100) / 100 }));
+    estado('Cargando ventas…');
+    const { data, error } = await sb.rpc('comercial_ventas_cargar', { p_archivo: im.archivo, p_desde: p.desde, p_hasta: p.hasta, p_filas: filas });
+    if(error) throw error;
+    S.impVentas = null;
+    S.periodo = p.hasta.slice(0, 7);
+    S.aviso = { tipo: 'ok', html: `Ventas cargadas: <strong>${num(p.filas.length)}</strong> ventas por <strong>${pesos(data.total)}</strong>, ${p.desde === p.hasta ? 'del ' + fechaCorta(p.desde) : 'del ' + fechaCorta(p.desde) + ' al ' + fechaCorta(p.hasta)}.` };
+    await recargar('avance');
+  } catch(e){
+    im.enCurso = false;
+    S.aviso = { tipo: 'error', html: `No se pudieron cargar las ventas: ${esc(e.message || e)}. Los datos que ya estaban no cambiaron.` };
+    await recargar('ventas');
+  }
+}
+
 // ====== EVENTOS ======
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
   if(!b) return;
-  if(b.dataset.tab === '_recargar') recargar(S.tab); else ir(b.dataset.tab);
+  if(b.dataset.tab === '_recargar') recargar(S.tab); else { S.verVendedor = null; ir(b.dataset.tab); }
 });
 
 content().addEventListener('click', e => {
   const t = e.target;
   let el;
   if((el = t.closest('[data-tab]'))){ ir(el.dataset.tab); return; }
+  if((el = t.closest('[data-mes]'))){
+    const [a, m] = S.periodo.split('-').map(Number);
+    const d = new Date(a, m - 1 + Number(el.dataset.mes), 1);
+    cambiarMes(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); return;
+  }
+  if((el = t.closest('[data-detalle]'))){ S.verVendedor = Number(el.dataset.detalle); S.semana = null; ir('avance'); window.scrollTo(0, 0); return; }
+  if(t.closest('[data-volver-avance]')){ S.verVendedor = null; ir('avance'); return; }
+  if(t.id === 'btnGuardarPlan'){ guardarPlan(); return; }
+  if(t.id === 'btnGuardarObjetivos'){ guardarObjetivos(); return; }
+  if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
+  if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
+  if(t.id === 'btnCancelarVentas'){ S.impVentas = null; renderVentas(''); return; }
+  if(t.closest('#dropVentas') && t.id !== 'ventasArchivo'){ $('ventasArchivo').click(); return; }
   if((el = t.closest('[data-orden]'))){
     const c = el.dataset.orden;
     S.ordenResumen = { campo: c, desc: S.ordenResumen.campo === c ? !S.ordenResumen.desc : c !== 'nombre' };
@@ -1035,6 +1535,17 @@ content().addEventListener('change', e => {
   const t = e.target;
   const f = { fVendedor: 'vendedor', fEstado: 'estado', fPrioridad: 'prioridad', fSegmento: 'segmento', fOrden: 'orden' }[t.id];
   if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
+  if(t.id === 'selMes'){ cambiarMes(t.value); return; }
+  if(t.id === 'selSemana'){ S.semana = t.value; ir('avance'); return; }
+  if(t.id === 'ventasArchivo' && t.files[0]){ elegirVentas(t.files[0]); return; }
+  if(S.impVentas && S.impVentas.filas){
+    const im = S.impVentas;
+    if(t.matches('[data-mapa]')){ if(t.value === '') delete im.mapa[t.dataset.mapa]; else im.mapa[t.dataset.mapa] = Number(t.value); im.asignacion = {}; renderVentas(''); return; }
+    if(t.id === 'vCabecera'){ const n = Math.round(Number(t.value)); if(n >= 1 && n <= im.filas.length){ im.cabecera = n - 1; im.mapa = mapearVentas(im.filas[im.cabecera]); im.asignacion = {}; } renderVentas(''); return; }
+    if(t.id === 'vFecha'){ im.fecha = t.value || hoyISO(); renderVentas(''); return; }
+    if(t.name === 'vModo'){ im.modo = t.value; renderVentas(''); return; }
+    if(t.matches('[data-asignar]')){ im.asignacion[t.dataset.asignar] = t.value; return; }
+  }
   if(t.matches('[data-reasignar]')){ reasignar(t); return; }
   if(t.matches('[data-estado]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
   if(t.matches('[data-v-usuario], [data-v-activo]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; return; }
@@ -1051,7 +1562,7 @@ content().addEventListener('input', e => {
     return;
   }
   if(t.matches('[data-comentario]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
-  if(t.matches('[data-v-nombre]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; }
+  if(t.matches('[data-v-nombre], [data-v-email]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; }
 });
 content().addEventListener('keydown', e => {
   if(e.key === 'Enter' && e.target.matches('[data-comentario]')){
@@ -1059,13 +1570,14 @@ content().addEventListener('keydown', e => {
     if(!b.disabled) guardarGestion(e.target.closest('tr'));
   }
 });
-content().addEventListener('dragover', e => { const d = e.target.closest('#dropzone'); if(d){ e.preventDefault(); d.classList.add('dragging'); } });
-content().addEventListener('dragleave', e => { const d = e.target.closest('#dropzone'); if(d) d.classList.remove('dragging'); });
+content().addEventListener('dragover', e => { const d = e.target.closest('.dropzone'); if(d){ e.preventDefault(); d.classList.add('dragging'); } });
+content().addEventListener('dragleave', e => { const d = e.target.closest('.dropzone'); if(d) d.classList.remove('dragging'); });
 content().addEventListener('drop', e => {
-  const d = e.target.closest('#dropzone');
+  const d = e.target.closest('.dropzone');
   if(!d) return;
   e.preventDefault();
-  if(e.dataTransfer.files[0]) elegirArchivo(e.dataTransfer.files[0]);
+  const f = e.dataTransfer.files[0];
+  if(f) (d.id === 'dropVentas' ? elegirVentas : elegirArchivo)(f);
 });
 
 $('btnSalir').onclick = async () => { await sb.auth.signOut(); renderLogin(); };
