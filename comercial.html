@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v2.0 (2026-10-01) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v2.1 (2026-10-02) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -958,15 +958,66 @@ function sugerirUsuario(v){
   return rivales.length === 1 ? cand[0].user_id : null;
 }
 
+// Vendedores activos con email que todavía no tienen usuario del Hub
+function sinUsuario(){
+  const conUsuario = new Set(S.usuarios.map(u => (u.email || '').toLowerCase()));
+  return S.vendedores.filter(v => v.activo && !v.user_id && v.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email) && !conUsuario.has(v.email.toLowerCase()))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
+async function crearUsuarios(btn){
+  const faltan = sinUsuario();
+  if(!faltan.length) return;
+  if(btn.dataset.confirmar !== '1'){
+    btn.dataset.confirmar = '1';
+    btn.textContent = `Confirmar: crear ${faltan.length === 1 ? '1 usuario' : faltan.length + ' usuarios'} con su email como contraseña inicial`;
+    return;
+  }
+  btn.disabled = true;
+  const hechos = [], fallas = [];
+  for(const [i, v] of faltan.entries()){
+    btn.textContent = `Creando ${i + 1} de ${faltan.length}…`;
+    const email = v.email.trim().toLowerCase();
+    let msg = '';
+    try {
+      const { data, error } = await sb.functions.invoke('admin-usuarios', { body: { accion: 'crear', email, nombre: v.nombre, roles: ['comercial'], clave: email } });
+      if(error){
+        msg = error.message || 'No se pudo crear';
+        try { const j = await error.context.json(); if(j && j.error) msg = j.error; } catch(_){}
+      } else if(data && data.error) msg = data.error;
+    } catch(e){ msg = e.message || String(e); }
+    if(msg) fallas.push({ v, msg }); else hechos.push(v);
+  }
+  try {
+    const [vendedores, usuarios] = await Promise.all([
+      traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email', 'id'),
+      sb.rpc('comercial_usuarios')
+    ]);
+    S.vendedores = vendedores;
+    if(!usuarios.error) S.usuarios = usuarios.data || [];
+  } catch(_){}
+  const sinVinculo = hechos.filter(h => !(S.vendedores.find(x => x.id === h.id) || {}).user_id);
+  let html = '';
+  if(hechos.length) html += `<div class="msg-box ok">${hechos.length === 1 ? 'Se creó 1 usuario' : `Se crearon ${hechos.length} usuarios`}: ${hechos.map(h => esc(h.nombre)).join(', ')}. Entran al Hub con su email; la contraseña inicial es ese mismo email y el Hub les pide cambiarla al primer ingreso.${sinVinculo.length ? ` Falta vincular a mano: ${sinVinculo.map(h => esc(h.nombre)).join(', ')}.` : ''}</div>`;
+  if(fallas.length) html += `<div class="msg-box error">No se pudo crear: ${fallas.map(f => `${esc(f.v.nombre)} (${esc(f.msg)})`).join('; ')}.</div>`;
+  renderVendedores(html);
+}
+
 function renderVendedores(aviso){
   const cuenta = new Map();
   for(const r of S.plan) if(r.vendedor_id) cuenta.set(r.vendedor_id, (cuenta.get(r.vendedor_id) || 0) + 1);
   const lista = [...S.vendedores].sort((a, b) => (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
   const haySugeridos = lista.some(v => !v.user_id && sugerirUsuario(v));
+  const faltan = sinUsuario();
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Vendedores</h2>
-    <p class="sub">Para que cada vendedor entre y vea <strong>solo su avance</strong>: creá su usuario en el Hub (Usuarios → Nuevo usuario, rol <strong>Comercial</strong>, con el email que figura acá) y después vinculalo en esta pantalla.
-      Si además le das el rol Solo consulta, ve a todo el equipo pero carga solo lo suyo. Los que ya no venden se marcan como inactivos.</p>
+    <p class="sub">Cada vendedor entra al Hub con <strong>su email</strong> y ve <strong>solo su avance</strong>. Con el botón de abajo se crean los usuarios que faltan (rol Comercial): la contraseña inicial es el mismo email y el Hub les pide cambiarla la primera vez que entran.
+      Si además le das el rol Solo consulta desde Hub → Usuarios, ve a todo el equipo pero carga solo lo suyo. Los que ya no venden se marcan como inactivos.</p>
+    ${faltan.length ? `<div class="card" style="margin:0 0 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+      <div style="flex:1; min-width:220px"><strong>${faltan.length === 1 ? 'Falta crear 1 usuario' : `Falta crear ${faltan.length} usuarios`}</strong>
+        <div class="muted">${faltan.map(v => esc(v.nombre)).join(', ')}</div></div>
+      <button class="btn-primary" id="btnCrearUsuarios">${faltan.length === 1 ? 'Crear el usuario' : `Crear los ${faltan.length} usuarios`}</button>
+    </div>` : ''}
     <div class="form" style="margin:0 0 16px">
       <input type="text" id="nvNombre" placeholder="Nombre y apellido" aria-label="Nombre y apellido del vendedor nuevo">
       <input type="text" id="nvErp" placeholder="Como figura en el reporte (APELLIDO, NOMBRE)" aria-label="Nombre en el reporte" style="min-width:290px">
@@ -1525,6 +1576,7 @@ content().addEventListener('click', e => {
   if((el = t.closest('[data-v-guardar]'))){ guardarVendedor(el.closest('tr')); return; }
   if((el = t.closest('[data-borrar-carga]'))){ borrarCarga(Number(el.dataset.borrarCarga)); return; }
   if(t.id === 'btnNuevoVendedor'){ agregarVendedor(); return; }
+  if(t.id === 'btnCrearUsuarios'){ crearUsuarios(t); return; }
   if(t.id === 'btnSoloVinculados'){ soloVinculados(); return; }
   if(t.id === 'btnImportar'){ importar(); return; }
   if(t.id === 'btnCancelarImp'){ S.importacion = null; renderImportar(''); return; }
