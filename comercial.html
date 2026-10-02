@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.0 (2026-10-02) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.1 (2026-10-02) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -341,7 +341,8 @@ const S = {
   ventasCli: [],
   mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null },
   pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
-  nuevoDato: false
+  nuevoDato: false,
+  cfg: {}
 };
 
 const $ = id => document.getElementById(id);
@@ -447,7 +448,10 @@ async function cargarDatos(){
   }
   S.cargas = await traerTodo('comercial_ventas_cargas', 'id, archivo, desde, hasta, filas, total, creado_en', 'id', q => q.gte('hasta', sumarDias(hoyISO(), -400)));
   S.alias = S.veTodo ? await traerTodo('comercial_vendedor_alias', 'alias, vendedor_id', 'alias') : [];
-  if(!S.periodo) S.periodo = hoyISO().slice(0, 7);
+  let cfg = [];
+  try { cfg = await traerTodo('comercial_config', 'clave, valor', 'clave'); } catch(_){}
+  S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
+  if(!S.periodo) S.periodo = periodoDe(hoyISO());
   await cargarPeriodo();
 }
 
@@ -1229,11 +1233,25 @@ function sumarDias(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.g
 function lunesDe(iso){ const d = new Date(iso + 'T12:00:00'); return sumarDias(iso, -((d.getDay() + 6) % 7)); }
 function esHabil(iso){ const w = new Date(iso + 'T12:00:00').getDay(); return w >= 1 && w <= 5; }
 function habilesEntre(desde, hasta){ let n = 0; for(let d = desde; d <= hasta; d = sumarDias(d, 1)) if(esHabil(d)) n++; return n; }
+// Período de venta. Si arranca el 1, es el mes calendario. Si arranca otro día (en Segulimp, el 16),
+// va de ese día al día anterior del mes siguiente y su clave AAAA-MM es el mes en el que termina.
+function diaInicio(){ const n = Math.round(Number(S.cfg.periodo_dia_inicio)); return n >= 2 && n <= 28 ? n : 1; }
+function periodoDe(iso){
+  let [a, m, d] = iso.split('-').map(Number);
+  if(diaInicio() > 1 && d >= diaInicio()){ m++; if(m > 12){ m = 1; a++; } }
+  return a + '-' + String(m).padStart(2, '0');
+}
 function mesInfo(periodo){
-  const [a, m] = periodo.split('-').map(Number);
-  const dias = new Date(a, m, 0).getDate();
-  const p = periodo + '-';
-  return { desde: p + '01', hasta: p + String(dias).padStart(2, '0'), nombre: MESES[m - 1] + ' de ' + a };
+  const [a, m] = periodo.split('-').map(Number), d0 = diaInicio(), p2 = n => String(n).padStart(2, '0');
+  const clave = periodo + '-01';
+  if(d0 === 1){
+    const nombre = MESES[m - 1] + ' de ' + a;
+    return { clave, desde: clave, hasta: periodo + '-' + p2(new Date(a, m, 0).getDate()), nombre, de: 'de ' + nombre };
+  }
+  const ma = m === 1 ? 12 : m - 1, aa = m === 1 ? a - 1 : a;
+  const otroAnio = a !== Number(hoyISO().slice(0, 4)) ? '/' + a : '';
+  const nombre = `${p2(d0)}/${p2(ma)} al ${p2(d0 - 1)}/${p2(m)}${otroAnio}`;
+  return { clave, desde: `${aa}-${p2(ma)}-${p2(d0)}`, hasta: `${a}-${p2(m)}-${p2(d0 - 1)}`, nombre, de: 'del ' + nombre };
 }
 function diaMes(iso){ return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
 function pesos(v){ return v == null ? '—' : '$' + nf.format(Math.round(Number(v))); }
@@ -1274,27 +1292,27 @@ function medidor(pct, ritmo){
   return `<div class="meter"><div class="track">${ritmo != null ? `<span class="marca" style="left:${Math.min(100, ritmo)}%" title="Ritmo esperado"></span>` : ''}<div class="fill" style="width:${w}%"></div></div><span class="pct">${pct == null ? '—' : Math.round(pct) + '%'}</span></div>`;
 }
 function selectorMes(){
-  return `<div class="mes-nav"><button class="btn-ghost small" data-mes="-1" aria-label="Mes anterior">‹</button>
-    <input type="month" id="selMes" value="${S.periodo}" aria-label="Mes">
-    <button class="btn-ghost small" data-mes="1" aria-label="Mes siguiente">›</button></div>`;
+  return `<div class="mes-nav"><button class="btn-ghost small" data-mes="-1" aria-label="Período anterior">‹</button>
+    <strong id="selPeriodo" style="font-size:13.5px; min-width:120px; text-align:center">${mesInfo(S.periodo).nombre}</strong>
+    <button class="btn-ghost small" data-mes="1" aria-label="Período siguiente">›</button></div>`;
 }
 
 async function cargarPeriodo(){
-  const { desde, hasta } = mesInfo(S.periodo);
+  const { desde, hasta, clave } = mesInfo(S.periodo);
   const [objetivos, ventas, actividades] = await Promise.all([
-    traerTodo('comercial_objetivos', 'vendedor_id, periodo, monto', 'vendedor_id', q => q.eq('periodo', desde)),
+    traerTodo('comercial_objetivos', 'vendedor_id, periodo, monto', 'vendedor_id', q => q.eq('periodo', clave)),
     traerTodo('comercial_ventas_dia', 'fecha, vendedor_clave, vendedor_id, importe, operaciones', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)),
     traerTodo('comercial_actividades', '*', 'semana', q => q.gte('semana', lunesDe(desde)).lte('semana', hasta))
   ]);
   S.objetivos = objetivos; S.ventas = ventas; S.actividades = actividades;
-  // a quién le vendió cada vendedor en el mes (la vista del vendedor trae solo lo suyo)
+  // a quién le vendió cada vendedor en el período (la vista del vendedor trae solo lo suyo)
   S.ventasCli = S.veTodo ? [] : await traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta));
 }
 async function cambiarMes(periodo){
   if(!/^\d{4}-\d{2}$/.test(periodo)) return;
   await guardarPendiente();
   S.periodo = periodo; S.semana = null; S.modoSemana = null;
-  try{ await cargarPeriodo(); } catch(e){ S.aviso = { tipo: 'error', html: 'No se pudieron cargar los datos del mes: ' + esc(e.message || e) }; }
+  try{ await cargarPeriodo(); } catch(e){ S.aviso = { tipo: 'error', html: 'No se pudieron cargar los datos del período: ' + esc(e.message || e) }; }
   ir(S.tab);
 }
 
@@ -1316,9 +1334,9 @@ function renderAvance(aviso){
   const conObj = avanceDe(activos.filter(v => S.objetivos.some(o => o.vendedor_id === v.id)).map(v => v.id));
   content().innerHTML = aviso + `
     <div class="barra"><h2 class="sec" style="margin:0">Avance de ventas · ${mes.nombre}</h2>${selectorMes()}</div>
-    ${tot.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas de ${mes.nombre}.${S.esAdmin ? ' Subí el archivo del sistema en <button class="link-btn" data-tab="ventas">Cargar ventas</button>.' : ''}</div>`}
+    ${tot.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas ${mes.de}.${S.esAdmin ? ' Subí el archivo del sistema en <button class="link-btn" data-tab="ventas">Cargar ventas</button>.' : ''}</div>`}
     <div class="tiles">
-      <div class="tile"><div class="label">Ventas del mes</div><div class="value">${plata(tot.ventas)}</div><div class="note">${tot.corte ? 'Datos al ' + diaMes(tot.corte) : 'Sin datos cargados'}</div></div>
+      <div class="tile"><div class="label">Ventas del período</div><div class="value">${plata(tot.ventas)}</div><div class="note">${tot.corte ? 'Datos al ' + diaMes(tot.corte) : 'Sin datos cargados'}</div></div>
       <div class="tile"><div class="label">Objetivo del equipo</div><div class="value">${plata(tot.objetivo)}</div><div class="note">${S.objetivos.length} ${S.objetivos.length === 1 ? 'vendedor con objetivo' : 'vendedores con objetivo'}</div></div>
       <div class="tile"><div class="label">Avance sobre el objetivo</div><div class="value">${conObj.pct == null ? '—' : Math.round(conObj.pct) + '%'}</div><div class="note">Ritmo esperado a la fecha: ${Math.round(tot.ritmo)}%</div></div>
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${conObj.proyeccion == null ? '—' : plata(conObj.proyeccion)}</div><div class="note">Al ritmo actual, vendedores con objetivo</div></div>
@@ -1359,10 +1377,10 @@ function renderDetalleVendedor(aviso, id){
   content().innerHTML = aviso + `
     ${S.veTodo ? `<button class="back-btn" data-volver-avance>← Todos los vendedores</button>` : ''}
     <div class="barra"><h2 class="sec" style="margin:0">${S.veTodo ? esc(v ? v.nombre : 'Vendedor') : 'Mi avance'} · ${mes.nombre}</h2>${selectorMes()}</div>
-    ${a.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas de ${mes.nombre}.</div>`}
+    ${a.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas ${mes.de}.</div>`}
     <div class="tiles">
-      <div class="tile"><div class="label">Ventas del mes</div><div class="value">${plata(a.ventas)}</div><div class="note">${pesos(a.ventas)}${a.corte ? ' · datos al ' + diaMes(a.corte) : ''}</div></div>
-      <div class="tile"><div class="label">Objetivo del mes</div><div class="value">${a.objetivo ? plata(a.objetivo) : '—'}</div><div class="note">${a.objetivo ? pesos(a.objetivo) : 'Todavía sin objetivo cargado'}</div></div>
+      <div class="tile"><div class="label">Ventas del período</div><div class="value">${plata(a.ventas)}</div><div class="note">${pesos(a.ventas)}${a.corte ? ' · datos al ' + diaMes(a.corte) : ''}</div></div>
+      <div class="tile"><div class="label">Objetivo del período</div><div class="value">${a.objetivo ? plata(a.objetivo) : '—'}</div><div class="note">${a.objetivo ? pesos(a.objetivo) : 'Todavía sin objetivo cargado'}</div></div>
       <div class="tile ancho"><div class="label">Avance sobre el objetivo</div><div class="value">${a.pct == null ? '—' : Math.round(a.pct) + '%'}</div>
         ${a.objetivo ? medidor(a.pct, a.ritmo) : ''}
         <div class="note">${a.objetivo && a.corte ? `Ritmo esperado a la fecha: ${Math.round(a.ritmo)}%. ${dif >= 0 ? 'Vas ' + pesos(dif) + ' arriba del ritmo.' : 'Vas ' + pesos(-dif) + ' abajo del ritmo.'}` : 'La marca muestra el ritmo esperado a la fecha.'}</div></div>
@@ -1389,7 +1407,7 @@ function renderDetalleVendedor(aviso, id){
     </div>
 
     <h2 class="sec">Semana a semana</h2>
-    <p class="sub">En cada actividad: hechas / planificadas. Las ventas son las del sistema dentro del mes.</p>
+    <p class="sub">En cada actividad: hechas / planificadas. Las ventas son las del sistema dentro del período.</p>
     <div class="table-wrap"><table class="apilar resumen">
       <thead><tr><th>Semana</th>${ACTIVIDADES.map(([, n]) => `<th class="num">${n}</th>`).join('')}<th class="num">Ventas</th></tr></thead>
       <tbody>
@@ -1399,7 +1417,7 @@ function renderDetalleVendedor(aviso, id){
             ${ACTIVIDADES.map(([k, n]) => `<td data-label="${n}" class="num">${celda(r, k)}</td>`).join('')}
             <td data-label="Ventas" class="num">${a.corte && s.ini <= a.corte ? pesos(ventasSem(s)) : '<span class="muted">—</span>'}</td>
           </tr>`; }).join('')}
-        <tr class="total"><td data-label=""><strong>Total del mes</strong></td>
+        <tr class="total"><td data-label=""><strong>Total del período</strong></td>
           ${ACTIVIDADES.map(([k, n]) => { const rs = semanas.map(s => actividadDe(id, s.lunes)).filter(Boolean); return `<td data-label="${n}" class="num">${rs.reduce((t, r) => t + Number(r[k + '_real'] || 0), 0)} / ${rs.reduce((t, r) => t + Number(r[k + '_plan'] || 0), 0)}</td>`; }).join('')}
           <td data-label="Ventas" class="num">${pesos(a.ventas)}</td></tr>
       </tbody>
@@ -1408,10 +1426,10 @@ function renderDetalleVendedor(aviso, id){
 
 // ====== MI AVANCE (vista del vendedor, celular primero) ======
 function fraseAvance(a){
-  const mesHoy = hoyISO().slice(0, 7);
-  if(!a.objetivo) return ['Todavía no tenés objetivo cargado para este mes.', ''];
+  const mesHoy = periodoDe(hoyISO());
+  if(!a.objetivo) return ['Todavía no tenés objetivo cargado para este período.', ''];
   if(a.falta === 0) return ['¡Objetivo cumplido!', a.ventas > a.objetivo ? `Lo pasaste por ${pesos(a.ventas - a.objetivo)}. Todo lo que sumes ahora es extra.` : 'Todo lo que sumes ahora es extra.'];
-  if(!a.corte) return [`Tu objetivo del mes es ${pesos(a.objetivo)}.`, 'Todavía no se cargaron ventas de este mes.'];
+  if(!a.corte) return [`Tu objetivo es ${pesos(a.objetivo)}.`, 'Todavía no se cargaron ventas de este período.'];
   if(S.periodo < mesHoy || a.restantes === 0) return [`Cerraste en el ${Math.round(a.pct)}% del objetivo.`, `Faltaron ${pesos(a.falta)}.`];
   const dif = a.ventas - a.esperado;
   if(dif >= 0) return [`Venís ${pesos(dif)} arriba del ritmo.`, `${a.proyeccion != null ? `Si seguís así cerrás en ${pesos(a.proyeccion)}. ` : ''}Te faltan ${pesos(a.falta)} para el objetivo.`];
@@ -1440,7 +1458,7 @@ function renderMiAvance(aviso, id){
   const act = actividadDe(id, S.semana) || {};
   const modo = S.modoSemana || (sumaAct(act, 'plan') === 0 && S.semana >= hoyLunes ? 'plan' : 'real');
   const [frase, detalle] = fraseAvance(a);
-  const enCurso = S.periodo >= hoyISO().slice(0, 7);
+  const enCurso = S.periodo >= periodoDe(hoyISO());
   const estado = !a.objetivo || !a.corte ? '' : (a.falta === 0 || a.ventas >= a.esperado ? 'bien' : 'falta');
   const monto = pesos(a.ventas);
   const nombre = (S.perfil.nombre || '').trim().split(/\s+/)[0];
@@ -1448,7 +1466,7 @@ function renderMiAvance(aviso, id){
   content().innerHTML = aviso + `
     <div class="mv-top">
       <h1 class="mv-hola">Hola${nombre ? ', ' + esc(nombre) : ''}</h1>
-      <div class="mv-mes"><button type="button" data-mes="-1" aria-label="Mes anterior">‹</button><span>${mesCorto}</span><button type="button" data-mes="1" aria-label="Mes siguiente">›</button></div>
+      <div class="mv-mes"><button type="button" data-mes="-1" aria-label="Período anterior">‹</button><span>${mesCorto}</span><button type="button" data-mes="1" aria-label="Período siguiente">›</button></div>
     </div>
     <section class="mv-hero ${estado}" id="miAvance">
       <div class="lbl">Llevás vendido</div>
@@ -1586,21 +1604,21 @@ function renderObjetivos(aviso){
     <div class="barra"><h2 class="sec" style="margin:0">Objetivos de venta · ${mes.nombre}</h2>${selectorMes()}</div>
     <p class="sub">Objetivo mensual de ventas de cada vendedor, en pesos. Dejá vacío al que no tiene objetivo ese mes.</p>
     <div class="table-wrap"><table class="apilar">
-      <thead><tr><th>Vendedor</th><th>Objetivo del mes ($)</th></tr></thead>
+      <thead><tr><th>Vendedor</th><th>Objetivo del período ($)</th></tr></thead>
       <tbody>${activos.map(v => { const o = S.objetivos.find(x => x.vendedor_id === v.id); return `
         <tr><td data-label="Vendedor"><strong>${esc(v.nombre)}</strong></td>
-          <td data-label="Objetivo del mes ($)"><input type="text" inputmode="numeric" class="monto" data-objetivo="${v.id}" value="${o ? nf.format(Number(o.monto)) : ''}" placeholder="Sin objetivo" aria-label="Objetivo de ${esc(v.nombre)}"></td></tr>`; }).join('')}
+          <td data-label="Objetivo del período ($)"><input type="text" inputmode="numeric" class="monto" data-objetivo="${v.id}" value="${o ? nf.format(Number(o.monto)) : ''}" placeholder="Sin objetivo" aria-label="Objetivo de ${esc(v.nombre)}"></td></tr>`; }).join('')}
         <tr class="total"><td><strong>Total del equipo</strong></td><td class="num" style="text-align:left"><strong>${pesos(total)}</strong></td></tr>
       </tbody></table></div>
     <div class="form">
       <button class="btn-primary" id="btnGuardarObjetivos">Guardar objetivos</button>
-      <button class="btn-ghost" id="btnCopiarObjetivos">Copiar los del mes anterior</button>
+      <button class="btn-ghost" id="btnCopiarObjetivos">Copiar los del período anterior</button>
       <span class="muted" id="objEstado"></span>
     </div>`;
 }
 
 async function guardarObjetivos(){
-  const { desde } = mesInfo(S.periodo);
+  const desde = mesInfo(S.periodo).clave;
   const guardar = [], quitar = [];
   for(const inp of content().querySelectorAll('[data-objetivo]')){
     const id = Number(inp.dataset.objetivo), txt = inp.value.trim();
@@ -1624,10 +1642,10 @@ async function copiarObjetivos(){
   const [a, m] = S.periodo.split('-').map(Number);
   const ant = m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`;
   const { data, error } = await sb.from('comercial_objetivos').select('vendedor_id, monto').eq('periodo', ant + '-01');
-  if(error || !data || !data.length){ $('objEstado').textContent = error ? 'No se pudo leer el mes anterior.' : 'El mes anterior no tiene objetivos cargados.'; return; }
+  if(error || !data || !data.length){ $('objEstado').textContent = error ? 'No se pudo leer el período anterior.' : 'El período anterior no tiene objetivos cargados.'; return; }
   let n = 0;
   for(const o of data){ const inp = content().querySelector(`[data-objetivo="${o.vendedor_id}"]`); if(inp && !inp.value.trim()){ inp.value = nf.format(Number(o.monto)); n++; } }
-  $('objEstado').textContent = n ? `Se completaron ${n} objetivos con los de ${mesInfo(ant).nombre}. Revisalos y tocá Guardar.` : 'Los vendedores con objetivo el mes anterior ya tienen uno cargado acá.';
+  $('objEstado').textContent = n ? `Se completaron ${n} objetivos con los ${mesInfo(ant).de}. Revisalos y tocá Guardar.` : 'Los vendedores con objetivo el período anterior ya tienen uno cargado acá.';
 }
 
 // ====== MIS CLIENTES, PILETA Y DATOS NUEVOS ======
@@ -1657,7 +1675,7 @@ function bloqueClientes(){
   const porVencer = misClientes().filter(r => { const d = diasHasta(r.vence_pileta); return d != null && d <= 15; }).length;
   if(!top.length && !porVencer) return '';
   return `<section class="mv-cli" id="mvClientes">
-    ${top.length ? `<div class="mv-cli-n"><b>${top.length}</b> ${top.length === 1 ? 'cliente te compró' : 'clientes te compraron'} este mes</div>
+    ${top.length ? `<div class="mv-cli-n"><b>${top.length}</b> ${top.length === 1 ? 'cliente te compró' : 'clientes te compraron'} este período</div>
       ${top.slice(0, 3).map(o => `<div class="mv-cli-f"><span>${esc(o.nombre)}</span><strong>${pesos(o.total)}</strong></div>`).join('')}` : ''}
     ${porVencer ? `<button type="button" class="mv-alerta" data-tab="clientes" data-filtro="porvencer">${porVencer === 1 ? '1 cliente pasa' : porVencer + ' clientes pasan'} a la pileta en los próximos 15 días. Contactalos.</button>` : ''}
   </section>`;
@@ -1667,7 +1685,7 @@ const FILTROS_MC = [
   ['todos', 'Todos', () => true],
   ['sincontacto', 'Sin contactar', r => sinContactar(r)],
   ['porvencer', 'Por vencer', r => { const d = diasHasta(r.vence_pileta); return d != null && d <= 30; }],
-  ['compraron', 'Compraron este mes', (r, comp) => comp.has(r.cliente_id)]
+  ['compraron', 'Compraron este período', (r, comp) => comp.has(r.cliente_id)]
 ];
 function tarjetaCliente(r){
   const d = diasHasta(r.vence_pileta), uc = ultimaCompra(r);
@@ -1975,7 +1993,7 @@ function procesarVentas(){
   let desde = null, hasta = null;
   if(filas.length){
     if(hayFecha){ desde = filas.reduce((a, r) => r.fecha < a ? r.fecha : a, filas[0].fecha); hasta = filas.reduce((a, r) => r.fecha > a ? r.fecha : a, filas[0].fecha); }
-    else { hasta = fechaFija; desde = im.modo === 'dia' ? fechaFija : fechaFija.slice(0, 8) + '01'; }
+    else { hasta = fechaFija; desde = im.modo === 'dia' ? fechaFija : mesInfo(periodoDe(fechaFija)).desde; }
   }
   return { filas, nombres: [...porNombre.values()].sort((a, b) => b.total - a.total), sinImporte, sinFecha, desde, hasta, total: filas.reduce((s, r) => s + r.importe, 0), hayFecha,
     hayCliente, nClientes: vistos.size, nNuevos };
@@ -2003,7 +2021,7 @@ function renderVentas(aviso){
         ${p.hayFecha ? '' : `
           <div class="form" style="margin-top:12px">
             <label for="vFecha">Fecha de los datos</label><input type="date" id="vFecha" value="${esc(im.fecha || hoyISO())}" max="${hoyISO()}">
-            <label class="check"><input type="radio" name="vModo" value="mes" ${im.modo !== 'dia' ? 'checked' : ''}> Es el acumulado del mes hasta esa fecha</label>
+            <label class="check"><input type="radio" name="vModo" value="mes" ${im.modo !== 'dia' ? 'checked' : ''}> Es el acumulado del período hasta esa fecha</label>
             <label class="check"><input type="radio" name="vModo" value="dia" ${im.modo === 'dia' ? 'checked' : ''}> Son las ventas de ese día solamente</label>
           </div>`}
         ${listo ? `
@@ -2100,7 +2118,7 @@ async function cargarVentas(){
     const { data, error } = await sb.rpc('comercial_ventas_cargar', { p_archivo: im.archivo, p_desde: p.desde, p_hasta: p.hasta, p_filas: filas });
     if(error) throw error;
     S.impVentas = null;
-    S.periodo = p.hasta.slice(0, 7);
+    S.periodo = periodoDe(p.hasta);
     S.aviso = { tipo: 'ok', html: `Ventas cargadas: <strong>${num(p.filas.length)}</strong> ventas por <strong>${pesos(data.total)}</strong>, ${p.desde === p.hasta ? 'del ' + fechaCorta(p.desde) : 'del ' + fechaCorta(p.desde) + ' al ' + fechaCorta(p.hasta)}.${data.clientes ? ` Clientes con ventas: <strong>${num(data.clientes)}</strong>${data.clientes_nuevos ? `, ${num(data.clientes_nuevos)} nuevos` : ''}${data.reasignados ? `, ${num(data.reasignados)} cambiaron de vendedor` : ''}.` : ''}` };
     await recargar('avance');
   } catch(e){
