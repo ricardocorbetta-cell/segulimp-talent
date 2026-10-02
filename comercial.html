@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v2.1 (2026-10-02) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v2.2 (2026-10-02) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -172,6 +172,82 @@
     header{flex-wrap:wrap;}
     header .session{width:100%; justify-content:flex-start; margin-left:0;}
   }
+
+  /* ===== Vista del vendedor: pensada para el celular ===== */
+  body.vend .wrap{max-width:540px; padding:14px 16px 44px;}
+  body.vend header{flex-wrap:nowrap; border-bottom:none; padding-bottom:0; margin-bottom:14px; gap:10px;}
+  body.vend header img{height:36px; width:36px;}
+  body.vend header .name{font-size:20px;}
+  body.vend header .tag, body.vend #sessionNombre{display:none;}
+  body.vend header .session{width:auto; margin-left:auto; flex-wrap:nowrap; justify-content:flex-end;}
+  body.vend .tabs{margin-bottom:14px;}
+  .mv-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 12px;}
+  .mv-hola{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; color:var(--brand-dark); margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mv-mes{display:flex; align-items:center; font-size:13.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
+  .mv-mes{flex:none;}
+  .mv-mes button{flex:none; width:40px; height:40px; border:none; background:none; font-size:24px; line-height:1; color:var(--brand); cursor:pointer; border-radius:10px;}
+  .mv-mes button:hover{background:var(--paper-2);}
+
+  .mv-hero{--mv-c:#7EC1E0; background:var(--brand-dark); color:#fff; border-radius:18px; padding:20px 20px 18px;}
+  .mv-hero.bien{--mv-c:#5AD39A;}
+  .mv-hero.falta{--mv-c:#F5B94A;}
+  .mv-hero .lbl{font-size:14px; font-weight:500; color:#BCD6E6;}
+  .mv-hero .monto{font-weight:700; font-size:clamp(34px, 12.4vw, 54px); line-height:1.05; margin:4px 0 6px; letter-spacing:-0.02em; white-space:nowrap;}
+  .mv-hero .monto.largo{font-size:clamp(30px, 10.6vw, 46px);}
+  .mv-linea{display:flex; align-items:baseline; justify-content:space-between; gap:10px; font-size:15px; color:#BCD6E6;}
+  .mv-linea strong{color:#fff; font-weight:600;}
+  .mv-linea .p{font-size:24px; font-weight:700; color:#fff; line-height:1;}
+  .mv-bar{position:relative; height:16px; border-radius:8px; margin:12px 0 7px; background:rgba(255,255,255,.18); background:color-mix(in srgb, var(--mv-c) 26%, transparent);}
+  .mv-bar .fill{height:100%; border-radius:8px; background:var(--mv-c); min-width:8px; animation:mvFill .9s cubic-bezier(.2,.7,.2,1) both;}
+  .mv-bar .raya{position:absolute; top:-5px; bottom:-5px; width:3px; margin-left:-1.5px; border-radius:2px; background:#fff;}
+  @keyframes mvFill{from{width:0;}}
+  @media (prefers-reduced-motion: reduce){ .mv-bar .fill{animation:none;} }
+  .mv-pie{font-size:12.5px; color:#BCD6E6;}
+  .mv-frase{font-size:18px; font-weight:700; line-height:1.3; margin:16px 0 0;}
+  .mv-frase span{display:block; font-size:14px; font-weight:500; color:#BCD6E6; margin-top:5px; line-height:1.45;}
+
+  .mv-duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
+  .mv-dato{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 12px;}
+  .mv-dato .lbl{font-size:12.5px; color:var(--ink-soft); font-weight:500; line-height:1.3;}
+  .mv-dato .val{font-size:26px; font-weight:700; line-height:1.15; color:var(--ink); margin-top:5px;}
+  .mv-dato .nota{font-size:12px; color:var(--ink-soft); margin-top:3px;}
+
+  .mv-sem{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px 16px 14px; margin-top:18px;}
+  .mv-sem-top{display:flex; align-items:flex-end; justify-content:space-between; gap:10px;}
+  .mv-sem h2, .mv-h{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; color:var(--brand-dark); margin:0; line-height:1.1;}
+  .mv-h{margin:24px 0 2px;}
+  .mv-sem .rango{font-size:12.5px; color:var(--ink-soft); margin-top:3px;}
+  .mv-total{font-size:14px; color:var(--ink-soft); white-space:nowrap; text-align:right;}
+  .mv-total b{font-size:26px; font-weight:700; color:var(--ink); line-height:1;}
+  .mv-avance{height:6px; border-radius:3px; background:var(--paper-2); margin:10px 0 0; overflow:hidden;}
+  .mv-avance i{display:block; height:100%; border-radius:3px; background:var(--brand); transition:width .25s;}
+  .mv-seg{display:grid; grid-template-columns:1fr 1fr; background:var(--paper); border-radius:11px; padding:3px; margin:14px 0 4px;}
+  .mv-seg button{border:none; background:none; min-height:44px; padding:11px 6px; border-radius:8px; font-family:'Inter',sans-serif; font-weight:600; font-size:14px; color:var(--ink-soft); cursor:pointer;}
+  .mv-seg button[aria-pressed="true"]{background:var(--card); color:var(--brand-dark); box-shadow:0 1px 2px rgba(22,60,88,.2);}
+  .mv-pista{font-size:13px; color:var(--ink-soft); margin:8px 0 2px;}
+  .mv-fila{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--paper);}
+  .mv-fila .nom{flex:1; min-width:0; font-size:16px; font-weight:600;}
+  .mv-fila .nom small{display:block; font-size:12.5px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
+  .mv-fila .nom small.ok{color:var(--good); font-weight:600;}
+  .mv-step{display:flex; align-items:center; gap:6px; flex:none;}
+  .mv-step button{width:46px; height:46px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:24px; line-height:1; color:var(--brand-dark); cursor:pointer; touch-action:manipulation; padding:0;}
+  .mv-step button.sumar{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .mv-step button:active{transform:scale(.96);}
+  .mv-step input{width:54px; height:46px; text-align:center; border:1px solid var(--line); border-radius:12px; font-family:'Inter',sans-serif; font-weight:700; font-size:19px; color:var(--ink); padding:0; -moz-appearance:textfield; appearance:textfield;}
+  .mv-step input::-webkit-outer-spin-button, .mv-step input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .mv-sem[data-modo="real"] .solo-plan, .mv-sem[data-modo="plan"] .solo-real{display:none;}
+  .mv-nota{width:100%; margin-top:12px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:14px;}
+  .mv-estado{font-size:12.5px; color:var(--ink-soft); margin-top:10px; min-height:18px;}
+  .mv-semanas{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+  .mv-s{display:grid; grid-template-columns:1fr auto; gap:2px 10px; text-align:left; width:100%; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; font-family:'Inter',sans-serif; color:var(--ink); cursor:pointer;}
+  .mv-s.viendo{border-color:var(--brand); box-shadow:inset 3px 0 0 var(--brand);}
+  .mv-s .f{font-size:14.5px; font-weight:600;}
+  .mv-s .v{font-size:15px; font-weight:700; text-align:right;}
+  .mv-s .g{font-size:12.5px; color:var(--ink-soft);}
+  .mv-s .e{font-size:12.5px; color:var(--ink-soft); text-align:right;}
+  .mv-s .b{grid-column:1 / -1; height:5px; border-radius:3px; background:var(--paper-2); margin-top:7px; overflow:hidden;}
+  .mv-s .b i{display:block; height:100%; border-radius:3px; background:var(--brand);}
+  .mv-step button:focus-visible, .mv-seg button:focus-visible, .mv-s:focus-visible, .mv-mes button:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
 </style>
 </head>
 <body>
@@ -330,6 +406,7 @@ async function cargarDatos(){
 // ====== ACCESO ======
 function renderLogin(mensaje){
   S.perfil = null;
+  document.body.classList.remove('vend');
   $('session').classList.add('hidden');
   $('tabs').classList.add('hidden');
   content().innerHTML = `
@@ -374,6 +451,9 @@ async function iniciar(session){
   S.esAdmin = data.roles.includes('administrador');
   S.veTodo = S.esAdmin || data.roles.includes('consulta');
   S.esComercial = data.roles.includes('comercial');
+  document.body.classList.toggle('vend', !S.veTodo);
+  document.querySelector('header .session a').textContent = S.veTodo ? '← Volver al Hub' : 'Hub';
+  document.querySelector('header .name').textContent = S.veTodo ? 'Seguimiento Comercial' : 'Mis ventas';
   if(!S.veTodo && !S.esComercial){
     content().innerHTML = `<div class="msg-box info">Tu usuario no tiene acceso a Fuerza de Ventas. Pedile a un administrador el rol Comercial.</div>`;
     return;
@@ -382,6 +462,7 @@ async function iniciar(session){
 }
 
 async function recargar(tab){
+  await guardarPendiente();
   content().innerHTML = `<p class="sub">Cargando datos…</p>`;
   try{
     await cargarDatos();
@@ -407,7 +488,7 @@ function ir(tab){
   if(!pestanas().some(p => p[0] === tab)) tab = pestanas()[0][0];
   S.tab = tab;
   const el = $('tabs');
-  el.classList.remove('hidden');
+  el.classList.toggle('hidden', !S.veTodo && pestanas().length === 1);
   el.innerHTML = pestanas().map(([id, nombre]) =>
     `<button type="button" data-tab="${id}" class="${id === tab ? 'active' : ''}">${nombre}</button>`).join('') +
     `<span class="spacer"></span><button type="button" data-tab="_recargar">↻ Actualizar</button>`;
@@ -1155,7 +1236,8 @@ async function cargarPeriodo(){
 }
 async function cambiarMes(periodo){
   if(!/^\d{4}-\d{2}$/.test(periodo)) return;
-  S.periodo = periodo; S.semana = null;
+  await guardarPendiente();
+  S.periodo = periodo; S.semana = null; S.modoSemana = null;
   try{ await cargarPeriodo(); } catch(e){ S.aviso = { tipo: 'error', html: 'No se pudieron cargar los datos del mes: ' + esc(e.message || e) }; }
   ir(S.tab);
 }
@@ -1164,7 +1246,7 @@ function renderAvance(aviso){
   if(!S.veTodo){
     const id = [...S.misVendedores][0];
     if(!id){ content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">Tu usuario todavía no está vinculado a un vendedor. Pedile a un administrador que lo vincule desde la pestaña Vendedores.</p></div>`; return; }
-    renderDetalleVendedor(aviso, id); return;
+    renderMiAvance(aviso, id); return;
   }
   if(S.verVendedor){ renderDetalleVendedor(aviso, S.verVendedor); return; }
   const mes = mesInfo(S.periodo);
@@ -1267,6 +1349,157 @@ function renderDetalleVendedor(aviso, id){
       </tbody>
     </table></div>`;
 }
+
+// ====== MI AVANCE (vista del vendedor, celular primero) ======
+function fraseAvance(a){
+  const mesHoy = hoyISO().slice(0, 7);
+  if(!a.objetivo) return ['Todavía no tenés objetivo cargado para este mes.', ''];
+  if(a.falta === 0) return ['¡Objetivo cumplido!', a.ventas > a.objetivo ? `Lo pasaste por ${pesos(a.ventas - a.objetivo)}. Todo lo que sumes ahora es extra.` : 'Todo lo que sumes ahora es extra.'];
+  if(!a.corte) return [`Tu objetivo del mes es ${pesos(a.objetivo)}.`, 'Todavía no se cargaron ventas de este mes.'];
+  if(S.periodo < mesHoy || a.restantes === 0) return [`Cerraste en el ${Math.round(a.pct)}% del objetivo.`, `Faltaron ${pesos(a.falta)}.`];
+  const dif = a.ventas - a.esperado;
+  if(dif >= 0) return [`Venís ${pesos(dif)} arriba del ritmo.`, `${a.proyeccion != null ? `Si seguís así cerrás en ${pesos(a.proyeccion)}. ` : ''}Te faltan ${pesos(a.falta)} para el objetivo.`];
+  return [`Con ${pesos(a.porDia)} por día llegás.`, `Te faltan ${pesos(a.falta)} y quedan ${a.restantes} ${a.restantes === 1 ? 'día hábil' : 'días hábiles'}.`];
+}
+function listaSemanas(id){
+  const semanas = semanasDelMes(S.periodo), corte = fechaCorte(), hoyLunes = lunesDe(hoyISO());
+  const ventasSem = s => S.ventas.filter(x => x.vendedor_id === id && x.fecha >= s.ini && x.fecha <= s.fin).reduce((t, x) => t + Number(x.importe || 0), 0);
+  const filas = semanas.map(s => ({ s, r: actividadDe(id, s.lunes), v: corte && s.ini <= corte ? ventasSem(s) : null }));
+  const tope = Math.max(1, ...filas.map(f => f.v || 0));
+  return filas.map(({ s, r, v }) => {
+    const h = sumaAct(r, 'real'), p = sumaAct(r, 'plan');
+    return `<button type="button" class="mv-s ${s.lunes === S.semana ? 'viendo' : ''}" data-semana="${s.lunes}" aria-label="Ver la semana del ${diaMes(s.ini)} al ${diaMes(s.fin)}">
+      <span class="f">${diaMes(s.ini)} al ${diaMes(s.fin)}</span><span class="v">${v == null ? '—' : pesos(v)}</span>
+      <span class="g">${r ? `${h}${p ? ' de ' + p : ''} ${h === 1 && !p ? 'gestión' : 'gestiones'}` : 'Sin gestiones cargadas'}</span><span class="e">${s.lunes === hoyLunes ? 'Esta semana' : ''}</span>
+      <span class="b"><i style="width:${v ? Math.max(3, Math.round(v / tope * 100)) : 0}%"></i></span>
+    </button>`; }).join('');
+}
+function renderMiAvance(aviso, id){
+  const mes = mesInfo(S.periodo);
+  const a = avanceDe([id]);
+  const hoyLunes = lunesDe(hoyISO());
+  const semanas = semanasDelMes(S.periodo);
+  if(!S.semana || !semanas.some(s => s.lunes === S.semana)) S.semana = (semanas.find(s => s.lunes === hoyLunes) || semanas[0]).lunes;
+  const sem = semanas.find(s => s.lunes === S.semana);
+  const act = actividadDe(id, S.semana) || {};
+  const modo = S.modoSemana || (sumaAct(act, 'plan') === 0 && S.semana >= hoyLunes ? 'plan' : 'real');
+  const [frase, detalle] = fraseAvance(a);
+  const enCurso = S.periodo >= hoyISO().slice(0, 7);
+  const estado = !a.objetivo || !a.corte ? '' : (a.falta === 0 || a.ventas >= a.esperado ? 'bien' : 'falta');
+  const monto = pesos(a.ventas);
+  const nombre = (S.perfil.nombre || '').trim().split(/\s+/)[0];
+  const mesCorto = mes.nombre.charAt(0).toUpperCase() + mes.nombre.slice(1).replace(' de ', ' ');
+  content().innerHTML = aviso + `
+    <div class="mv-top">
+      <h1 class="mv-hola">Hola${nombre ? ', ' + esc(nombre) : ''}</h1>
+      <div class="mv-mes"><button type="button" data-mes="-1" aria-label="Mes anterior">‹</button><span>${mesCorto}</span><button type="button" data-mes="1" aria-label="Mes siguiente">›</button></div>
+    </div>
+    <section class="mv-hero ${estado}" id="miAvance">
+      <div class="lbl">Llevás vendido</div>
+      <div class="monto ${monto.length >= 12 ? 'largo' : ''}">${monto}</div>
+      ${a.objetivo ? `
+        <div class="mv-linea"><span>de <strong>${pesos(a.objetivo)}</strong></span><span class="p">${Math.round(a.pct)}%</span></div>
+        <div class="mv-bar" role="img" aria-label="Avance: ${Math.round(a.pct)}% del objetivo">
+          <div class="fill" style="width:${Math.max(0, Math.min(100, a.pct))}%"></div>
+          ${a.corte && enCurso && a.falta > 0 ? `<span class="raya" style="left:${Math.min(100, a.ritmo)}%"></span>` : ''}
+        </div>
+        <div class="mv-pie">${a.corte ? `Ventas cargadas al ${diaMes(a.corte)}.${enCurso && a.falta > 0 ? ' La raya blanca es donde deberías ir.' : ''}` : ''}</div>` : ''}
+      <p class="mv-frase">${frase}${detalle ? `<span>${detalle}</span>` : ''}</p>
+    </section>
+    ${a.objetivo && a.corte && enCurso && a.falta > 0 && a.porDia != null ? `<div class="mv-duo">
+      <div class="mv-dato"><div class="lbl">Necesitás por día hábil</div><div class="val">${plata(a.porDia)}</div><div class="nota">${a.restantes === 1 ? 'queda 1 día' : 'quedan ' + a.restantes + ' días'}</div></div>
+      <div class="mv-dato"><div class="lbl">Si seguís así cerrás en</div><div class="val">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="nota">${a.proyeccion == null ? '' : Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo'}</div></div>
+    </div>` : ''}
+
+    <section class="mv-sem" id="miSemana" data-vendedor="${id}" data-modo="${modo}">
+      <div class="mv-sem-top">
+        <div><h2>${S.semana === hoyLunes ? 'Mi semana' : 'Semana'}</h2><div class="rango">del ${diaMes(sem.lunes)} al ${diaMes(sumarDias(sem.lunes, 6))}</div></div>
+        <div class="mv-total"><b id="mvHechas">0</b><span id="mvPlan"></span><div>gestiones hechas</div></div>
+      </div>
+      <div class="mv-avance"><i id="mvBarra" style="width:0%"></i></div>
+      <div class="mv-seg" role="group" aria-label="Qué querés cargar">
+        <button type="button" data-modo="real" aria-pressed="${modo === 'real'}">Lo que hice</button>
+        <button type="button" data-modo="plan" aria-pressed="${modo === 'plan'}">Mi plan</button>
+      </div>
+      <p class="mv-pista solo-real">Sumá cada gestión cuando la hacés.</p>
+      <p class="mv-pista solo-plan">¿Cuántas vas a hacer esta semana?</p>
+      ${ACTIVIDADES.map(([k, n]) => `
+        <div class="mv-fila">
+          <div class="nom">${n}<small data-meta="${k}"></small></div>
+          ${['real', 'plan'].map(t => `<div class="mv-step solo-${t}">
+            <button type="button" data-paso="-1" aria-label="Restar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'del plan'}">−</button>
+            <input type="number" min="0" step="1" inputmode="numeric" data-act="${k}_${t}" value="${Number(act[k + '_' + t] || 0)}" aria-label="${n} ${t === 'real' ? 'hechas' : 'planificadas'}">
+            <button type="button" class="sumar" data-paso="1" aria-label="Sumar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'al plan'}">+</button>
+          </div>`).join('')}
+        </div>`).join('')}
+      <input type="text" class="mv-nota" id="mvNota" maxlength="300" placeholder="Nota de la semana (opcional)" value="${esc(act.nota || '')}" aria-label="Nota de la semana">
+      <div class="mv-estado" id="mvEstado" aria-live="polite">${act.actualizado_en ? 'Guardado ' + fechaHora(act.actualizado_en) : 'Se guarda solo.'}</div>
+    </section>
+
+    <h2 class="mv-h">Semana a semana</h2>
+    <p class="mv-pista" style="margin-top:2px">Tus gestiones y lo que vendiste. Tocá una semana para cargarla.</p>
+    <div class="mv-semanas" id="mvSemanas">${listaSemanas(id)}</div>
+    ${pestanas().length === 1 ? `<p style="text-align:center; margin:22px 0 0"><button type="button" class="link-btn" id="mvActualizar">↻ Actualizar datos</button></p>` : ''}`;
+  pintarSemana();
+}
+function leerSemana(){
+  const caja = $('miSemana');
+  const fila = { vendedor_id: Number(caja.dataset.vendedor), semana: S.semana, nota: $('mvNota').value.trim() || null };
+  for(const inp of caja.querySelectorAll('[data-act]')){
+    let n = Math.round(Number(inp.value));
+    if(!Number.isFinite(n) || n < 0) n = 0;
+    fila[inp.dataset.act] = Math.min(n, 9999);
+  }
+  return fila;
+}
+// Totales y metas de la tarjeta, calculados con lo que hay en pantalla
+function pintarSemana(){
+  const caja = $('miSemana');
+  if(!caja) return;
+  const f = leerSemana();
+  let h = 0, p = 0;
+  for(const [k] of ACTIVIDADES){
+    const r = f[k + '_real'], pl = f[k + '_plan'];
+    h += r; p += pl;
+    const m = caja.querySelector(`[data-meta="${k}"]`);
+    const cumplida = pl > 0 && r >= pl;
+    m.textContent = caja.dataset.modo === 'plan' ? (r ? 'Hechas: ' + r : '') : (pl ? (cumplida ? 'Meta cumplida: ' + pl : 'Meta: ' + pl) : 'Sin meta');
+    m.classList.toggle('ok', cumplida && caja.dataset.modo !== 'plan');
+  }
+  $('mvHechas').textContent = h;
+  $('mvPlan').textContent = p ? ' de ' + p : '';
+  $('mvBarra').style.width = (p ? Math.min(100, Math.round(h / p * 100)) : 0) + '%';
+}
+let esperaSemana = null, colaSemana = Promise.resolve(true);
+function programarGuardado(){
+  pintarSemana();
+  $('mvEstado').textContent = 'Guardando…';
+  clearTimeout(esperaSemana);
+  esperaSemana = setTimeout(guardarMiSemana, 700);
+}
+function guardarMiSemana(){
+  clearTimeout(esperaSemana); esperaSemana = null;
+  if(!$('miSemana')) return colaSemana;
+  const fila = leerSemana();
+  colaSemana = colaSemana.then(async () => {
+    let res;
+    try { res = await sb.from('comercial_actividades').upsert(fila, { onConflict: 'vendedor_id,semana' }).select('*'); }
+    catch(e){ res = { error: e }; }
+    const est = $('mvEstado');
+    if(res.error || !res.data || !res.data.length){
+      if(est) est.innerHTML = 'No se pudo guardar. <button type="button" class="link-btn" id="mvReintentar">Reintentar</button>';
+      return false;
+    }
+    S.actividades = S.actividades.filter(x => !(x.vendedor_id === fila.vendedor_id && x.semana === fila.semana)).concat(res.data[0]);
+    if(est && !esperaSemana) est.textContent = 'Guardado';
+    const lista = $('mvSemanas');
+    if(lista) lista.innerHTML = listaSemanas(fila.vendedor_id);
+    return true;
+  });
+  return colaSemana;
+}
+function guardarPendiente(){ return esperaSemana ? guardarMiSemana() : colaSemana; }
+document.addEventListener('visibilitychange', () => { if(document.hidden && esperaSemana) guardarMiSemana(); });
 
 async function guardarPlan(){
   const caja = $('planSemana');
@@ -1551,6 +1784,24 @@ content().addEventListener('click', e => {
   if((el = t.closest('[data-detalle]'))){ S.verVendedor = Number(el.dataset.detalle); S.semana = null; ir('avance'); window.scrollTo(0, 0); return; }
   if(t.closest('[data-volver-avance]')){ S.verVendedor = null; ir('avance'); return; }
   if(t.id === 'btnGuardarPlan'){ guardarPlan(); return; }
+  if((el = t.closest('#miSemana [data-paso]'))){
+    const inp = el.parentElement.querySelector('input');
+    inp.value = Math.max(0, Math.min(9999, (Math.round(Number(inp.value)) || 0) + Number(el.dataset.paso)));
+    programarGuardado(); return;
+  }
+  if((el = t.closest('#miSemana [data-modo]'))){
+    const caja = $('miSemana');
+    S.modoSemana = caja.dataset.modo = el.dataset.modo;
+    for(const b of caja.querySelectorAll('.mv-seg button')) b.setAttribute('aria-pressed', String(b === el));
+    pintarSemana(); return;
+  }
+  if((el = t.closest('[data-semana]'))){
+    const lunes = el.dataset.semana;
+    guardarPendiente().then(() => { S.semana = lunes; S.modoSemana = null; ir('avance'); const c = $('miSemana'); if(c) c.scrollIntoView({ block: 'start' }); });
+    return;
+  }
+  if(t.id === 'mvReintentar'){ $('mvEstado').textContent = 'Guardando…'; guardarMiSemana(); return; }
+  if(t.id === 'mvActualizar'){ recargar('avance'); return; }
   if(t.id === 'btnGuardarObjetivos'){ guardarObjetivos(); return; }
   if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
   if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
@@ -1614,6 +1865,7 @@ content().addEventListener('input', e => {
     return;
   }
   if(t.matches('[data-comentario]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
+  if(t.closest('#miSemana') && (t.matches('[data-act]') || t.id === 'mvNota')){ programarGuardado(); return; }
   if(t.matches('[data-v-nombre], [data-v-email]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; }
 });
 content().addEventListener('keydown', e => {
