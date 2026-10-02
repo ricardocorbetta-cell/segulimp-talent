@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Alerta Segulimp — Avisar</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#F7F5F0; --ink:#1B2A2E; --alert:#C4501C; --alert-soft:#F1DFCF;
+    --ok:#3E6B4F; --muted:#6B7278; --line:#D8D3C7;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100vh; background:#DEDAD1; font-family:'Helvetica Neue',Arial,sans-serif; color:var(--ink); }
+  .wrap{ max-width:440px; margin:0 auto; padding:32px 18px 50px; }
+  .brand{ text-align:center; font-size:11px; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; text-transform:uppercase; }
+  .card{ background:var(--paper); border:1.5px solid var(--ink); border-radius:8px; padding:22px 20px; }
+  h1{ font-size:22px; margin:0 0 4px; font-weight:800; }
+  .donde{ font-size:15px; font-weight:600; margin:0 0 2px; }
+  .sub{ font-size:13px; color:var(--muted); margin:0 0 18px; }
+  label{ font-size:12px; font-weight:600; display:block; margin-bottom:5px; color:var(--muted); }
+  select, textarea{
+    width:100%; border:1.5px solid var(--ink); border-radius:4px; padding:10px;
+    font-size:16px; font-family:inherit; background:#fff; color:var(--ink); margin-bottom:14px;
+  }
+  textarea{ min-height:56px; resize:vertical; }
+  .btn{ display:block; width:100%; border:none; background:var(--alert); color:#fff; font-weight:700; font-size:15px;
+    padding:13px; border-radius:5px; cursor:pointer; font-family:inherit; text-align:center; text-decoration:none; }
+  .btn:disabled{ opacity:.55; }
+  .btn.oscuro{ background:var(--ink); }
+  .btn.sec{ background:transparent; color:var(--ink); border:1.5px solid var(--ink); margin-top:8px; }
+  .msg{ text-align:center; padding:30px 6px 6px; }
+  .msg .ok{ color:var(--ok); font-size:34px; }
+  .msg h2{ font-size:18px; margin:10px 0 4px; }
+  .msg p{ font-size:13px; color:var(--muted); line-height:1.5; }
+  .error{ color:var(--alert); font-size:13px; text-align:center; padding:24px 6px; }
+  .error.inline{ padding:10px 0 0; }
+  .loading{ text-align:center; color:var(--muted); font-size:13px; padding:24px 6px; }
+  .equipo{ margin-top:14px; background:#fff; border:1px dashed var(--muted); border-radius:8px; padding:14px 16px; }
+  .equipo .titulo{ font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">Alerta Segulimp</div>
+  <div class="card" id="card">
+    <div class="loading">Cargando...</div>
+  </div>
+  <div id="equipo"></div>
+</div>
+
+<script>
+(function(){
+  const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const TABLERO = 'alertas.html';
+
+  function esc(v){
+    return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  // Si quien escanea es del equipo de Segulimp y ya inició sesión en el HUB en este celular.
+  async function esDelEquipo(){
+    try{
+      const { data } = await sb.auth.getSession();
+      if(!data.session) return false;
+      const { data: perfil } = await sb.from('perfiles').select('roles, activo').eq('user_id', data.session.user.id).maybeSingle();
+      return !!perfil && perfil.activo && perfil.roles.some(r => r === 'administrador' || r === 'mantenimiento');
+    } catch(_){ return false; }
+  }
+
+  async function init(){
+    const codigo = (new URLSearchParams(window.location.search).get('c') || '').trim().toUpperCase();
+    const card = document.getElementById('card');
+    if(!codigo){
+      card.innerHTML = '<div class="error">Falta el código en el link. Escaneá de nuevo el sticker.</div>';
+      return;
+    }
+
+    const [{ data: st, error }, equipo] = await Promise.all([
+      sb.rpc('alertas_sticker_publico', { p_codigo: codigo }),
+      esDelEquipo()
+    ]);
+    if(error || !st){
+      card.innerHTML = '<div class="error">No pudimos leer el sticker. Revisá tu conexión y probá de nuevo.</div>';
+      return;
+    }
+    const destino = vista => TABLERO + '#' + vista + '/' + encodeURIComponent(codigo);
+
+    if(st.estado === 'libre'){
+      if(equipo){ window.location.replace(destino('activar')); return; }
+      card.innerHTML = `
+        <div class="msg">
+          <h2>Este sticker todavía no está activado</h2>
+          <p>Si viste algo para avisar, comentáselo al responsable del lugar.</p>
+        </div>
+        <a class="btn sec" href="${destino('activar')}">Soy de Segulimp: activarlo</a>`;
+      return;
+    }
+    if(st.estado !== 'activo'){
+      card.innerHTML = `<div class="error">${st.estado === 'inactivo'
+        ? 'Este sticker está dado de baja. Avisá al responsable del lugar.'
+        : 'No reconocemos este código. Avisá al responsable del lugar.'}</div>`;
+      return;
+    }
+
+    const lugar = [st.sector === 'General' ? null : st.sector, st.ubicacion].filter(Boolean).join(' · ');
+    card.innerHTML = `
+      <h1>¿Qué querés avisar?</h1>
+      <p class="donde">${esc(lugar)}</p>
+      <p class="sub">${esc([st.tipo, st.producto, st.sitio].filter(Boolean).join(' · '))}</p>
+      <label for="sel-motivo">Elegí el motivo</label>
+      <select id="sel-motivo">
+        ${(st.motivos || []).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('')}
+      </select>
+      <label for="txt-comentario">Comentario (opcional)</label>
+      <textarea id="txt-comentario" maxlength="500" placeholder="Contanos algo más si hace falta"></textarea>
+      <button class="btn" id="btn-enviar">Enviar aviso</button>
+      <div class="error inline" id="err" hidden></div>
+    `;
+    if(equipo){
+      document.getElementById('equipo').innerHTML = `
+        <div class="equipo">
+          <div class="titulo">Equipo de Segulimp</div>
+          ${st.producto ? `<a class="btn oscuro" href="${destino('reponer')}">Registrar reposición</a>` : ''}
+          <a class="btn sec" href="${destino('codigo')}">Ver en el tablero</a>
+        </div>`;
+    }
+
+    document.getElementById('btn-enviar').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-enviar');
+      const err = document.getElementById('err');
+      err.hidden = true;
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+
+      const { data: res, error: errEnvio } = await sb.rpc('alertas_reportar', {
+        p_codigo: st.codigo,
+        p_motivo: document.getElementById('sel-motivo').value,
+        p_comentario: document.getElementById('txt-comentario').value.trim() || null
+      });
+
+      if(errEnvio || !res || !res.reporte_id){
+        btn.disabled = false;
+        btn.textContent = 'Enviar aviso';
+        err.textContent = 'No se pudo enviar el aviso. Probá de nuevo.';
+        err.hidden = false;
+        return;
+      }
+
+      // Aviso por email al responsable del lugar y a Segulimp. No frena al usuario si tarda.
+      if(res.nuevo){
+        fetch(`${SUPABASE_URL}/functions/v1/notificar-reporte`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reporte_id: res.reporte_id }),
+          keepalive: true
+        }).catch(() => {});
+      }
+
+      card.innerHTML = `
+        <div class="msg">
+          <div class="ok">✓</div>
+          <h2>${res.nuevo ? 'Aviso enviado' : 'Ya estaba avisado'}</h2>
+          <p>${res.nuevo ? 'Gracias por avisar. Ya se notificó al responsable del lugar.' : 'Hace unos minutos recibimos el mismo aviso. Gracias.'}</p>
+        </div>
+      `;
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

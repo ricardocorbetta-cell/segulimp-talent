@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Alerta Segulimp — Tablero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#182A38; --ink-soft:#4C6070;
+    --paper:#EAF2F7; --paper-2:#D3E3EC; --card:#FFFFFF;
+    --brand:#245B84; --brand-dark:#163C58; --brand-light:#7EC1E0;
+    --line:#C7D8E2;
+    --pend-bg:#FCEFD9; --pend-ink:#7A4B00;
+    --ok-bg:#E6F4EB; --ok-ink:#24573A;
+    --err-bg:#FBE9E7; --err-ink:#8A2C24;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  a{color:var(--brand);}
+  .wrap{max-width:1080px; margin:0 auto; padding:32px 20px 60px;}
+  .hidden{display:none !important;}
+
+  header{display:flex; align-items:center; gap:14px; margin-bottom:22px;}
+  header .logo{height:52px; width:52px; border-radius:50%; background:var(--brand-dark); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; flex:none; text-decoration:none;}
+  header .name{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; color:var(--brand-dark); text-transform:uppercase; line-height:1;}
+  header .tag{font-size:14px; color:var(--ink-soft); margin-top:4px;}
+  header .session{margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end; font-size:13px; color:var(--ink-soft);}
+  header .session #sessionNombre{font-weight:600; color:var(--ink);}
+  .link-btn{background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--brand); cursor:pointer; text-decoration:none;}
+  .link-btn:hover{color:var(--brand-dark); text-decoration:underline;}
+
+  .tabs{display:flex; gap:2px; flex-wrap:wrap; margin-bottom:22px; border-bottom:1px solid var(--line);}
+  .tabs a{padding:9px 14px; font-size:14px; font-weight:600; color:var(--ink-soft); text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px;}
+  .tabs a:hover{color:var(--brand-dark);}
+  .tabs a.activa{color:var(--brand-dark); border-bottom-color:var(--brand);}
+  .tabs .cuenta{display:inline-block; min-width:20px; padding:1px 6px; margin-left:6px; border-radius:10px; background:var(--pend-bg); color:var(--pend-ink); font-size:11.5px; text-align:center;}
+
+  .back-btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--brand); text-decoration:none; margin-bottom:16px;}
+  .back-btn:hover{color:var(--brand-dark);}
+  .area-title{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:26px; color:var(--brand-dark); text-transform:uppercase; margin:0 0 4px;}
+  .area-sub{font-size:14px; color:var(--ink-soft); margin:0 0 18px; line-height:1.5;}
+  .titulo-fila{display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap;}
+  .titulo-fila .acciones{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  h3.seccion{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:19px; color:var(--brand-dark); text-transform:uppercase; margin:28px 0 10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  h3.seccion .acciones{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center; text-transform:none; font-family:'Inter',sans-serif;}
+
+  .btn-primary{padding:10px 16px; border:none; border-radius:8px; background:var(--brand); color:#fff; font-family:'Inter',sans-serif; font-weight:600; font-size:14px; cursor:pointer; text-decoration:none; display:inline-block;}
+  .btn-primary:hover{background:var(--brand-dark);}
+  .btn-primary:disabled{opacity:.6; cursor:default;}
+  .btn-primary.chico{padding:6px 11px; font-size:12.5px;}
+  .btn-ghost{padding:9px 13px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap; text-decoration:none; display:inline-block;}
+  .btn-ghost:hover{border-color:var(--brand); color:var(--brand-dark);}
+  .btn-ghost.small{padding:5px 9px; font-size:12px;}
+  .btn-ghost.peligro:hover{border-color:#B3372F; color:#8A2C24;}
+
+  .msg-box{padding:12px 16px; border-radius:10px; font-size:13.5px; line-height:1.6; margin-bottom:16px;}
+  .msg-box.ok{background:var(--ok-bg); color:var(--ok-ink); border:1px solid #BFE3CC;}
+  .msg-box.error{background:var(--err-bg); color:var(--err-ink); border:1px solid #F2C6C0;}
+  .msg-box.aviso{background:var(--pend-bg); color:var(--pend-ink); border:1px solid #F0D9A8;}
+
+  /* Indicadores */
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; margin-bottom:22px;}
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px;}
+  .tile .label{font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+  .tile .value{font-size:30px; font-weight:600; color:var(--ink); line-height:1.2; margin-top:4px;}
+  .tile .nota{font-size:12px; color:var(--ink-soft); margin-top:4px; line-height:1.4;}
+  .tile.mini .value{font-size:22px;}
+
+  .paneles{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; align-items:start;}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px;}
+  .panel h4{margin:0 0 2px; font-size:14.5px; font-weight:700; color:var(--ink);}
+  .panel .panel-sub{margin:0 0 14px; font-size:12.5px; color:var(--ink-soft); line-height:1.5;}
+  .panel.ancho{grid-column:1 / -1;}
+  .panel .table-wrap{border:none; border-radius:0;}
+
+  .barras{display:flex; flex-direction:column; gap:10px;}
+  .barra-fila{display:grid; grid-template-columns:minmax(90px, 38%) 1fr; gap:10px; align-items:center; font-size:13px;}
+  .barra-nombre{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink);}
+  .barra-nombre a{color:inherit; text-decoration:none;}
+  .barra-nombre a:hover{text-decoration:underline;}
+  .barra-pista{display:flex; align-items:center; gap:8px; min-width:0;}
+  .barra{height:14px; background:var(--brand); border-radius:0 4px 4px 0; min-width:2px; flex:none;}
+  .barra-valor{font-size:12.5px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums;}
+
+  .table-wrap{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; padding:10px 14px; background:var(--paper); color:var(--ink-soft); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.03em; border-bottom:1px solid var(--line);}
+  tbody td{padding:10px 14px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tr.inactivo td{opacity:.55;}
+  tr.fila-link{cursor:pointer;}
+  tr.fila-link:hover td{background:#F5F9FC;}
+  td.acciones{text-align:right; white-space:nowrap;}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .muted{color:var(--ink-soft); font-size:12.5px;}
+  .vacio{padding:18px; color:var(--ink-soft); font-size:13.5px; line-height:1.5;}
+  .codigo{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12.5px; white-space:nowrap;}
+  .chip{display:inline-block; padding:2px 9px; border-radius:10px; background:#EAF3FA; color:var(--brand-dark); font-size:11.5px; font-weight:600; white-space:nowrap;}
+  .chip.pendiente{background:var(--pend-bg); color:var(--pend-ink);}
+  .chip.resuelto, .chip.enviado{background:var(--ok-bg); color:var(--ok-ink);}
+  .chip.error{background:var(--err-bg); color:var(--err-ink);}
+  .chip.gris{background:var(--paper-2); color:var(--ink-soft);}
+
+  .sector{background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:14px; overflow:hidden;}
+  .sector-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:13px 16px; background:#F5F9FC; border-bottom:1px solid var(--line);}
+  .sector-head .nombre{font-weight:700; font-size:15px;}
+  .sector-head .acciones{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;}
+  .sector .table-wrap{border:none; border-radius:0;}
+
+  .filtros{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;}
+  .filtros label{display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ink-soft);}
+  select, input[type=text], input[type=email], input[type=tel], input[type=number], input[type=password], input[type=search], textarea{
+    padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; background:#fff; color:var(--ink);
+  }
+  label.check{display:flex; flex-direction:row; align-items:center; gap:6px; font-size:13px; font-weight:500; color:var(--ink);}
+
+  /* Diálogos y formularios */
+  dialog{border:none; border-radius:14px; padding:0; width:min(520px, calc(100vw - 32px)); box-shadow:0 18px 50px rgba(22,60,88,0.28); color:var(--ink);}
+  dialog::backdrop{background:rgba(24,42,56,0.45);}
+  dialog form{padding:24px;}
+  dialog h2, .form-card h2{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:23px; color:var(--brand-dark); text-transform:uppercase; margin:0 0 4px;}
+  .campo{margin-top:14px;}
+  .campo > label{display:block; font-size:12.5px; font-weight:600; margin-bottom:5px;}
+  .campo input[type=text], .campo input[type=email], .campo input[type=tel], .campo input[type=number], .campo select, .campo textarea{width:100%;}
+  .campo textarea{min-height:70px; resize:vertical;}
+  .hint{font-size:12px; color:var(--ink-soft); margin:5px 0 0; line-height:1.45;}
+  .dos{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .pie{display:flex; gap:10px; align-items:center; margin-top:20px; flex-wrap:wrap;}
+  .form-error{color:#B3372F; font-size:13px; margin-top:12px;}
+
+  .form-card{max-width:400px; margin:10px auto 24px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px;}
+  .form-card.campo-ancho{max-width:520px;}
+  .form-card label{display:block; font-size:12.5px; font-weight:600; margin:14px 0 5px;}
+  .form-card .campo > label{margin:0 0 5px;}
+  .form-card input, .form-card select{width:100%;}
+  .form-card .btn-primary{width:100%; margin-top:20px; padding:13px; font-size:15px;}
+  .form-card .pie .btn-primary{width:auto; margin-top:0;}
+  .form-card input, .form-card select, .form-card textarea{font-size:16px;}
+
+  /* Ficha de objeto */
+  .ficha{display:grid; grid-template-columns:220px 1fr; gap:18px; align-items:start; margin-bottom:8px;}
+  .ficha .qr-caja{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; text-align:center;}
+  .ficha .qr-caja .qr{display:flex; justify-content:center; margin-bottom:10px;}
+  .ficha .qr-caja a{font-size:12px;}
+
+  /* Plancha de stickers */
+  .hoja{display:grid; gap:10px;}
+  .hoja.grande{grid-template-columns:repeat(3, 1fr);}
+  .hoja.mediana{grid-template-columns:repeat(4, 1fr);}
+  .hoja.chica{grid-template-columns:repeat(5, 1fr);}
+  .sticker{background:#fff; border:1.5px solid #182A38; border-radius:10px; padding:10px 8px 8px; text-align:center; color:#182A38; break-inside:avoid; page-break-inside:avoid;}
+  .sticker .marca{font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#4C6070;}
+  .sticker .llamado{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:17px; line-height:1.1; text-transform:uppercase; margin:4px 0 6px;}
+  .sticker .qr{display:flex; justify-content:center;}
+  .sticker .qr img, .sticker .qr canvas{display:block;}
+  .sticker .como{font-size:10.5px; margin-top:6px;}
+  .sticker .cod{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:10.5px; font-weight:700; margin-top:2px;}
+  .sticker .donde{font-size:9.5px; color:#4C6070; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hoja.chica .sticker .llamado{font-size:13px;}
+  .hoja.chica .sticker .como{display:none;}
+
+  footer{margin-top:44px; font-size:12px; color:var(--ink-soft); text-align:center;}
+
+  @media (max-width:720px){
+    table, thead, tbody, th, td, tr{display:block;}
+    thead{display:none;}
+    tbody tr{border-bottom:1px solid var(--line); padding:10px 14px;}
+    tbody tr:last-child{border-bottom:none;}
+    tbody td{border:none; padding:3px 0;}
+    td.acciones, td.num{text-align:left; white-space:normal;}
+    td[data-label]:not(:empty)::before{content:attr(data-label) ": "; color:var(--ink-soft); font-size:12px;}
+    header{flex-wrap:wrap;}
+    header .session{width:100%; justify-content:flex-start;}
+    .ficha{grid-template-columns:1fr;}
+    .paneles{grid-template-columns:1fr;}
+    .dos{grid-template-columns:1fr;}
+    .hoja.grande, .hoja.mediana, .hoja.chica{grid-template-columns:repeat(2, 1fr);}
+    .form-card{padding:20px;}
+  }
+
+  @media print{
+    body{background:#fff;}
+    .wrap{max-width:none; padding:0;}
+    header, .tabs, footer, .no-imprimir{display:none !important;}
+    .hoja.grande{grid-template-columns:repeat(3, 1fr);}
+    .hoja.mediana{grid-template-columns:repeat(4, 1fr);}
+    .hoja.chica{grid-template-columns:repeat(5, 1fr);}
+    @page{margin:10mm;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="./" data-hub title="Volver al HUB">🚨</a>
+    <div>
+      <div class="name">Alerta Segulimp</div>
+      <div class="tag">Stickers, reportes y consumo por cliente</div>
+    </div>
+    <div class="session hidden" id="session">
+      <span id="sessionNombre"></span>
+      <a class="link-btn" href="./" data-hub>Volver al HUB</a>
+      <button class="link-btn" data-ac="actualizar" type="button">Actualizar</button>
+      <button class="link-btn" data-ac="salir" type="button">Salir</button>
+    </div>
+  </header>
+
+  <nav class="tabs hidden" id="tabs">
+    <a href="#resumen" data-tab="resumen">Resumen</a>
+    <a href="#clientes" data-tab="clientes">Clientes</a>
+    <a href="#reportes" data-tab="reportes">Reportes<span class="cuenta hidden" id="tabPend"></span></a>
+    <a href="#consumo" data-tab="consumo">Consumo</a>
+    <a href="#stickers" data-tab="stickers">Stickers</a>
+    <a href="#catalogo" data-tab="catalogo">Catálogo</a>
+  </nav>
+
+  <div id="content"><p class="area-sub">Cargando…</p></div>
+
+  <footer>Segulimp — Panel interno. No compartir estos links fuera del equipo.</footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+(function(){
+const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Los QR apuntan al formulario público publicado junto a este tablero.
+const REPORTE_URL = new URL('reporte.html', location.href.split('#')[0].split('?')[0]).href;
+
+// Dónde está el HUB: en segulimp-talent es hub.html (la portada es el formulario de postulación).
+const HUB_URL = /segulimp-talent/.test(location.hostname) ? 'hub.html' : './';
+document.querySelectorAll('a[data-hub]').forEach(a => { a.href = HUB_URL; });
+
+const ROLES_ACCESO = ['administrador', 'mantenimiento', 'consulta'];
+const ROLES_CONTACTO = { responsable_sitio: 'Responsable del lugar', distribuidora: 'Segulimp (reposición)' };
+const DIA = 86400000;
+const CLAVE_ULTIMA = 'alertas-ultima-activacion';
+
+let perfil = null;
+let aviso = null; // { tipo: 'ok'|'error'|'aviso', html }
+let ultimaCarga = 0;
+const db = { dist: null, sitios: [], sectores: [], equipos: [], contactos: [], reportes: [], tipos: [], productos: [], lotes: [], reposiciones: [] };
+const ui = {
+  inactivos: false,
+  filtro: { estado: 'pendiente', sitio: '', dias: '30' },
+  consumo: { sitio: '', dias: '90' },
+  hoja: 'mediana', soloLibres: true
+};
+const avisosCache = new Map();  // reporte_id -> [{ destinatario_rol, estado }]
+const stickersCache = new Map(); // lote_id -> [{ codigo, numero, equipo_id }]
+const estadoCodigo = new Map();  // código escaneado -> estado según la base
+
+const content = () => document.getElementById('content');
+const dlg = () => document.getElementById('dlg');
+
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+const puedeEditar = () => !!perfil && perfil.roles.includes('administrador');
+const puedeGestionar = () => !!perfil && (perfil.roles.includes('administrador') || perfil.roles.includes('mantenimiento'));
+
+// ====== Datos ======
+const sitio = id => db.sitios.find(s => s.id === id);
+const sector = id => db.sectores.find(s => s.id === id);
+const equipo = id => db.equipos.find(e => e.id === id);
+const tipo = id => db.tipos.find(t => t.id === id);
+const producto = id => db.productos.find(p => p.id === id);
+const equipoPorCodigo = cod => db.equipos.find(e => e.codigo === cod);
+const sectoresDe = sitioId => db.sectores.filter(s => s.sitio_id === sitioId);
+const equiposDeSitio = sitioId => db.equipos.filter(e => e.sitio_id === sitioId);
+const equiposDeSector = sectorId => db.equipos.filter(e => e.sector_id === sectorId);
+const reportesDeEquipo = equipoId => db.reportes.filter(r => r.equipo_id === equipoId);
+const reposicionesDeEquipo = equipoId => db.reposiciones.filter(r => r.equipo_id === equipoId);
+function reportesDeSitio(sitioId){
+  const ids = new Set(equiposDeSitio(sitioId).map(e => e.id));
+  return db.reportes.filter(r => ids.has(r.equipo_id));
+}
+const pendientes = lista => lista.filter(r => r.estado === 'pendiente');
+const nombreTipo = e => (tipo(e.tipo_id) || {}).nombre || e.tipo || '';
+const nombreProducto = e => (producto(e.producto_id) || {}).nombre || '';
+const stickersLibres = () => db.lotes.reduce((t, l) => t + (l.cantidad - l.activados), 0);
+
+function lugar(eq){
+  if(!eq) return '';
+  const se = sector(eq.sector_id);
+  return [se && se.nombre !== 'General' ? se.nombre : null, eq.ubicacion].filter(Boolean).join(' · ');
+}
+
+// La API devuelve hasta 1000 filas por pedido: se piden de a tandas hasta traer todo.
+async function todas(tabla, columnas, orden, filtro){
+  const filas = [];
+  for(let desde = 0; ; desde += 1000){
+    let q = sb.from(tabla).select(columnas);
+    if(filtro) q = filtro(q);
+    orden.forEach(o => { q = q.order(o[0], { ascending: o[1] !== 'desc' }); });
+    const { data, error } = await q.range(desde, desde + 999);
+    if(error) throw new Error(mensajeError(error));
+    filas.push(...data);
+    if(data.length < 1000) return filas;
+  }
+}
+
+async function cargar(){
+  const haceUnAnio = new Date(Date.now() - 365 * DIA).toISOString();
+  const [d, sitios, sectores, equipos, contactos, tipos, productos, lotes, reportes, reposiciones] = await Promise.all([
+    sb.from('alertas_distribuidoras').select('id, nombre, prefijo').limit(1),
+    todas('alertas_sitios', '*', [['nombre'], ['id']]),
+    todas('alertas_sectores', '*', [['orden'], ['nombre'], ['id']]),
+    todas('alertas_equipos', '*', [['creado_en'], ['codigo']]),
+    todas('alertas_contactos', '*', [['nombre'], ['id']]),
+    todas('alertas_tipos', '*', [['orden'], ['nombre'], ['id']]),
+    todas('alertas_productos', '*', [['nombre'], ['id']]),
+    todas('alertas_lotes_resumen', '*', [['numero', 'desc']]),
+    sb.from('alertas_reportes')
+      .select('id, equipo_id, motivo, categoria, comentario, estado, creado_en, resuelto_en, resolucion')
+      .order('creado_en', { ascending: false }).limit(1000),
+    todas('alertas_reposiciones', 'id, equipo_id, producto_id, cantidad, reporte_id, nota, creado_en',
+      [['creado_en', 'desc'], ['id']], q => q.gte('creado_en', haceUnAnio))
+  ]);
+  if(d.error) throw new Error(mensajeError(d.error));
+  if(reportes.error) throw new Error(mensajeError(reportes.error));
+  db.dist = (d.data || [])[0] || null;
+  Object.assign(db, { sitios, sectores, equipos, contactos, tipos, productos, lotes, reposiciones, reportes: reportes.data || [] });
+}
+
+async function cargarAvisos(ids){
+  const faltan = ids.filter(id => !avisosCache.has(id));
+  for(let i = 0; i < faltan.length; i += 80){
+    const tanda = faltan.slice(i, i + 80);
+    const { data } = await sb.from('alertas_notificaciones')
+      .select('reporte_id, destinatario_rol, estado').in('reporte_id', tanda);
+    tanda.forEach(id => avisosCache.set(id, []));
+    (data || []).forEach(n => avisosCache.get(n.reporte_id).push(n));
+  }
+}
+
+function mensajeError(error){
+  if(!error) return 'No se pudo completar la operación.';
+  // Los mensajes propios de la base (en castellano) se muestran tal cual; los genéricos de Postgres se traducen.
+  const msg = error.message || '';
+  const generico = /violates|duplicate key|permission denied|row-level security/i.test(msg);
+  if(error.code === '23505' && generico) return 'Ya existe uno con ese nombre.';
+  if(error.code === '23503' && generico) return 'No se puede: tiene datos asociados.';
+  if(error.code === '42501' && generico) return 'No tenés permiso para hacer esto.';
+  return msg || 'No se pudo completar la operación.';
+}
+function exigir(res){
+  if(res.error) throw new Error(mensajeError(res.error));
+  if(Array.isArray(res.data) && res.data.length === 0) throw new Error('No tenés permiso para hacer esto.');
+  return res.data;
+}
+
+// ====== Formato ======
+function fecha(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+const fechaCorta = ms => new Date(ms).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit' });
+function duracion(ms){
+  if(ms == null || isNaN(ms)) return '—';
+  const min = Math.max(0, Math.round(ms / 60000));
+  if(min < 60) return min + ' min';
+  const h = min / 60;
+  if(h < 10) return Math.floor(h) + ' h ' + (min % 60) + ' min';
+  if(h < 48) return Math.round(h) + ' h';
+  return Math.round(h / 24) + ' días';
+}
+function dias(ms){
+  const d = ms / DIA;
+  if(d < 1) return 'menos de 1 día';
+  const n = d < 10 ? Math.round(d * 10) / 10 : Math.round(d);
+  return String(n).replace('.', ',') + (n === 1 ? ' día' : ' días');
+}
+const hace = iso => 'hace ' + duracion(Date.now() - new Date(iso).getTime());
+const plural = (n, uno, muchos) => n + ' ' + (n === 1 ? uno : muchos);
+const numero = n => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+const chipEstado = estado => `<span class="chip ${estado === 'pendiente' ? 'pendiente' : 'resuelto'}">${estado === 'pendiente' ? 'Pendiente' : 'Resuelto'}</span>`;
+const opcion = (v, t, actual) => `<option value="${esc(v)}" ${v === actual ? 'selected' : ''}>${esc(t)}</option>`;
+
+function recordar(valores){
+  try{ localStorage.setItem(CLAVE_ULTIMA, JSON.stringify(valores)); } catch(_){}
+}
+function recordado(){
+  try{ return JSON.parse(localStorage.getItem(CLAVE_ULTIMA) || '{}') || {}; } catch(_){ return {}; }
+}
+
+// ====== Navegación ======
+function ruta(){
+  const partes = location.hash.replace(/^#/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  return { vista: partes[0] || 'resumen', a: partes[1], b: partes[2] };
+}
+const TAB_DE = { resumen: 'resumen', clientes: 'clientes', cliente: 'clientes', objeto: 'clientes', codigo: 'clientes',
+  reportes: 'reportes', consumo: 'consumo', stickers: 'stickers', imprimir: 'stickers', activar: 'stickers', reponer: 'clientes', catalogo: 'catalogo' };
+
+function render(){
+  const r = ruta();
+  const tab = TAB_DE[r.vista] || 'resumen';
+  document.querySelectorAll('#tabs a').forEach(a => a.classList.toggle('activa', a.dataset.tab === tab));
+  const nPend = pendientes(db.reportes).length;
+  const cuenta = document.getElementById('tabPend');
+  cuenta.textContent = nPend;
+  cuenta.classList.toggle('hidden', nPend === 0);
+
+  const avisoHtml = aviso ? `<div class="msg-box ${aviso.tipo} no-imprimir">${aviso.html}</div>` : '';
+  aviso = null;
+  let html;
+  if(r.vista === 'clientes') html = vistaClientes();
+  else if(r.vista === 'cliente' && sitio(r.a)) html = vistaCliente(sitio(r.a));
+  else if(r.vista === 'objeto' && equipo(r.a)) html = vistaObjeto(equipo(r.a));
+  else if(r.vista === 'codigo') html = vistaCodigo((r.a || '').toUpperCase());
+  else if(r.vista === 'activar') html = vistaActivar((r.a || '').toUpperCase());
+  else if(r.vista === 'reponer') html = vistaReponer((r.a || '').toUpperCase());
+  else if(r.vista === 'imprimir') html = vistaImprimir(r.a, r.b);
+  else if(r.vista === 'reportes') html = vistaReportes();
+  else if(r.vista === 'consumo') html = vistaConsumo();
+  else if(r.vista === 'stickers') html = vistaStickers();
+  else if(r.vista === 'catalogo') html = vistaCatalogo();
+  else html = vistaResumen();
+  content().innerHTML = avisoHtml + html;
+  pintarQR();
+  pintarAvisos();
+  prepararFormularios();
+  window.scrollTo(0, 0);
+}
+
+function pintarQR(){
+  content().querySelectorAll('.qr[data-codigo]').forEach(el => {
+    el.innerHTML = '';
+    const lado = Number(el.dataset.lado) || 120;
+    new QRCode(el, {
+      text: REPORTE_URL + '?c=' + encodeURIComponent(el.dataset.codigo),
+      width: lado, height: lado, colorDark: '#182A38', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  });
+}
+
+async function pintarAvisos(){
+  const celdas = [...content().querySelectorAll('[data-avisos]')];
+  if(celdas.length === 0) return;
+  await cargarAvisos(celdas.map(c => c.dataset.avisos));
+  celdas.forEach(c => {
+    if(!c.isConnected) return;
+    const lista = avisosCache.get(c.dataset.avisos) || [];
+    c.innerHTML = lista.length
+      ? lista.map(n => `<span class="chip ${n.estado === 'enviado' ? 'enviado' : 'error'}" title="${n.estado === 'enviado' ? 'Email enviado' : 'El email no salió'}">${n.destinatario_rol === 'distribuidora' ? 'Segulimp' : 'Lugar'}${n.estado === 'enviado' ? '' : ' ✕'}</span>`).join(' ')
+      : '<span class="muted">Sin avisos</span>';
+  });
+}
+
+// ====== Piezas comunes ======
+function filaReporte(r, o){
+  const eq = equipo(r.equipo_id);
+  const si = eq ? sitio(eq.sitio_id) : null;
+  return `
+    <tr>
+      <td data-label="Fecha">${fecha(r.creado_en)}<br><span class="muted">${hace(r.creado_en)}</span></td>
+      ${o.sinCliente ? '' : `<td data-label="Cliente">${si ? `<a href="#cliente/${si.id}">${esc(si.nombre)}</a>` : ''}</td>`}
+      ${o.sinObjeto ? '' : `<td data-label="Objeto">${eq ? `<a href="#objeto/${eq.id}">${esc(lugar(eq))}</a><br><span class="muted">${esc([nombreTipo(eq), nombreProducto(eq)].filter(Boolean).join(' · '))}</span>` : ''}</td>`}
+      <td data-label="Motivo">${esc(r.motivo)}${r.comentario ? `<br><span class="muted">“${esc(r.comentario)}”</span>` : ''}</td>
+      <td data-label="Estado">${chipEstado(r.estado)}${r.estado !== 'pendiente' && r.resuelto_en ? `<br><span class="muted">${fecha(r.resuelto_en)}${r.resolucion ? ' · ' + esc(r.resolucion) : ''}</span>` : ''}</td>
+      ${o.sinAvisos ? '' : `<td data-label="Avisos" data-avisos="${r.id}"><span class="muted">…</span></td>`}
+      <td class="acciones">${puedeGestionar() ? (r.estado === 'pendiente'
+        ? `<button class="btn-ghost small" data-ac="resolver" data-id="${r.id}">Marcar resuelto</button>`
+        : `<button class="btn-ghost small" data-ac="reabrir" data-id="${r.id}">Reabrir</button>`) : ''}</td>
+    </tr>`;
+}
+function tablaReportes(lista, opciones){
+  const o = opciones || {};
+  if(lista.length === 0) return `<div class="vacio">${esc(o.vacio || 'No hay reportes.')}</div>`;
+  return `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th>${o.sinCliente ? '' : '<th>Cliente</th>'}${o.sinObjeto ? '' : '<th>Objeto</th>'}<th>Motivo</th><th>Estado</th>${o.sinAvisos ? '' : '<th>Avisos</th>'}<th></th></tr></thead>
+      <tbody>${lista.map(r => filaReporte(r, o)).join('')}</tbody>
+    </table></div>`;
+}
+
+function barras(filas, vacio, unidad){
+  if(filas.length === 0) return `<div class="vacio" style="padding:4px 0;">${esc(vacio)}</div>`;
+  const max = Math.max(...filas.map(f => f.valor));
+  const u = unidad || ['reporte', 'reportes'];
+  return `<div class="barras">${filas.map(f => `
+    <div class="barra-fila" title="${esc(f.nombre)}: ${plural(f.valor, u[0], u[1])}">
+      <div class="barra-nombre">${f.href ? `<a href="${f.href}">${esc(f.nombre)}</a>` : esc(f.nombre)}</div>
+      <div class="barra-pista"><div class="barra" style="width:${Math.max(2, Math.round(f.valor / max * 82))}%"></div><span class="barra-valor">${f.valor}</span></div>
+    </div>`).join('')}</div>`;
+}
+
+function contar(lista, clave){
+  const m = new Map();
+  lista.forEach(x => { const k = clave(x); if(k != null) m.set(k, (m.get(k) || 0) + 1); });
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+// Ritmo de reposición de un objeto: promedio de días entre reposiciones y cuándo tocaría la próxima.
+function ritmo(equipoId){
+  const tiempos = reposicionesDeEquipo(equipoId).map(r => new Date(r.creado_en).getTime()).sort((a, b) => a - b);
+  if(tiempos.length === 0) return { n: 0 };
+  const ultima = tiempos[tiempos.length - 1];
+  if(tiempos.length < 2) return { n: 1, ultima };
+  const intervalo = (ultima - tiempos[0]) / (tiempos.length - 1);
+  return { n: tiempos.length, ultima, intervalo, proxima: ultima + intervalo };
+}
+function chipProxima(rt){
+  if(!rt.proxima) return '<span class="muted">Faltan datos</span>';
+  const falta = rt.proxima - Date.now();
+  if(falta < 0) return `<span class="chip pendiente">Atrasada ${dias(-falta)}</span>`;
+  return `En ${dias(falta)} <span class="muted">(${fechaCorta(rt.proxima)})</span>`;
+}
+
+// ====== Resumen ======
+function vistaResumen(){
+  const ahora = Date.now();
+  const pend = pendientes(db.reportes).sort((a, b) => new Date(a.creado_en) - new Date(b.creado_en));
+  const ult30 = db.reportes.filter(r => ahora - new Date(r.creado_en) <= 30 * DIA);
+  const prev30 = db.reportes.filter(r => { const d = ahora - new Date(r.creado_en); return d > 30 * DIA && d <= 60 * DIA; });
+  const resueltos30 = db.reportes.filter(r => r.estado !== 'pendiente' && r.resuelto_en && ahora - new Date(r.resuelto_en) <= 30 * DIA);
+  const medio = resueltos30.length
+    ? resueltos30.reduce((t, r) => t + (new Date(r.resuelto_en) - new Date(r.creado_en)), 0) / resueltos30.length : null;
+  const idsActivos = new Set(db.sitios.filter(s => s.activo).map(s => s.id));
+  const objetosActivos = db.equipos.filter(e => e.activo && idsActivos.has(e.sitio_id));
+  const dif = ult30.length - prev30.length;
+  const libres = stickersLibres();
+
+  const porCliente = contar(ult30, r => { const eq = equipo(r.equipo_id); return eq ? eq.sitio_id : null; })
+    .slice(0, 8).map(([id, n]) => ({ nombre: sitio(id) ? sitio(id).nombre : '—', valor: n, href: '#cliente/' + id }));
+  const porMotivo = contar(ult30, r => r.motivo).slice(0, 8).map(([m, n]) => ({ nombre: m, valor: n }));
+  const ult90 = db.reportes.filter(r => ahora - new Date(r.creado_en) <= 90 * DIA);
+  const porObjeto = contar(ult90, r => r.equipo_id).slice(0, 6).map(([id, n]) => {
+    const eq = equipo(id); const si = eq ? sitio(eq.sitio_id) : null;
+    return { nombre: eq ? lugar(eq) + (si ? ' — ' + si.nombre : '') : '—', valor: n, href: '#objeto/' + id };
+  });
+
+  if(db.sitios.length === 0){
+    return `
+      <div class="area-title">Resumen</div>
+      <p class="area-sub">Todavía no hay clientes cargados.</p>
+      ${puedeEditar() ? `<button class="btn-primary" data-ac="nuevo-cliente">+ Nuevo cliente</button>` : ''}`;
+  }
+
+  return `
+    <div class="tiles">
+      <div class="tile">
+        <div class="label">Reportes pendientes</div>
+        <div class="value">${pend.length}</div>
+        <div class="nota">${pend.length ? 'El más antiguo, ' + hace(pend[0].creado_en) : 'Nada por atender'}</div>
+      </div>
+      <div class="tile">
+        <div class="label">Reportes en 30 días</div>
+        <div class="value">${ult30.length}</div>
+        <div class="nota">${dif === 0 ? 'Igual que los 30 días anteriores' : Math.abs(dif) + (dif > 0 ? ' más' : ' menos') + ' que los 30 días anteriores'}</div>
+      </div>
+      <div class="tile">
+        <div class="label">Tiempo medio de resolución</div>
+        <div class="value">${duracion(medio)}</div>
+        <div class="nota">${resueltos30.length ? 'Sobre ' + plural(resueltos30.length, 'reporte resuelto', 'reportes resueltos') + ' en 30 días' : 'Sin reportes resueltos en 30 días'}</div>
+      </div>
+      <div class="tile">
+        <div class="label">Stickers activos</div>
+        <div class="value">${objetosActivos.length}</div>
+        <div class="nota">En ${plural(idsActivos.size, 'cliente', 'clientes')} · ${plural(libres, 'libre', 'libres')} para pegar</div>
+      </div>
+    </div>
+
+    <div class="paneles">
+      <div class="panel ancho">
+        <h4>Pendientes de atender</h4>
+        <p class="panel-sub">Del más antiguo al más nuevo.${pend.length > 8 ? ` Se muestran 8 de ${pend.length}; <a href="#reportes">ver todos</a>.` : ''}</p>
+        ${tablaReportes(pend.slice(0, 8), { sinAvisos: true, vacio: 'No hay reportes pendientes.' })}
+      </div>
+      <div class="panel">
+        <h4>Reportes por cliente</h4>
+        <p class="panel-sub">Últimos 30 días</p>
+        ${barras(porCliente, 'Sin reportes en los últimos 30 días.')}
+      </div>
+      <div class="panel">
+        <h4>Reportes por motivo</h4>
+        <p class="panel-sub">Últimos 30 días</p>
+        ${barras(porMotivo, 'Sin reportes en los últimos 30 días.')}
+      </div>
+      <div class="panel ancho">
+        <h4>Objetos con más reportes</h4>
+        <p class="panel-sub">Últimos 90 días</p>
+        ${barras(porObjeto, 'Sin reportes en los últimos 90 días.')}
+      </div>
+    </div>`;
+}
+
+// ====== Clientes ======
+function vistaClientes(){
+  const lista = db.sitios.filter(s => ui.inactivos || s.activo);
+  const hayInactivos = db.sitios.some(s => !s.activo);
+  return `
+    <div class="titulo-fila">
+      <div>
+        <div class="area-title">Clientes</div>
+        <p class="area-sub">Cada cliente tiene sus sectores y, en cada sector, los objetos con sticker.</p>
+      </div>
+      <div class="acciones">
+        ${hayInactivos ? `<label class="check"><input type="checkbox" data-ac="ver-inactivos" ${ui.inactivos ? 'checked' : ''}> Mostrar inactivos</label>` : ''}
+        ${puedeEditar() ? `<button class="btn-primary" data-ac="nuevo-cliente">+ Nuevo cliente</button>` : ''}
+      </div>
+    </div>
+    ${lista.length === 0 ? `<div class="table-wrap"><div class="vacio">Todavía no hay clientes cargados.</div></div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Cliente</th><th class="num">Sectores</th><th class="num">Objetos</th><th class="num">Pendientes</th><th></th></tr></thead>
+      <tbody>
+        ${lista.map(s => {
+          const nPend = pendientes(reportesDeSitio(s.id)).length;
+          return `
+          <tr class="fila-link ${s.activo ? '' : 'inactivo'}" data-ac="ir" data-href="#cliente/${s.id}">
+            <td data-label="Cliente"><strong>${esc(s.nombre)}</strong>${s.activo ? '' : ' <span class="chip gris">Inactivo</span>'}<br><span class="muted">${esc(s.direccion || 'Sin dirección')}</span></td>
+            <td class="num" data-label="Sectores">${sectoresDe(s.id).length}</td>
+            <td class="num" data-label="Objetos">${equiposDeSitio(s.id).filter(e => e.activo).length}</td>
+            <td class="num" data-label="Pendientes">${nPend ? `<span class="chip pendiente">${nPend}</span>` : '0'}</td>
+            <td class="acciones"><a class="btn-ghost small" href="#cliente/${s.id}">Abrir</a></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`}`;
+}
+
+function vistaCliente(s){
+  const sectores = sectoresDe(s.id);
+  const equipos = equiposDeSitio(s.id);
+  const contactos = db.contactos.filter(c => c.sitio_id === s.id);
+  const reportes = reportesDeSitio(s.id);
+  const nPend = pendientes(reportes).length;
+  const idsEq = new Set(equipos.map(e => e.id));
+  const repos30 = db.reposiciones.filter(r => idsEq.has(r.equipo_id) && Date.now() - new Date(r.creado_en) <= 30 * DIA).length;
+  const datos = [s.direccion, s.contacto_nombre, s.telefono].filter(Boolean).map(esc).join(' · ');
+
+  return `
+    <a class="back-btn no-imprimir" href="#clientes">← Clientes</a>
+    <div class="titulo-fila">
+      <div>
+        <div class="area-title">${esc(s.nombre)} ${s.activo ? '' : '<span class="chip gris">Inactivo</span>'}</div>
+        <p class="area-sub">${datos || 'Sin datos de contacto'}${s.notas ? '<br>' + esc(s.notas) : ''}</p>
+      </div>
+      <div class="acciones">
+        ${puedeEditar() ? `
+          <button class="btn-ghost" data-ac="editar-cliente" data-id="${s.id}">Editar</button>
+          <button class="btn-ghost" data-ac="toggle-cliente" data-id="${s.id}">${s.activo ? 'Desactivar' : 'Activar'}</button>` : ''}
+      </div>
+    </div>
+    ${s.activo ? '' : `<div class="msg-box aviso">Cliente inactivo: sus stickers no aceptan reportes hasta que lo actives de nuevo.</div>`}
+
+    <div class="tiles">
+      <div class="tile mini"><div class="label">Objetos con sticker</div><div class="value">${equipos.filter(e => e.activo).length}</div><div class="nota">En ${plural(sectores.length, 'sector', 'sectores')}</div></div>
+      <div class="tile mini"><div class="label">Reportes pendientes</div><div class="value">${nPend}</div><div class="nota">${plural(reportes.length, 'reporte', 'reportes')} en total</div></div>
+      <div class="tile mini"><div class="label">Reposiciones en 30 días</div><div class="value">${repos30}</div><div class="nota"><a href="#consumo" data-ac="ver-consumo" data-id="${s.id}">Ver consumo de este cliente</a></div></div>
+    </div>
+
+    <h3 class="seccion">Sectores y objetos
+      <span class="acciones">
+        ${equipos.length > 6 ? `<input type="search" id="buscarObjeto" placeholder="Buscar ubicación, producto o código" style="width:270px; max-width:100%;">` : ''}
+        ${equipos.some(e => !e.activo) ? `<label class="check"><input type="checkbox" data-ac="ver-inactivos" ${ui.inactivos ? 'checked' : ''}> Mostrar inactivos</label>` : ''}
+        ${puedeEditar() ? `<button class="btn-ghost" data-ac="nuevo-sector" data-id="${s.id}">+ Nuevo sector</button>` : ''}
+        ${puedeGestionar() ? `<button class="btn-primary" data-ac="activar-codigo" data-id="${s.id}">+ Activar sticker</button>` : ''}
+      </span>
+    </h3>
+    ${sectores.length === 0 ? `<div class="table-wrap"><div class="vacio">Este cliente todavía no tiene objetos. Pegá un sticker y escanealo con el celular: ahí se carga el sector, el objeto y la ubicación. También podés activarlo desde acá con el código impreso en el sticker.</div></div>` : ''}
+    ${sectores.map(se => {
+      const todos = equiposDeSector(se.id);
+      const eqs = todos.filter(e => ui.inactivos || e.activo);
+      return `
+      <div class="sector">
+        <div class="sector-head">
+          <div>
+            <span class="nombre">${esc(se.nombre)}</span>
+            <span class="muted"> · ${plural(todos.filter(e => e.activo).length, 'objeto', 'objetos')}</span>
+            ${se.descripcion ? `<div class="muted">${esc(se.descripcion)}</div>` : ''}
+          </div>
+          <div class="acciones">
+            ${eqs.some(e => e.activo) ? `<a class="btn-ghost small" href="#imprimir/sector/${se.id}">Reimprimir stickers</a>` : ''}
+            ${puedeEditar() ? `
+              <button class="btn-ghost small" data-ac="editar-sector" data-id="${se.id}">Editar</button>
+              ${todos.length === 0 ? `<button class="btn-ghost small peligro" data-ac="borrar-sector" data-id="${se.id}">Eliminar</button>` : ''}` : ''}
+          </div>
+        </div>
+        ${eqs.length === 0 ? `<div class="vacio">${todos.length === 0 ? 'Sin objetos en este sector.' : 'Los objetos de este sector están inactivos.'}</div>` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sticker</th><th>Ubicación</th><th>Tipo</th><th>Producto</th><th class="num">Pendientes</th><th></th></tr></thead>
+          <tbody>
+            ${eqs.map(e => {
+              const np = pendientes(reportesDeEquipo(e.id)).length;
+              return `
+              <tr class="${e.activo ? '' : 'inactivo'}" data-buscar="${esc([e.codigo, e.ubicacion, nombreTipo(e), nombreProducto(e), se.nombre].join(' ').toLowerCase())}">
+                <td data-label="Sticker"><a class="codigo" href="#objeto/${e.id}">${esc(e.codigo)}</a>${e.activo ? '' : ' <span class="chip gris">Inactivo</span>'}</td>
+                <td data-label="Ubicación">${esc(e.ubicacion)}</td>
+                <td data-label="Tipo">${esc(nombreTipo(e))}</td>
+                <td data-label="Producto">${esc(nombreProducto(e) || '—')}</td>
+                <td class="num" data-label="Pendientes">${np ? `<span class="chip pendiente">${np}</span>` : '0'}</td>
+                <td class="acciones">
+                  <a class="btn-ghost small" href="#objeto/${e.id}">Historial</a>
+                  ${puedeEditar() ? `
+                    <button class="btn-ghost small" data-ac="editar-objeto" data-id="${e.id}">Editar</button>
+                    <button class="btn-ghost small" data-ac="toggle-objeto" data-id="${e.id}">${e.activo ? 'Desactivar' : 'Activar'}</button>` : ''}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`}
+      </div>`;
+    }).join('')}
+
+    <h3 class="seccion">Contactos de aviso
+      <span class="acciones">${puedeEditar() ? `<button class="btn-ghost" data-ac="nuevo-contacto" data-id="${s.id}">+ Nuevo contacto</button>` : ''}</span>
+    </h3>
+    <p class="area-sub">Cada reporte de este cliente manda un email a todos los contactos activos.</p>
+    ${contactos.some(c => c.activo) ? '' : `<div class="msg-box aviso">Este cliente no tiene contactos activos: los reportes quedan registrados acá, pero no le avisan a nadie por email.</div>`}
+    ${contactos.length === 0 ? '' : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Nombre</th><th>Email</th><th>Recibe como</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+        ${contactos.map(c => `
+          <tr class="${c.activo ? '' : 'inactivo'}">
+            <td data-label="Nombre"><strong>${esc(c.nombre)}</strong></td>
+            <td data-label="Email">${esc(c.email)}</td>
+            <td data-label="Recibe como">${esc(ROLES_CONTACTO[c.rol] || c.rol)}</td>
+            <td data-label="Estado">${c.activo ? 'Activo' : 'Pausado'}</td>
+            <td class="acciones">${puedeEditar() ? `
+              <button class="btn-ghost small" data-ac="editar-contacto" data-id="${c.id}">Editar</button>
+              <button class="btn-ghost small peligro" data-ac="borrar-contacto" data-id="${c.id}">Eliminar</button>` : ''}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`}
+
+    <h3 class="seccion">Últimos reportes</h3>
+    ${tablaReportes(reportes.slice(0, 10), { sinCliente: true, vacio: 'Este cliente todavía no tiene reportes.' })}
+    ${reportes.length > 10 ? `<p class="area-sub" style="margin-top:10px;">Se muestran los últimos 10 de ${reportes.length}. Para ver todos, entrá a Reportes y filtrá por este cliente.</p>` : ''}
+  `;
+}
+
+// ====== Objeto ======
+function vistaObjeto(e){
+  const s = sitio(e.sitio_id);
+  const se = sector(e.sector_id);
+  const reportes = reportesDeEquipo(e.id);
+  const repos = reposicionesDeEquipo(e.id);
+  const nPend = pendientes(reportes).length;
+  const rt = ritmo(e.id);
+  const prod = producto(e.producto_id);
+  return `
+    <a class="back-btn no-imprimir" href="#cliente/${e.sitio_id}">← ${esc(s ? s.nombre : 'Cliente')}</a>
+    <div class="titulo-fila">
+      <div>
+        <div class="area-title">${esc(e.ubicacion)} ${e.activo ? '' : '<span class="chip gris">Inactivo</span>'}</div>
+        <p class="area-sub">${esc([s && s.nombre, se && se.nombre, nombreTipo(e), nombreProducto(e)].filter(Boolean).join(' · '))}</p>
+      </div>
+      <div class="acciones">
+        ${puedeGestionar() && prod && e.activo ? `<button class="btn-primary" data-ac="reponer" data-id="${e.id}">Registrar reposición</button>` : ''}
+        ${puedeEditar() ? `
+          <button class="btn-ghost" data-ac="editar-objeto" data-id="${e.id}">Editar</button>
+          <button class="btn-ghost" data-ac="toggle-objeto" data-id="${e.id}">${e.activo ? 'Desactivar' : 'Activar'}</button>` : ''}
+      </div>
+    </div>
+    <div class="ficha">
+      <div class="qr-caja">
+        <div class="qr" data-codigo="${esc(e.codigo)}" data-lado="160"></div>
+        <div class="codigo" style="font-weight:700; margin-bottom:6px;">${esc(e.codigo)}</div>
+        <a href="#imprimir/objeto/${e.id}">Reimprimir este sticker</a>
+      </div>
+      <div class="tiles" style="margin:0;">
+        <div class="tile mini"><div class="label">Reportes recibidos</div><div class="value">${reportes.length}</div><div class="nota">${nPend ? plural(nPend, 'pendiente', 'pendientes') : (reportes.length ? 'Todos resueltos' : 'Todavía ninguno')}</div></div>
+        <div class="tile mini"><div class="label">Reposiciones en 12 meses</div><div class="value">${repos.length}</div><div class="nota">${rt.ultima ? 'La última, ' + hace(new Date(rt.ultima).toISOString()) : (prod ? 'Todavía ninguna' : 'Este objeto no lleva producto')}</div></div>
+        <div class="tile mini"><div class="label">Se repone cada</div><div class="value">${rt.intervalo ? dias(rt.intervalo) : '—'}</div><div class="nota">${rt.proxima ? 'Próxima estimada: ' + fechaCorta(rt.proxima) : 'Hacen falta 2 reposiciones para estimar'}</div></div>
+      </div>
+    </div>
+    <h3 class="seccion">Historial de reportes</h3>
+    ${tablaReportes(reportes, { sinCliente: true, sinObjeto: true, vacio: 'Este objeto todavía no tiene reportes.' })}
+    <h3 class="seccion">Reposiciones</h3>
+    ${repos.length === 0 ? `<div class="table-wrap"><div class="vacio">Sin reposiciones registradas.</div></div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Producto</th><th class="num">Cantidad</th><th>Nota</th></tr></thead>
+      <tbody>${repos.map(r => { const p = producto(r.producto_id); return `
+        <tr>
+          <td data-label="Fecha">${fecha(r.creado_en)}</td>
+          <td data-label="Producto">${esc(p ? p.nombre : '—')}</td>
+          <td class="num" data-label="Cantidad">${r.cantidad != null ? numero(r.cantidad) + (p && p.unidad ? ' ' + esc(p.unidad) : '') : '—'}</td>
+          <td data-label="Nota">${esc(r.nota || (r.reporte_id ? 'Por un aviso' : ''))}</td>
+        </tr>`; }).join('')}</tbody>
+    </table></div>`}
+  `;
+}
+
+function vistaCodigo(cod){
+  const e = equipoPorCodigo(cod);
+  if(e) return vistaObjeto(e);
+  return `
+    <div class="area-title">Sticker ${esc(cod)}</div>
+    <p class="area-sub">No hay un objeto con este código.</p>
+    ${puedeGestionar() ? `<a class="btn-primary" href="#activar/${encodeURIComponent(cod)}">Activar este sticker</a>` : ''}`;
+}
+
+// ====== Activar sticker (pensado para el celular) ======
+function vistaActivar(cod){
+  if(!puedeGestionar()) return `<div class="area-title">Activar sticker</div><p class="area-sub">Tu usuario no puede activar stickers.</p>`;
+  if(equipoPorCodigo(cod)){ return vistaObjeto(equipoPorCodigo(cod)); }
+  const estado = estadoCodigo.get(cod);
+  if(!estado){
+    sb.rpc('alertas_sticker_publico', { p_codigo: cod }).then(({ data }) => {
+      estadoCodigo.set(cod, (data && data.estado) || 'desconocido');
+      if(ruta().vista === 'activar' && (ruta().a || '').toUpperCase() === cod) render();
+    });
+    return `<p class="area-sub">Leyendo el sticker…</p>`;
+  }
+  if(estado !== 'libre'){
+    return `
+      <div class="form-card campo-ancho">
+        <h2>Sticker ${esc(cod)}</h2>
+        <p class="area-sub" style="margin:8px 0 0;">${estado === 'desconocido' ? 'Este código no existe. Revisá que esté bien escrito.' : 'Este sticker ya está activado o dado de baja.'}</p>
+      </div>`;
+  }
+  const clientes = db.sitios.filter(s => s.activo);
+  if(clientes.length === 0){
+    return `<div class="form-card campo-ancho"><h2>Activar sticker</h2><p class="area-sub" style="margin:8px 0 0;">Primero hay que cargar un cliente en el tablero.</p></div>`;
+  }
+  const u = recordado();
+  const sitioSel = clientes.some(s => s.id === u.sitio) ? u.sitio : (clientes.length === 1 ? clientes[0].id : '');
+  const tipos = db.tipos.filter(t => t.activo);
+  const productos = db.productos.filter(p => p.activo);
+  return `
+    <form class="form-card campo-ancho" id="formActivar" data-codigo="${esc(cod)}" novalidate>
+      <h2>Activar sticker</h2>
+      <p class="area-sub" style="margin:0;"><span class="codigo">${esc(cod)}</span> · Decí dónde quedó pegado.</p>
+      <div class="campo"><label for="aSitio">Cliente</label>
+        <select id="aSitio" name="sitio" required>${clientes.length > 1 ? '<option value="">Elegí el cliente</option>' : ''}${clientes.map(s => opcion(s.id, s.nombre, sitioSel)).join('')}</select></div>
+      <div class="campo"><label for="aSector">Sector</label>
+        <select id="aSector" name="sector"></select>
+        <input type="text" id="aSectorNuevo" name="sector_nuevo" maxlength="80" placeholder="Nombre del sector nuevo (ej.: 2do piso)" style="margin-top:8px;"></div>
+      <div class="dos">
+        <div class="campo"><label for="aTipo">Qué es</label>
+          <select id="aTipo" name="tipo" required>${tipos.map(t => opcion(t.id, t.nombre, u.tipo)).join('')}</select></div>
+        <div class="campo"><label for="aProducto">Producto que lleva</label>
+          <select id="aProducto" name="producto">${opcion('', 'No lleva producto', u.producto || '')}${productos.map(p => opcion(p.id, p.nombre, u.producto)).join('')}</select></div>
+      </div>
+      <div class="campo"><label for="aUbic">Ubicación exacta</label>
+        <input type="text" id="aUbic" name="ubicacion" maxlength="200" required placeholder="Ej.: Baño de damas, junto al lavamanos"></div>
+      <button class="btn-primary" type="submit">Activar sticker</button>
+      <div class="form-error" id="aError"></div>
+    </form>`;
+}
+
+function vistaReponer(cod){
+  const e = equipoPorCodigo(cod);
+  if(!e) return vistaCodigo(cod);
+  if(!puedeGestionar()) return vistaObjeto(e);
+  const p = producto(e.producto_id);
+  const s = sitio(e.sitio_id);
+  if(!p) return `
+    <div class="form-card campo-ancho"><h2>Registrar reposición</h2>
+      <p class="area-sub" style="margin:8px 0 0;">${esc(lugar(e))} no tiene un producto asignado. <a href="#objeto/${e.id}">Abrir el objeto</a> para asignarle uno.</p></div>`;
+  return `
+    <form class="form-card campo-ancho" id="formReponer" data-id="${e.id}" novalidate>
+      <h2>Registrar reposición</h2>
+      <p class="area-sub" style="margin:0;"><strong>${esc(p.nombre)}</strong><br>${esc([s && s.nombre, lugar(e)].filter(Boolean).join(' · '))}</p>
+      <div class="campo"><label for="rpCant">Cantidad${p.unidad ? ' (' + esc(p.unidad) + ')' : ''} — opcional</label>
+        <input type="number" id="rpCant" name="cantidad" min="0" step="any" inputmode="decimal" placeholder="Ej.: 1"></div>
+      <button class="btn-primary" type="submit">Registrar reposición</button>
+      <div class="form-error" id="rpError"></div>
+      <p class="hint" style="margin-top:12px;">Si este objeto tiene avisos pendientes de falta de producto, quedan resueltos.</p>
+    </form>`;
+}
+
+function opcionesSector(sitioId, actual){
+  const lista = sectoresDe(sitioId);
+  return lista.map(se => opcion(se.id, se.nombre, actual)).join('') + opcion('__nuevo', '+ Sector nuevo…', lista.length ? actual : '__nuevo');
+}
+
+function prepararFormularios(){
+  const buscar = document.getElementById('buscarObjeto');
+  if(buscar){
+    buscar.oninput = () => {
+      const q = buscar.value.trim().toLowerCase();
+      content().querySelectorAll('tr[data-buscar]').forEach(tr => tr.classList.toggle('hidden', !!q && !tr.dataset.buscar.includes(q)));
+      content().querySelectorAll('.sector').forEach(sec => {
+        const filas = sec.querySelectorAll('tr[data-buscar]');
+        sec.classList.toggle('hidden', !!q && filas.length > 0 && [...filas].every(tr => tr.classList.contains('hidden')));
+      });
+    };
+  }
+
+  const fa = document.getElementById('formActivar');
+  if(fa){
+    const u = recordado();
+    const selSitio = fa.querySelector('#aSitio'), selSector = fa.querySelector('#aSector'), nuevo = fa.querySelector('#aSectorNuevo');
+    const pintarSectores = () => {
+      selSector.innerHTML = selSitio.value ? opcionesSector(selSitio.value, selSitio.value === u.sitio ? u.sector : '') : '<option value="">Primero elegí el cliente</option>';
+      nuevo.classList.toggle('hidden', selSector.value !== '__nuevo');
+    };
+    selSitio.onchange = pintarSectores;
+    selSector.onchange = () => { nuevo.classList.toggle('hidden', selSector.value !== '__nuevo'); if(selSector.value === '__nuevo') nuevo.focus(); };
+    pintarSectores();
+    fa.onsubmit = async ev => {
+      ev.preventDefault();
+      const err = fa.querySelector('#aError');
+      err.textContent = '';
+      const fd = new FormData(fa);
+      const esNuevo = fd.get('sector') === '__nuevo';
+      if(!fd.get('sitio')){ err.textContent = 'Elegí el cliente.'; return; }
+      if(esNuevo && !txt(fd, 'sector_nuevo')){ err.textContent = 'Escribí el nombre del sector nuevo.'; return; }
+      if(!txt(fd, 'ubicacion')){ err.textContent = 'Falta la ubicación exacta.'; return; }
+      const btn = fa.querySelector('button[type=submit]');
+      btn.disabled = true;
+      const cod = fa.dataset.codigo;
+      const res = await sb.rpc('alertas_activar_sticker', {
+        p_codigo: cod, p_sitio_id: fd.get('sitio'),
+        p_sector_id: esNuevo ? null : fd.get('sector'), p_sector_nuevo: esNuevo ? txt(fd, 'sector_nuevo') : null,
+        p_tipo_id: fd.get('tipo'), p_producto_id: fd.get('producto') || null, p_ubicacion: txt(fd, 'ubicacion')
+      });
+      if(res.error){ err.textContent = mensajeError(res.error); btn.disabled = false; return; }
+      estadoCodigo.delete(cod);
+      await cargar().catch(() => {});
+      ultimaCarga = Date.now();
+      const eq = equipo(res.data);
+      recordar({ sitio: fd.get('sitio'), sector: eq ? eq.sector_id : '', tipo: fd.get('tipo'), producto: fd.get('producto') || '' });
+      aviso = { tipo: 'ok', html: `Sticker <span class="codigo">${esc(cod)}</span> activado${eq ? ' en <strong>' + esc(lugar(eq)) + '</strong>' : ''}. Para seguir, escaneá el próximo sticker: el cliente y el sector quedan elegidos.` };
+      if(eq) location.hash = '#objeto/' + eq.id; else render();
+    };
+  }
+
+  const fr = document.getElementById('formReponer');
+  if(fr){
+    fr.onsubmit = async ev => {
+      ev.preventDefault();
+      const err = fr.querySelector('#rpError');
+      err.textContent = '';
+      const cant = fr.querySelector('#rpCant').value.trim();
+      if(cant && !(Number(cant) > 0)){ err.textContent = 'La cantidad tiene que ser mayor a cero.'; return; }
+      const btn = fr.querySelector('button[type=submit]');
+      btn.disabled = true;
+      const res = await sb.rpc('alertas_registrar_reposicion', { p_equipo_id: fr.dataset.id, p_cantidad: cant ? Number(cant) : null });
+      if(res.error){ err.textContent = mensajeError(res.error); btn.disabled = false; return; }
+      await cargar().catch(() => {});
+      ultimaCarga = Date.now();
+      aviso = { tipo: 'ok', html: 'Reposición registrada.' };
+      location.hash = '#objeto/' + fr.dataset.id;
+    };
+  }
+}
+
+// ====== Reportes ======
+function vistaReportes(){
+  const f = ui.filtro;
+  const ahora = Date.now();
+  let lista = db.reportes;
+  if(f.estado === 'pendiente') lista = lista.filter(r => r.estado === 'pendiente');
+  if(f.estado === 'resuelto') lista = lista.filter(r => r.estado !== 'pendiente');
+  if(f.sitio){ const ids = new Set(equiposDeSitio(f.sitio).map(e => e.id)); lista = lista.filter(r => ids.has(r.equipo_id)); }
+  if(f.dias !== 'todo') lista = lista.filter(r => ahora - new Date(r.creado_en) <= Number(f.dias) * DIA);
+  const total = lista.length;
+  lista = lista.slice(0, 200);
+  return `
+    <div class="area-title">Reportes</div>
+    <p class="area-sub">Lo que avisa la gente al escanear un sticker.</p>
+    <div class="filtros">
+      <label>Estado
+        <select data-filtro="estado">${opcion('pendiente', 'Pendientes', f.estado)}${opcion('resuelto', 'Resueltos', f.estado)}${opcion('todos', 'Todos', f.estado)}</select>
+      </label>
+      <label>Cliente
+        <select data-filtro="sitio">${opcion('', 'Todos los clientes', f.sitio)}${db.sitios.map(s => opcion(s.id, s.nombre, f.sitio)).join('')}</select>
+      </label>
+      <label>Período
+        <select data-filtro="dias">${opcion('7', 'Últimos 7 días', f.dias)}${opcion('30', 'Últimos 30 días', f.dias)}${opcion('90', 'Últimos 90 días', f.dias)}${opcion('todo', 'Todo', f.dias)}</select>
+      </label>
+    </div>
+    ${tablaReportes(lista, { vacio: 'No hay reportes con estos filtros.' })}
+    ${total > lista.length ? `<p class="area-sub" style="margin-top:10px;">Se muestran los 200 más recientes de ${total}. Acotá el período o el cliente para ver el resto.</p>` : ''}
+  `;
+}
+
+// ====== Consumo ======
+function vistaConsumo(){
+  const f = ui.consumo;
+  const ahora = Date.now();
+  const nDias = Number(f.dias);
+  const enCliente = e => e && (!f.sitio || e.sitio_id === f.sitio);
+  const repos = db.reposiciones.filter(r => enCliente(equipo(r.equipo_id)) && ahora - new Date(r.creado_en) <= nDias * DIA);
+  const faltantes = db.reportes.filter(r => r.categoria === 'producto' && enCliente(equipo(r.equipo_id)) && ahora - new Date(r.creado_en) <= nDias * DIA);
+  const puntos = db.equipos.filter(e => e.activo && e.producto_id && enCliente(e) && (sitio(e.sitio_id) || {}).activo);
+
+  // Por producto
+  const ids = new Set([...puntos.map(e => e.producto_id), ...repos.map(r => r.producto_id).filter(Boolean)]);
+  const porProducto = [...ids].map(id => {
+    const p = producto(id);
+    const rs = repos.filter(r => r.producto_id === id);
+    const pts = puntos.filter(e => e.producto_id === id);
+    const intervalos = pts.map(e => ritmo(e.id).intervalo).filter(Boolean);
+    const conCantidad = rs.filter(r => r.cantidad != null);
+    return {
+      id, nombre: p ? p.nombre : '—', unidad: p ? p.unidad : '', puntos: pts.length, repos: rs.length,
+      cantidad: conCantidad.length ? conCantidad.reduce((t, r) => t + Number(r.cantidad), 0) : null,
+      faltantes: faltantes.filter(r => (equipo(r.equipo_id) || {}).producto_id === id).length,
+      intervalo: intervalos.length ? intervalos.reduce((a, b) => a + b, 0) / intervalos.length : null,
+      porMes: rs.length / nDias * 30
+    };
+  }).sort((a, b) => b.repos - a.repos || b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
+
+  // Por cliente (solo cuando se miran todos)
+  const porCliente = f.sitio ? [] : db.sitios.filter(s => s.activo).map(s => {
+    const rs = repos.filter(r => (equipo(r.equipo_id) || {}).sitio_id === s.id);
+    const top = contar(rs, r => r.producto_id)[0];
+    return {
+      s, repos: rs.length, productos: new Set(puntos.filter(e => e.sitio_id === s.id).map(e => e.producto_id)).size,
+      faltantes: faltantes.filter(r => (equipo(r.equipo_id) || {}).sitio_id === s.id).length,
+      top: top && producto(top[0]) ? producto(top[0]).nombre : '—'
+    };
+  }).filter(x => x.repos || x.productos).sort((a, b) => b.repos - a.repos);
+
+  // Por punto: los que tienen ritmo estimado primero, por fecha de próxima reposición
+  const porPunto = puntos.map(e => ({ e, rt: ritmo(e.id), n: repos.filter(r => r.equipo_id === e.id).length }))
+    .filter(x => x.rt.n > 0)
+    .sort((a, b) => (a.rt.proxima || Infinity) - (b.rt.proxima || Infinity) || b.n - a.n)
+    .slice(0, 60);
+
+  const cliente = f.sitio ? sitio(f.sitio) : null;
+  return `
+    <div class="area-title">Consumo</div>
+    <p class="area-sub">Qué productos se reponen en cada lugar, cada cuánto y cuándo tocaría la próxima. Sale de las reposiciones registradas y de los avisos de falta de producto.</p>
+    <div class="filtros">
+      <label>Cliente
+        <select data-consumo="sitio">${opcion('', 'Todos los clientes', f.sitio)}${db.sitios.map(s => opcion(s.id, s.nombre, f.sitio)).join('')}</select>
+      </label>
+      <label>Período
+        <select data-consumo="dias">${opcion('30', 'Últimos 30 días', f.dias)}${opcion('90', 'Últimos 90 días', f.dias)}${opcion('180', 'Últimos 6 meses', f.dias)}${opcion('365', 'Últimos 12 meses', f.dias)}</select>
+      </label>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><div class="label">Reposiciones</div><div class="value">${repos.length}</div><div class="nota">${repos.length ? numero(repos.length / nDias * 30) + ' por mes en promedio' : 'Ninguna registrada en el período'}</div></div>
+      <div class="tile"><div class="label">Avisos de falta de producto</div><div class="value">${faltantes.length}</div><div class="nota">Veces que alguien encontró un objeto vacío</div></div>
+      <div class="tile"><div class="label">Puntos con producto</div><div class="value">${puntos.length}</div><div class="nota">${plural(new Set(puntos.map(e => e.producto_id)).size, 'producto distinto', 'productos distintos')}${cliente ? ' en ' + esc(cliente.nombre) : ''}</div></div>
+    </div>
+
+    ${repos.length === 0 && puntos.length > 0 ? `<div class="msg-box aviso">Todavía no hay reposiciones registradas en este período. Se registran al resolver un aviso de falta de producto o cuando quien repone escanea el sticker y toca “Registrar reposición”.</div>` : ''}
+
+    <div class="paneles">
+      <div class="panel ancho">
+        <h4>Por producto</h4>
+        <p class="panel-sub">${cliente ? esc(cliente.nombre) : 'Todos los clientes'} · últimos ${nDias} días</p>
+        ${porProducto.length === 0 ? `<div class="vacio" style="padding:4px 0;">No hay objetos con producto asignado.</div>` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Producto</th><th class="num">Puntos</th><th class="num">Reposiciones</th><th class="num">Cantidad</th><th class="num">Avisos de falta</th><th class="num">Se repone cada</th><th class="num">Por mes</th></tr></thead>
+          <tbody>${porProducto.map(x => `
+            <tr>
+              <td data-label="Producto"><strong>${esc(x.nombre)}</strong></td>
+              <td class="num" data-label="Puntos">${x.puntos}</td>
+              <td class="num" data-label="Reposiciones">${x.repos}</td>
+              <td class="num" data-label="Cantidad">${x.cantidad != null ? numero(x.cantidad) + (x.unidad ? ' ' + esc(x.unidad) : '') : '—'}</td>
+              <td class="num" data-label="Avisos de falta">${x.faltantes}</td>
+              <td class="num" data-label="Se repone cada">${x.intervalo ? dias(x.intervalo) : '—'}</td>
+              <td class="num" data-label="Por mes">${x.repos ? numero(x.porMes) : '—'}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`}
+      </div>
+
+      ${f.sitio ? '' : `
+      <div class="panel ancho">
+        <h4>Por cliente</h4>
+        <p class="panel-sub">Últimos ${nDias} días</p>
+        ${porCliente.length === 0 ? `<div class="vacio" style="padding:4px 0;">Sin datos.</div>` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Cliente</th><th class="num">Productos</th><th class="num">Reposiciones</th><th class="num">Avisos de falta</th><th>Lo que más se repone</th></tr></thead>
+          <tbody>${porCliente.map(x => `
+            <tr class="fila-link" data-ac="ver-consumo" data-id="${x.s.id}">
+              <td data-label="Cliente"><strong>${esc(x.s.nombre)}</strong></td>
+              <td class="num" data-label="Productos">${x.productos}</td>
+              <td class="num" data-label="Reposiciones">${x.repos}</td>
+              <td class="num" data-label="Avisos de falta">${x.faltantes}</td>
+              <td data-label="Lo que más se repone">${esc(x.top)}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`}
+      </div>`}
+
+      <div class="panel">
+        <h4>Reposiciones por producto</h4>
+        <p class="panel-sub">Últimos ${nDias} días</p>
+        ${barras(porProducto.filter(x => x.repos).slice(0, 8).map(x => ({ nombre: x.nombre, valor: x.repos })), 'Sin reposiciones en el período.', ['reposición', 'reposiciones'])}
+      </div>
+      <div class="panel">
+        <h4>Reposiciones por sector</h4>
+        <p class="panel-sub">Últimos ${nDias} días</p>
+        ${barras(contar(repos, r => (equipo(r.equipo_id) || {}).sector_id).slice(0, 8).map(([id, n]) => {
+          const se = sector(id); const si = se ? sitio(se.sitio_id) : null;
+          return { nombre: (se ? se.nombre : '—') + (!f.sitio && si ? ' — ' + si.nombre : ''), valor: n };
+        }), 'Sin reposiciones en el período.', ['reposición', 'reposiciones'])}
+      </div>
+
+      <div class="panel ancho">
+        <h4>Próximas reposiciones por punto</h4>
+        <p class="panel-sub">Estimadas con el ritmo de cada punto en los últimos 12 meses. Hacen falta al menos 2 reposiciones del mismo punto.</p>
+        ${porPunto.length === 0 ? `<div class="vacio" style="padding:4px 0;">Todavía no hay puntos con reposiciones registradas.</div>` : `
+        <div class="table-wrap"><table>
+          <thead><tr><th>Punto</th><th>Producto</th><th class="num">Reposiciones</th><th class="num">Se repone cada</th><th>Última</th><th>Próxima estimada</th></tr></thead>
+          <tbody>${porPunto.map(({ e, rt, n }) => `
+            <tr>
+              <td data-label="Punto"><a href="#objeto/${e.id}">${esc(lugar(e))}</a>${f.sitio ? '' : `<br><span class="muted">${esc((sitio(e.sitio_id) || {}).nombre || '')}</span>`}</td>
+              <td data-label="Producto">${esc(nombreProducto(e))}</td>
+              <td class="num" data-label="Reposiciones">${n}</td>
+              <td class="num" data-label="Se repone cada">${rt.intervalo ? dias(rt.intervalo) : '—'}</td>
+              <td data-label="Última">${rt.ultima ? fechaCorta(rt.ultima) : '—'}</td>
+              <td data-label="Próxima estimada">${chipProxima(rt)}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`}
+      </div>
+    </div>`;
+}
+
+// ====== Stickers ======
+function vistaStickers(){
+  const libres = stickersLibres();
+  const activos = db.equipos.filter(e => e.activo).length;
+  return `
+    <div class="titulo-fila">
+      <div>
+        <div class="area-title">Stickers</div>
+        <p class="area-sub">Se imprimen por tanda, sin datos. Cada sticker se activa al pegarlo: se escanea con el celular y se carga dónde quedó.</p>
+      </div>
+      <div class="acciones">
+        ${puedeGestionar() ? `<button class="btn-ghost" data-ac="activar-codigo">Activar con código</button>` : ''}
+        ${puedeEditar() ? `<button class="btn-primary" data-ac="nuevo-lote">+ Generar tanda</button>` : ''}
+      </div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="label">Libres para pegar</div><div class="value">${libres}</div><div class="nota">Generados y todavía sin activar</div></div>
+      <div class="tile"><div class="label">Activos</div><div class="value">${activos}</div><div class="nota">Pegados en un objeto y aceptando reportes</div></div>
+      <div class="tile"><div class="label">Tandas generadas</div><div class="value">${db.lotes.length}</div><div class="nota">${db.lotes.length ? 'La última, ' + hace(db.lotes[0].creado_en) : 'Todavía ninguna'}</div></div>
+    </div>
+    ${db.lotes.length === 0 ? `<div class="table-wrap"><div class="vacio">Todavía no se generó ninguna tanda de stickers.</div></div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tanda</th><th>Generada</th><th class="num">Stickers</th><th class="num">Activados</th><th class="num">Libres</th><th>Nota</th><th></th></tr></thead>
+      <tbody>${db.lotes.map(l => `
+        <tr>
+          <td data-label="Tanda"><strong>N.º ${l.numero}</strong></td>
+          <td data-label="Generada">${fecha(l.creado_en)}</td>
+          <td class="num" data-label="Stickers">${l.cantidad}</td>
+          <td class="num" data-label="Activados">${l.activados}</td>
+          <td class="num" data-label="Libres">${l.cantidad - l.activados}</td>
+          <td data-label="Nota">${esc(l.nota || '')}</td>
+          <td class="acciones">
+            <a class="btn-ghost small" href="#imprimir/tanda/${l.id}">Imprimir</a>
+            ${puedeEditar() && l.activados === 0 ? `<button class="btn-ghost small peligro" data-ac="borrar-lote" data-id="${l.id}">Eliminar</button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+    </table></div>`}
+    <p class="area-sub" style="margin-top:14px;">Cada sticker abre <span class="codigo">${esc(REPORTE_URL)}</span> con su código.</p>`;
+}
+
+// ====== Plancha para imprimir ======
+function vistaImprimir(que, id){
+  let titulo = '', volver = '#stickers', lista = null, conLugar = true, esTanda = false;
+  if(que === 'tanda'){
+    const l = db.lotes.find(x => x.id === id);
+    if(!l) return vistaStickers();
+    esTanda = true; conLugar = false;
+    titulo = 'Tanda N.º ' + l.numero;
+    if(!stickersCache.has(id)){
+      sb.from('alertas_stickers').select('codigo, numero, equipo_id').eq('lote_id', id).order('numero').then(({ data }) => {
+        stickersCache.set(id, data || []);
+        if(ruta().vista === 'imprimir' && ruta().b === id) render();
+      });
+      return `<p class="area-sub">Cargando la tanda…</p>`;
+    }
+    lista = stickersCache.get(id).filter(st => !ui.soloLibres || !st.equipo_id).map(st => ({ codigo: st.codigo }));
+  } else if(que === 'sector' && sector(id)){
+    const se = sector(id); const s = sitio(se.sitio_id);
+    titulo = (s ? s.nombre + ' · ' : '') + se.nombre; volver = '#cliente/' + se.sitio_id;
+    lista = equiposDeSector(id).filter(e => e.activo).map(e => ({ codigo: e.codigo, lugar: lugar(e) }));
+  } else if(que === 'objeto' && equipo(id)){
+    const e = equipo(id);
+    titulo = lugar(e); volver = '#objeto/' + id;
+    lista = [{ codigo: e.codigo, lugar: lugar(e) }];
+  } else {
+    return vistaStickers();
+  }
+  const lado = { grande: 150, mediana: 112, chica: 84 }[ui.hoja];
+  const hayActivados = esTanda && stickersCache.get(id).some(st => st.equipo_id);
+  return `
+    <div class="no-imprimir">
+      <a class="back-btn" href="${volver}">← Volver</a>
+      <div class="titulo-fila">
+        <div>
+          <div class="area-title">${esTanda ? 'Stickers para imprimir' : 'Reimprimir stickers'}</div>
+          <p class="area-sub">${esc(titulo)} — ${plural(lista.length, 'sticker', 'stickers')}.${esTanda ? '' : ' Llevan el mismo código que el original.'}</p>
+        </div>
+        <div class="acciones">
+          ${hayActivados ? `<label class="check"><input type="checkbox" data-ac="solo-libres" ${ui.soloLibres ? 'checked' : ''}> Solo los que faltan pegar</label>` : ''}
+          <label class="check">Tamaño
+            <select data-hoja>
+              ${opcion('grande', 'Grande (3 por fila)', ui.hoja)}${opcion('mediana', 'Mediano (4 por fila)', ui.hoja)}${opcion('chica', 'Chico (5 por fila)', ui.hoja)}
+            </select>
+          </label>
+          ${lista.length ? `<button class="btn-primary" data-ac="imprimir">Imprimir</button>` : ''}
+        </div>
+      </div>
+    </div>
+    ${lista.length === 0 ? `<div class="table-wrap"><div class="vacio">No hay stickers para imprimir.</div></div>` : `
+    <div class="hoja ${ui.hoja}">
+      ${lista.map(st => `
+        <div class="sticker">
+          <div class="marca">Alerta Segulimp</div>
+          <div class="llamado">¿Falta algo o no funciona?</div>
+          <div class="qr" data-codigo="${esc(st.codigo)}" data-lado="${lado}"></div>
+          <div class="como">Escaneá y avisá</div>
+          <div class="cod">${esc(st.codigo)}</div>
+          ${conLugar && st.lugar ? `<div class="donde">${esc(st.lugar)}</div>` : ''}
+        </div>`).join('')}
+    </div>`}
+  `;
+}
+
+// ====== Catálogo ======
+function vistaCatalogo(){
+  return `
+    <div class="area-title">Catálogo</div>
+    <p class="area-sub">Los tipos de objeto que pueden llevar sticker y los productos que se reponen en ellos.</p>
+
+    <h3 class="seccion">Tipos de objeto
+      <span class="acciones">${puedeEditar() ? `<button class="btn-primary" data-ac="nuevo-tipo">+ Nuevo tipo</button>` : ''}</span>
+    </h3>
+    <p class="area-sub">Cada tipo define qué motivos puede elegir quien escanea el sticker.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tipo</th><th>Motivos por falta de producto</th><th>Otros motivos</th><th class="num">Objetos</th><th></th></tr></thead>
+      <tbody>${db.tipos.map(t => `
+        <tr class="${t.activo ? '' : 'inactivo'}">
+          <td data-label="Tipo"><strong>${esc(t.nombre)}</strong>${t.activo ? '' : ' <span class="chip gris">Inactivo</span>'}</td>
+          <td data-label="Motivos por falta de producto">${t.motivos_producto.length ? t.motivos_producto.map(m => `<span class="chip">${esc(m)}</span>`).join(' ') : '<span class="muted">Ninguno</span>'}</td>
+          <td data-label="Otros motivos">${t.motivos_otros.map(m => `<span class="chip gris">${esc(m)}</span>`).join(' ')}</td>
+          <td class="num" data-label="Objetos">${db.equipos.filter(e => e.tipo_id === t.id).length}</td>
+          <td class="acciones">${puedeEditar() ? `
+            <button class="btn-ghost small" data-ac="editar-tipo" data-id="${t.id}">Editar</button>
+            <button class="btn-ghost small" data-ac="toggle-tipo" data-id="${t.id}">${t.activo ? 'Desactivar' : 'Activar'}</button>` : ''}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+
+    <h3 class="seccion">Productos
+      <span class="acciones">${puedeEditar() ? `<button class="btn-primary" data-ac="nuevo-producto">+ Nuevo producto</button>` : ''}</span>
+    </h3>
+    ${db.productos.length === 0 ? `<div class="table-wrap"><div class="vacio">Todavía no hay productos cargados.</div></div>` : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>Producto</th><th>Se repone por</th><th class="num">Puntos</th><th></th></tr></thead>
+      <tbody>${db.productos.map(p => `
+        <tr class="${p.activo ? '' : 'inactivo'}">
+          <td data-label="Producto"><strong>${esc(p.nombre)}</strong>${p.activo ? '' : ' <span class="chip gris">Inactivo</span>'}</td>
+          <td data-label="Se repone por">${esc(p.unidad || '—')}</td>
+          <td class="num" data-label="Puntos">${db.equipos.filter(e => e.producto_id === p.id && e.activo).length}</td>
+          <td class="acciones">${puedeEditar() ? `
+            <button class="btn-ghost small" data-ac="editar-producto" data-id="${p.id}">Editar</button>
+            <button class="btn-ghost small" data-ac="toggle-producto" data-id="${p.id}">${p.activo ? 'Desactivar' : 'Activar'}</button>` : ''}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`}
+  `;
+}
+
+// ====== Diálogos ======
+function abrirDialogo(html, guardar){
+  const d = dlg();
+  d.innerHTML = `<form novalidate>${html}<div class="form-error" id="dlgError"></div></form>`;
+  const form = d.querySelector('form');
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const err = d.querySelector('#dlgError');
+    err.textContent = '';
+    if(!form.checkValidity()){ form.reportValidity(); return; }
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try{
+      const destino = await guardar(new FormData(form), form);
+      d.close();
+      if(destino && location.hash !== destino){
+        try{ await cargar(); ultimaCarga = Date.now(); } catch(ex2){ aviso = { tipo: 'error', html: esc(ex2.message) }; }
+        location.hash = destino; // el cambio de hash dibuja la vista
+      } else {
+        await refrescar();
+      }
+    } catch(ex){
+      err.textContent = ex.message;
+      btn.disabled = false;
+    }
+  };
+  d.querySelectorAll('[data-cerrar]').forEach(b => b.onclick = () => d.close());
+  d.showModal();
+  const primero = form.querySelector('input:not([type=hidden]):not([disabled]):not([type=checkbox]), textarea, select');
+  if(primero) primero.focus();
+  return form;
+}
+const pie = texto => `<div class="pie"><button class="btn-primary" type="submit">${texto}</button><button class="btn-ghost" type="button" data-cerrar>Cancelar</button></div>`;
+const txt = (fd, k) => (fd.get(k) || '').toString().trim();
+const lineas = (fd, k) => [...new Set(txt(fd, k).split('\n').map(x => x.trim()).filter(Boolean))];
+
+function dlgCliente(s){
+  abrirDialogo(`
+    <h2>${s ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+    <div class="campo"><label for="cNombre">Nombre del cliente</label><input type="text" id="cNombre" name="nombre" maxlength="120" required value="${esc(s ? s.nombre : '')}"></div>
+    <div class="campo"><label for="cDireccion">Dirección</label><input type="text" id="cDireccion" name="direccion" maxlength="200" value="${esc(s ? s.direccion : '')}"></div>
+    <div class="dos">
+      <div class="campo"><label for="cContacto">Persona de contacto</label><input type="text" id="cContacto" name="contacto_nombre" maxlength="120" value="${esc(s ? s.contacto_nombre : '')}"></div>
+      <div class="campo"><label for="cTel">Teléfono</label><input type="tel" id="cTel" name="telefono" maxlength="40" value="${esc(s ? s.telefono : '')}"></div>
+    </div>
+    <div class="campo"><label for="cNotas">Notas</label><textarea id="cNotas" name="notas" maxlength="500">${esc(s ? s.notas : '')}</textarea></div>
+    ${pie(s ? 'Guardar cambios' : 'Crear cliente')}
+  `, async fd => {
+    const datos = {
+      nombre: txt(fd, 'nombre'), direccion: txt(fd, 'direccion') || null,
+      contacto_nombre: txt(fd, 'contacto_nombre') || null, telefono: txt(fd, 'telefono') || null, notas: txt(fd, 'notas') || null
+    };
+    if(!datos.nombre) throw new Error('Falta el nombre del cliente.');
+    if(s){
+      exigir(await sb.from('alertas_sitios').update(datos).eq('id', s.id).select('id'));
+      aviso = { tipo: 'ok', html: 'Cambios guardados.' };
+    } else {
+      const filas = exigir(await sb.from('alertas_sitios').insert(datos).select('id'));
+      aviso = { tipo: 'ok', html: 'Cliente creado. Ya se le pueden activar stickers: al escanear uno, elegí este cliente.' };
+      return '#cliente/' + filas[0].id;
+    }
+  });
+}
+
+function dlgSector(sitioId, se){
+  abrirDialogo(`
+    <h2>${se ? 'Editar sector' : 'Nuevo sector'}</h2>
+    <div class="campo"><label for="sNombre">Nombre del sector</label><input type="text" id="sNombre" name="nombre" maxlength="80" required placeholder="Ej.: Planta baja, 1er piso, Lavadero" value="${esc(se ? se.nombre : '')}"></div>
+    <div class="campo"><label for="sDesc">Descripción (opcional)</label><input type="text" id="sDesc" name="descripcion" maxlength="200" placeholder="Cómo llegar, a quién pedir la llave, etc." value="${esc(se ? se.descripcion : '')}"></div>
+    ${pie(se ? 'Guardar cambios' : 'Crear sector')}
+  `, async fd => {
+    const datos = { nombre: txt(fd, 'nombre'), descripcion: txt(fd, 'descripcion') || null };
+    if(!datos.nombre) throw new Error('Falta el nombre del sector.');
+    const res = se
+      ? await sb.from('alertas_sectores').update(datos).eq('id', se.id).select('id')
+      : await sb.from('alertas_sectores').insert({ ...datos, sitio_id: sitioId, orden: sectoresDe(sitioId).length }).select('id');
+    if(res.error && res.error.code === '23505') throw new Error('Este cliente ya tiene un sector con ese nombre.');
+    exigir(res);
+    aviso = { tipo: 'ok', html: se ? 'Cambios guardados.' : 'Sector creado.' };
+  });
+}
+
+function dlgObjeto(e){
+  const sectores = sectoresDe(e.sitio_id);
+  abrirDialogo(`
+    <h2>Editar objeto</h2>
+    <p class="area-sub" style="margin:0;">Sticker <span class="codigo">${esc(e.codigo)}</span>. El código no cambia.</p>
+    <div class="campo"><label for="eSector">Sector</label>
+      <select id="eSector" name="sector_id">${sectores.map(se => opcion(se.id, se.nombre, e.sector_id)).join('')}</select></div>
+    <div class="campo"><label for="eUbic">Ubicación exacta</label><input type="text" id="eUbic" name="ubicacion" maxlength="200" required value="${esc(e.ubicacion)}"></div>
+    <div class="dos">
+      <div class="campo"><label for="eTipo">Qué es</label>
+        <select id="eTipo" name="tipo_id">${db.tipos.filter(t => t.activo || t.id === e.tipo_id).map(t => opcion(t.id, t.nombre, e.tipo_id)).join('')}</select></div>
+      <div class="campo"><label for="eProd">Producto que lleva</label>
+        <select id="eProd" name="producto_id">${opcion('', 'No lleva producto', e.producto_id || '')}${db.productos.filter(p => p.activo || p.id === e.producto_id).map(p => opcion(p.id, p.nombre, e.producto_id)).join('')}</select></div>
+    </div>
+    ${pie('Guardar cambios')}
+  `, async fd => {
+    const datos = { sector_id: txt(fd, 'sector_id'), ubicacion: txt(fd, 'ubicacion'), tipo_id: txt(fd, 'tipo_id'), producto_id: txt(fd, 'producto_id') || null };
+    if(!datos.ubicacion) throw new Error('Falta la ubicación.');
+    exigir(await sb.from('alertas_equipos').update(datos).eq('id', e.id).select('id'));
+    aviso = { tipo: 'ok', html: 'Cambios guardados.' };
+  });
+}
+
+function dlgContacto(sitioId, c){
+  abrirDialogo(`
+    <h2>${c ? 'Editar contacto' : 'Nuevo contacto'}</h2>
+    <div class="campo"><label for="kNombre">Nombre</label><input type="text" id="kNombre" name="nombre" maxlength="120" required value="${esc(c ? c.nombre : '')}"></div>
+    <div class="campo"><label for="kEmail">Email</label><input type="email" id="kEmail" name="email" maxlength="160" required value="${esc(c ? c.email : '')}"></div>
+    <div class="campo"><label for="kRol">Recibe el aviso como</label>
+      <select id="kRol" name="rol">${Object.entries(ROLES_CONTACTO).map(([v, t]) => opcion(v, t, c ? c.rol : 'responsable_sitio')).join('')}</select></div>
+    <div class="campo"><label class="check"><input type="checkbox" name="activo" ${!c || c.activo ? 'checked' : ''}> Recibe avisos</label></div>
+    ${pie(c ? 'Guardar cambios' : 'Agregar contacto')}
+  `, async fd => {
+    const datos = { nombre: txt(fd, 'nombre'), email: txt(fd, 'email').toLowerCase(), rol: txt(fd, 'rol'), activo: fd.get('activo') === 'on' };
+    if(!datos.nombre) throw new Error('Falta el nombre.');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) throw new Error('El email no parece válido.');
+    exigir(c
+      ? await sb.from('alertas_contactos').update(datos).eq('id', c.id).select('id')
+      : await sb.from('alertas_contactos').insert({ ...datos, sitio_id: sitioId }).select('id'));
+    aviso = { tipo: 'ok', html: c ? 'Cambios guardados.' : 'Contacto agregado.' };
+  });
+}
+
+function dlgTipo(t){
+  abrirDialogo(`
+    <h2>${t ? 'Editar tipo de objeto' : 'Nuevo tipo de objeto'}</h2>
+    <div class="campo"><label for="tNombre">Nombre</label><input type="text" id="tNombre" name="nombre" maxlength="60" required placeholder="Ej.: Dispenser de jabón, Cesto, Lavarropas" value="${esc(t ? t.nombre : '')}"></div>
+    <div class="campo"><label for="tProd">Motivos por falta de producto (uno por línea)</label>
+      <textarea id="tProd" name="motivos_producto" placeholder="Sin producto">${esc(t ? t.motivos_producto.join('\n') : '')}</textarea>
+      <p class="hint">Estos avisos cuentan como consumo. Dejalo vacío si el objeto no lleva producto.</p></div>
+    <div class="campo"><label for="tOtros">Otros motivos (uno por línea)</label>
+      <textarea id="tOtros" name="motivos_otros">${esc(t ? t.motivos_otros.join('\n') : 'Roto / no funciona\nOtro')}</textarea></div>
+    ${pie(t ? 'Guardar cambios' : 'Crear tipo')}
+  `, async fd => {
+    const datos = { nombre: txt(fd, 'nombre'), motivos_producto: lineas(fd, 'motivos_producto'), motivos_otros: lineas(fd, 'motivos_otros') };
+    if(!datos.nombre) throw new Error('Falta el nombre.');
+    datos.motivos_otros = datos.motivos_otros.filter(m => !datos.motivos_producto.includes(m));
+    const total = datos.motivos_producto.length + datos.motivos_otros.length;
+    if(total < 1) throw new Error('Cargá al menos un motivo.');
+    if(total > 12) throw new Error('Son demasiados motivos: el máximo es 12.');
+    exigir(t
+      ? await sb.from('alertas_tipos').update(datos).eq('id', t.id).select('id')
+      : await sb.from('alertas_tipos').insert({ ...datos, orden: db.tipos.length }).select('id'));
+    aviso = { tipo: 'ok', html: t ? 'Cambios guardados.' : 'Tipo creado.' };
+  });
+}
+
+function dlgProducto(p){
+  abrirDialogo(`
+    <h2>${p ? 'Editar producto' : 'Nuevo producto'}</h2>
+    <div class="campo"><label for="pNombre">Nombre</label><input type="text" id="pNombre" name="nombre" maxlength="120" required placeholder="Ej.: Jabón líquido" value="${esc(p ? p.nombre : '')}"></div>
+    <div class="campo"><label for="pUnidad">Se repone por (opcional)</label><input type="text" id="pUnidad" name="unidad" maxlength="40" placeholder="Ej.: bidón 5 L, rollo, caja" value="${esc(p ? p.unidad : '')}">
+      <p class="hint">Es la unidad que se cuenta al registrar una reposición.</p></div>
+    ${pie(p ? 'Guardar cambios' : 'Crear producto')}
+  `, async fd => {
+    const datos = { nombre: txt(fd, 'nombre'), unidad: txt(fd, 'unidad') || null };
+    if(!datos.nombre) throw new Error('Falta el nombre.');
+    const res = p
+      ? await sb.from('alertas_productos').update(datos).eq('id', p.id).select('id')
+      : await sb.from('alertas_productos').insert(datos).select('id');
+    if(res.error && res.error.code === '23505') throw new Error('Ya hay un producto con ese nombre.');
+    exigir(res);
+    aviso = { tipo: 'ok', html: p ? 'Cambios guardados.' : 'Producto creado.' };
+  });
+}
+
+function dlgLote(){
+  abrirDialogo(`
+    <h2>Generar tanda de stickers</h2>
+    <p class="area-sub" style="margin:0;">Se crean stickers sin datos, cada uno con su código. Después se imprimen y se activan al pegarlos.</p>
+    <div class="campo"><label for="lCant">Cantidad</label><input type="number" id="lCant" name="cantidad" min="1" max="500" step="1" required value="40" style="max-width:140px;">
+      <p class="hint">Entre 1 y 500. Una hoja A4 lleva unos 20 grandes, 35 medianos o 55 chicos.</p></div>
+    <div class="campo"><label for="lNota">Nota (opcional)</label><input type="text" id="lNota" name="nota" maxlength="200" placeholder="Ej.: Para el Hospital"></div>
+    ${pie('Generar')}
+  `, async fd => {
+    const cantidad = Number(txt(fd, 'cantidad'));
+    if(!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 500) throw new Error('La cantidad tiene que ser un número entre 1 y 500.');
+    const res = await sb.rpc('alertas_generar_lote', { p_cantidad: cantidad, p_nota: txt(fd, 'nota') || null });
+    if(res.error) throw new Error(mensajeError(res.error));
+    aviso = { tipo: 'ok', html: `Tanda generada con ${plural(cantidad, 'sticker', 'stickers')}.` };
+    return '#imprimir/tanda/' + res.data;
+  });
+}
+
+function dlgActivarCodigo(){
+  abrirDialogo(`
+    <h2>Activar con código</h2>
+    <p class="area-sub" style="margin:0;">Para cuando no se puede escanear: escribí el código impreso debajo del QR.</p>
+    <div class="campo"><label for="acCod">Código del sticker</label><input type="text" id="acCod" name="codigo" maxlength="20" required placeholder="${esc((db.dist ? db.dist.prefijo : 'SEG') + '-XXXXXX')}" style="text-transform:uppercase;"></div>
+    ${pie('Continuar')}
+  `, async fd => {
+    const cod = txt(fd, 'codigo').toUpperCase();
+    if(!cod) throw new Error('Escribí el código.');
+    const { data, error } = await sb.rpc('alertas_sticker_publico', { p_codigo: cod });
+    if(error) throw new Error(mensajeError(error));
+    if(!data || data.estado === 'desconocido') throw new Error('Ese código no existe. Revisá que esté bien escrito.');
+    if(data.estado !== 'libre') throw new Error('Ese sticker ya está activado.');
+    estadoCodigo.set(cod, 'libre');
+    return '#activar/' + encodeURIComponent(cod);
+  });
+}
+
+function dlgConfirmar(titulo, texto, boton, accion){
+  abrirDialogo(`<h2>${esc(titulo)}</h2><p class="area-sub" style="margin:8px 0 0;">${texto}</p>${pie(boton)}`, accion);
+}
+
+function dlgResolver(r){
+  const eq = equipo(r.equipo_id);
+  const s = eq ? sitio(eq.sitio_id) : null;
+  const p = eq ? producto(eq.producto_id) : null;
+  const esProducto = r.categoria === 'producto' && !!p;
+  abrirDialogo(`
+    <h2>Marcar resuelto</h2>
+    <p class="area-sub" style="margin:0;">${esc([s && s.nombre, lugar(eq)].filter(Boolean).join(' · '))}<br>${esc(r.motivo)} · ${hace(r.creado_en)}</p>
+    ${esProducto ? `
+      <div class="campo"><label class="check"><input type="checkbox" name="repuso" id="rRepuso" checked> Se repuso ${esc(p.nombre)}</label>
+        <p class="hint">Queda registrado como reposición y suma al consumo de este lugar.</p></div>
+      <div class="campo"><label for="rCant">Cantidad${p.unidad ? ' (' + esc(p.unidad) + ')' : ''} — opcional</label><input type="number" id="rCant" name="cantidad" min="0" step="any" inputmode="decimal" style="max-width:140px;"></div>` : ''}
+    <div class="campo"><label for="rNota">¿Qué se hizo? (opcional)</label><textarea id="rNota" name="resolucion" maxlength="300" placeholder="${esProducto ? 'Ej.: Se cambió el bidón' : 'Ej.: Se cambió la bomba'}"></textarea></div>
+    ${pie('Marcar resuelto')}
+  `, async fd => {
+    const nota = txt(fd, 'resolucion') || null;
+    if(esProducto && fd.get('repuso') === 'on'){
+      const cant = txt(fd, 'cantidad');
+      if(cant && !(Number(cant) > 0)) throw new Error('La cantidad tiene que ser mayor a cero.');
+      const res = await sb.rpc('alertas_registrar_reposicion', { p_equipo_id: r.equipo_id, p_cantidad: cant ? Number(cant) : null, p_nota: nota, p_reporte_id: r.id });
+      if(res.error) throw new Error(mensajeError(res.error));
+      aviso = { tipo: 'ok', html: 'Reporte resuelto y reposición registrada.' };
+    } else {
+      exigir(await sb.from('alertas_reportes').update({
+        estado: 'resuelto', resuelto_en: new Date().toISOString(), resuelto_por: perfil.user_id, resolucion: nota
+      }).eq('id', r.id).select('id'));
+      aviso = { tipo: 'ok', html: 'Reporte marcado como resuelto.' };
+    }
+  });
+}
+
+function dlgReponer(e){
+  const p = producto(e.producto_id);
+  abrirDialogo(`
+    <h2>Registrar reposición</h2>
+    <p class="area-sub" style="margin:0;"><strong>${esc(p.nombre)}</strong> · ${esc(lugar(e))}</p>
+    <div class="campo"><label for="xCant">Cantidad${p.unidad ? ' (' + esc(p.unidad) + ')' : ''} — opcional</label><input type="number" id="xCant" name="cantidad" min="0" step="any" inputmode="decimal" style="max-width:140px;"></div>
+    <div class="campo"><label for="xNota">Nota (opcional)</label><input type="text" id="xNota" name="nota" maxlength="300"></div>
+    ${pie('Registrar')}
+  `, async fd => {
+    const cant = txt(fd, 'cantidad');
+    if(cant && !(Number(cant) > 0)) throw new Error('La cantidad tiene que ser mayor a cero.');
+    const res = await sb.rpc('alertas_registrar_reposicion', { p_equipo_id: e.id, p_cantidad: cant ? Number(cant) : null, p_nota: txt(fd, 'nota') || null });
+    if(res.error) throw new Error(mensajeError(res.error));
+    aviso = { tipo: 'ok', html: 'Reposición registrada.' };
+  });
+}
+
+// ====== Acciones ======
+async function refrescar(){
+  ultimaCarga = Date.now();
+  try{ await cargar(); }
+  catch(ex){ aviso = { tipo: 'error', html: esc(ex.message) }; }
+  render();
+}
+
+async function directo(promesa, okHtml){
+  try{
+    exigir(await promesa);
+    if(okHtml) aviso = { tipo: 'ok', html: okHtml };
+  } catch(ex){
+    aviso = { tipo: 'error', html: esc(ex.message) };
+  }
+  await refrescar();
+}
+// Activa o desactiva una fila. Si se pasa "confirmar", desactivar pide confirmación.
+function alternar(tabla, fila, nombre, confirmar){
+  if(!fila.activo || !confirmar){
+    directo(sb.from(tabla).update({ activo: !fila.activo }).eq('id', fila.id).select('id'), nombre + (fila.activo ? ' desactivado.' : ' activado.'));
+    return;
+  }
+  dlgConfirmar('Desactivar ' + nombre.toLowerCase(), confirmar, 'Desactivar', async () => {
+    exigir(await sb.from(tabla).update({ activo: false }).eq('id', fila.id).select('id'));
+    aviso = { tipo: 'ok', html: nombre + ' desactivado.' };
+  });
+}
+
+const ACCIONES = {
+  'ir': el => { location.hash = el.dataset.href; },
+  'actualizar': () => { avisosCache.clear(); stickersCache.clear(); estadoCodigo.clear(); refrescar(); },
+  'imprimir': () => window.print(),
+  'salir': async () => { await sb.auth.signOut(); renderLogin(); },
+  'ver-consumo': el => { ui.consumo.sitio = el.dataset.id; if(location.hash === '#consumo') render(); else location.hash = '#consumo'; },
+  'nuevo-cliente': () => dlgCliente(null),
+  'editar-cliente': el => dlgCliente(sitio(el.dataset.id)),
+  'toggle-cliente': el => { const s = sitio(el.dataset.id); alternar('alertas_sitios', s, 'Cliente',
+    `Los stickers de <strong>${esc(s.nombre)}</strong> van a dejar de aceptar reportes hasta que lo actives de nuevo. No se borra nada.`); },
+  'nuevo-sector': el => dlgSector(el.dataset.id, null),
+  'editar-sector': el => { const se = sector(el.dataset.id); dlgSector(se.sitio_id, se); },
+  'borrar-sector': el => {
+    const se = sector(el.dataset.id);
+    dlgConfirmar('Eliminar sector', `Se elimina el sector <strong>${esc(se.nombre)}</strong>. No tiene objetos.`, 'Eliminar', async () => {
+      exigir(await sb.from('alertas_sectores').delete().eq('id', se.id).select('id'));
+      aviso = { tipo: 'ok', html: 'Sector eliminado.' };
+    });
+  },
+  'activar-codigo': el => { if(el.dataset.id){ recordar({ ...recordado(), sitio: el.dataset.id, sector: '' }); } dlgActivarCodigo(); },
+  'editar-objeto': el => dlgObjeto(equipo(el.dataset.id)),
+  'toggle-objeto': el => { const e = equipo(el.dataset.id); alternar('alertas_equipos', e, 'Objeto',
+    `El sticker <span class="codigo">${esc(e.codigo)}</span> (${esc(e.ubicacion)}) va a dejar de aceptar reportes. El historial se conserva y lo podés activar de nuevo.`); },
+  'reponer': el => dlgReponer(equipo(el.dataset.id)),
+  'nuevo-contacto': el => dlgContacto(el.dataset.id, null),
+  'editar-contacto': el => { const c = db.contactos.find(x => x.id === el.dataset.id); dlgContacto(c.sitio_id, c); },
+  'borrar-contacto': el => {
+    const c = db.contactos.find(x => x.id === el.dataset.id);
+    dlgConfirmar('Eliminar contacto', `<strong>${esc(c.nombre)}</strong> (${esc(c.email)}) deja de recibir avisos de este cliente.`, 'Eliminar', async () => {
+      exigir(await sb.from('alertas_contactos').delete().eq('id', c.id).select('id'));
+      aviso = { tipo: 'ok', html: 'Contacto eliminado.' };
+    });
+  },
+  'nuevo-tipo': () => dlgTipo(null),
+  'editar-tipo': el => dlgTipo(tipo(el.dataset.id)),
+  'toggle-tipo': el => alternar('alertas_tipos', tipo(el.dataset.id), 'Tipo', null),
+  'nuevo-producto': () => dlgProducto(null),
+  'editar-producto': el => dlgProducto(producto(el.dataset.id)),
+  'toggle-producto': el => alternar('alertas_productos', producto(el.dataset.id), 'Producto', null),
+  'nuevo-lote': () => dlgLote(),
+  'borrar-lote': el => {
+    const l = db.lotes.find(x => x.id === el.dataset.id);
+    dlgConfirmar('Eliminar tanda', `Se eliminan los ${l.cantidad} stickers de la tanda N.º ${l.numero}. Si ya los imprimiste, dejan de servir.`, 'Eliminar', async () => {
+      const res = await sb.rpc('alertas_borrar_lote', { p_lote_id: l.id });
+      if(res.error) throw new Error(mensajeError(res.error));
+      stickersCache.delete(l.id);
+      aviso = { tipo: 'ok', html: 'Tanda eliminada.' };
+    });
+  },
+  'resolver': el => dlgResolver(db.reportes.find(r => r.id === el.dataset.id)),
+  'reabrir': el => directo(
+    sb.from('alertas_reportes').update({ estado: 'pendiente', resuelto_en: null, resuelto_por: null, resolucion: null }).eq('id', el.dataset.id).select('id'),
+    'El reporte volvió a pendiente.')
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-ac]');
+  if(!el || el.tagName === 'INPUT') return;
+  if((el.dataset.ac === 'ir' || el.tagName === 'TR') && e.target.closest('a, button')) return; // el link o botón de la fila manda
+  const accion = ACCIONES[el.dataset.ac];
+  if(accion){ e.preventDefault(); accion(el); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if(el.dataset.filtro){ ui.filtro[el.dataset.filtro] = el.value; render(); }
+  else if(el.dataset.consumo){ ui.consumo[el.dataset.consumo] = el.value; render(); }
+  else if(el.dataset.ac === 'ver-inactivos'){ ui.inactivos = el.checked; render(); }
+  else if(el.dataset.ac === 'solo-libres'){ ui.soloLibres = el.checked; render(); }
+  else if('hoja' in el.dataset){ ui.hoja = el.value; render(); }
+});
+// Al cambiar de vista se vuelve a leer la base si los datos tienen más de 20 segundos.
+window.addEventListener('hashchange', () => {
+  if(!perfil) return;
+  if(Date.now() - ultimaCarga > 20000) refrescar(); else render();
+});
+document.addEventListener('visibilitychange', () => {
+  const v = ruta().vista;
+  if(document.visibilityState === 'visible' && perfil && !dlg().open && v !== 'activar' && v !== 'reponer' && Date.now() - ultimaCarga > 60000) refrescar();
+});
+
+// ====== Acceso (misma sesión que el HUB) ======
+function mostrarSesion(visible){
+  document.getElementById('session').classList.toggle('hidden', !visible);
+  document.getElementById('tabs').classList.toggle('hidden', !visible);
+  if(visible) document.getElementById('sessionNombre').textContent = perfil.nombre;
+}
+
+function renderLogin(mensaje){
+  perfil = null;
+  mostrarSesion(false);
+  content().innerHTML = `
+    <form class="form-card" id="formLogin">
+      <h2>Ingresar</h2>
+      <p class="area-sub">Acceso solo para el equipo de Segulimp.</p>
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" autocomplete="username" required>
+      <label for="loginClave">Contraseña</label>
+      <input type="password" id="loginClave" autocomplete="current-password" required>
+      <button class="btn-primary" type="submit">Ingresar</button>
+      <div class="form-error">${esc(mensaje || '')}</div>
+    </form>
+  `;
+  document.getElementById('formLogin').onsubmit = async e => {
+    e.preventDefault();
+    e.target.querySelector('button').disabled = true;
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: document.getElementById('loginEmail').value.trim(),
+      password: document.getElementById('loginClave').value
+    });
+    if(error){ renderLogin('Email o contraseña incorrectos.'); return; }
+    iniciar(data.session);
+  };
+}
+
+function sinAcceso(html){
+  mostrarSesion(false);
+  content().innerHTML = `<div class="form-card" style="max-width:480px;"><h2>Sin acceso</h2><p class="area-sub" style="margin:0;">${html}</p><a class="btn-primary" href="${HUB_URL}" style="text-align:center;">Volver al HUB</a></div>`;
+}
+
+async function iniciar(session){
+  const { data, error } = await sb.from('perfiles')
+    .select('user_id, email, nombre, roles, activo, debe_cambiar_clave')
+    .eq('user_id', session.user.id).maybeSingle();
+  if(error || !data || !data.activo){
+    await sb.auth.signOut();
+    renderLogin('Tu usuario no tiene acceso al HUB. Consultá con un administrador.');
+    return;
+  }
+  if(data.debe_cambiar_clave){ sinAcceso('Primero tenés que elegir tu contraseña en el HUB.'); return; }
+  if(!data.roles.some(r => ROLES_ACCESO.includes(r))){
+    sinAcceso('Tu usuario no tiene permiso para ver Alerta Segulimp. Pedile acceso a un administrador.');
+    return;
+  }
+  perfil = data;
+  mostrarSesion(true);
+  await refrescar();
+}
+
+sb.auth.getSession().then(({ data }) => {
+  if(data.session) iniciar(data.session);
+  else renderLogin();
+});
+})();
+</script>
+</body>
+</html>
