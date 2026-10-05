@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.3 (2026-10-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.4 (2026-10-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -220,6 +220,9 @@
   .mv-cat-b{height:8px; border-radius:4px; background:var(--paper-2); margin-top:10px; overflow:hidden;}
   .mv-cat-b i{display:block; height:100%; border-radius:4px; background:var(--brand);}
   .cat-chip{font-size:11.5px; white-space:nowrap;}
+  .ing{font-weight:600; white-space:nowrap;}
+  .ing::before{content:''; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#C98A1B;}
+  .ing.hoy::before{background:#2E9E6B;}
 
   .mv-duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
   .mv-dato{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 12px;}
@@ -351,7 +354,7 @@ const S = {
   ordenResumen: { campo: 'n', desc: true },
   importacion: null,
   periodo: null, objetivos: [], ventas: [], actividades: [], cargas: [], alias: [],
-  semana: null, verVendedor: null, impVentas: null,
+  semana: null, verVendedor: null, verInactivos: false, impVentas: null,
   ventasCli: [],
   mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null },
   pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
@@ -446,7 +449,17 @@ async function traerTodo(tabla, columnas, orden, filtro){
   return filas;
 }
 
+// Deja asentado que el usuario abrió la aplicación (un registro por día; la base cuenta las veces).
+let ultimoIngreso = 0;
+function registrarIngreso(){
+  if(!S.perfil) return;
+  ultimoIngreso = Date.now();
+  try { Promise.resolve(sb.rpc('comercial_ingreso_registrar')).then(() => {}, () => {}); } catch(_){}
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden && S.perfil && Date.now() - ultimoIngreso > 30 * 60e3) registrarIngreso(); });
+
 async function cargarDatos(){
+  registrarIngreso();
   const desde = new Date(Date.now() - 30 * 864e5).toISOString();
   const [plan, vendedores, snapshots, log] = await Promise.all([
     traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
@@ -466,6 +479,8 @@ async function cargarDatos(){
   try { cfg = await traerTodo('comercial_config', 'clave, valor', 'clave'); } catch(_){}
   S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
   try { S.escalas = await traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo'); } catch(_){ S.escalas = []; }
+  S.ingUlt = [];
+  if(S.veTodo){ try { S.ingUlt = await traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id'); } catch(_){} }
   if(!S.periodo) S.periodo = periodoDe(hoyISO());
   await cargarPeriodo();
 }
@@ -784,7 +799,7 @@ function renderCartera(aviso){
       <input type="search" id="fQ" placeholder="Buscar cliente, código o localidad" value="${esc(f.q)}">
       ${S.veTodo ? `<select id="fVendedor"><option value="">Todos los vendedores</option><option value="_sin" ${f.vendedor === '_sin' ? 'selected' : ''}>Sin vendedor</option>
         ${S.vendedores.some(v => !v.activo) ? `<option value="_inactivos" ${f.vendedor === '_inactivos' ? 'selected' : ''}>Vendedores inactivos</option>` : ''}
-        ${[...S.vendedores].sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${String(v.id) === f.vendedor ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}</select>` : ''}
+        ${S.vendedores.filter(v => v.activo || String(v.id) === f.vendedor).sort((a, b) => (b.activo - a.activo) || a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${String(v.id) === f.vendedor ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}</select>` : ''}
       <select id="fEstado">${opciones(ESTADOS, f.estado, 'Todos los estados')}</select>
       <select id="fPrioridad">${opciones(distintos('prioridad'), f.prioridad, 'Toda prioridad')}</select>
       <select id="fSegmento">${opciones(distintos('segmento_recencia'), f.segmento, 'Todo segmento')}</select>
@@ -1160,13 +1175,14 @@ async function crearUsuarios(btn){
 function renderVendedores(aviso){
   const cuenta = new Map();
   for(const r of S.plan) if(r.vendedor_id) cuenta.set(r.vendedor_id, (cuenta.get(r.vendedor_id) || 0) + 1);
-  const lista = [...S.vendedores].sort((a, b) => (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
+  const nInactivos = S.vendedores.filter(v => !v.activo).length;
+  const lista = S.vendedores.filter(v => v.activo || S.verInactivos).sort((a, b) => (b.activo - a.activo) || (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
   const haySugeridos = lista.some(v => !v.user_id && sugerirUsuario(v));
   const faltan = sinUsuario();
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Vendedores</h2>
     <p class="sub">Cada vendedor entra al Hub con <strong>su email</strong> y ve <strong>solo su avance</strong>. Con el botón de abajo se crean los usuarios que faltan (rol Comercial): la contraseña inicial es el mismo email y el Hub les pide cambiarla la primera vez que entran.
-      Si además le das el rol Solo consulta desde Hub → Usuarios, ve a todo el equipo pero carga solo lo suyo. Los que ya no venden se marcan como inactivos.</p>
+      Si además le das el rol Solo consulta desde Hub → Usuarios, ve a todo el equipo pero carga solo lo suyo. Acá se ven solo los vendedores activos; al que ya no vende, destildale Activo y deja de aparecer.</p>
     ${faltan.length ? `<div class="card" style="margin:0 0 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
       <div style="flex:1; min-width:220px"><strong>${faltan.length === 1 ? 'Falta crear 1 usuario' : `Falta crear ${faltan.length} usuarios`}</strong>
         <div class="muted">${faltan.map(v => esc(v.nombre)).join(', ')}</div></div>
@@ -1197,7 +1213,8 @@ function renderVendedores(aviso){
           <td data-label="Activo"><input type="checkbox" data-v-activo ${v.activo ? 'checked' : ''} aria-label="Activo"></td>
           <td data-label=""><button class="btn-primary small" data-v-guardar ${sug ? '' : 'disabled'}>Guardar</button></td>
         </tr>`; }).join('')}</tbody></table></div>`
-      : `<div class="card"><p class="sub" style="margin:0">Todavía no hay vendedores cargados.</p></div>`}`;
+      : `<div class="card"><p class="sub" style="margin:0">${nInactivos ? 'No hay vendedores activos.' : 'Todavía no hay vendedores cargados.'}</p></div>`}
+    ${nInactivos ? `<p style="margin:14px 0 0"><button type="button" class="link-btn" id="btnVerInactivos">${S.verInactivos ? 'Ocultar los inactivos' : (nInactivos === 1 ? 'Ver también el vendedor inactivo' : `Ver también los ${nInactivos} inactivos`)}</button></p>` : ''}`;
 }
 
 async function guardarVendedor(tr){
@@ -1298,6 +1315,25 @@ function avanceDe(ids){
     pct: objetivo ? ventas / objetivo * 100 : null, ritmo: total ? pasados / total * 100 : 0,
     esperado: objetivo * (total ? pasados / total : 0), porDia: restantes > 0 ? falta / restantes : null };
 }
+// Ingresos a la aplicación de un vendedor: último ingreso y días hábiles del período en que entró
+function ingresoDe(v){
+  if(!v || !v.user_id) return { sinUsuario: true };
+  const u = (S.ingUlt || []).find(x => x.user_id === v.user_id) || null;
+  const { desde, hasta } = mesInfo(S.periodo), hoy = hoyISO();
+  const ini = S.cfg.ingresos_inicio && S.cfg.ingresos_inicio > desde ? S.cfg.ingresos_inicio : desde;
+  const fin = hasta < hoy ? hasta : hoy;
+  const dias = ini <= fin ? habilesEntre(ini, fin) : 0;
+  const entro = new Set((S.ingresos || []).filter(x => x.user_id === v.user_id && x.fecha >= ini && x.fecha <= fin && esHabil(x.fecha)).map(x => x.fecha)).size;
+  const atras = u ? -diasHasta(u.fecha) : null;
+  let txt = 'Todavía no entró';
+  if(u) txt = atras <= 0 ? 'Hoy, ' + new Date(u.ultima).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }) : atras === 1 ? 'Ayer' : `Hace ${atras} días`;
+  return { ultimo: u, atras, dias, entro, hoy: !!u && atras <= 0, txt };
+}
+function ingresoCelda(g){
+  if(g.sinUsuario) return '<span class="muted">Sin usuario</span>';
+  return `<span class="ing ${g.hoy ? 'hoy' : 'no'}">${g.txt}</span>${g.dias ? `<div class="muted">${g.entro} de ${g.dias} ${g.dias === 1 ? 'día hábil' : 'días hábiles'}</div>` : ''}`;
+}
+
 // Escala de comisiones: rige la del período, o la última cargada antes
 function escalaDe(periodo){
   const clave = mesInfo(periodo).clave;
@@ -1363,6 +1399,8 @@ async function cargarPeriodo(){
   ]);
   S.objetivos = objetivos; S.ventas = ventas; S.actividades = actividades;
   // a quién le vendió cada vendedor en el período (la vista del vendedor trae solo lo suyo)
+  S.ingresos = [];
+  if(S.veTodo){ try { S.ingresos = await traerTodo('comercial_ingresos', 'user_id, fecha, veces', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)); } catch(_){} }
   S.ventasCli = S.veTodo ? [] : await traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta));
 }
 async function cambiarMes(periodo){
@@ -1388,6 +1426,8 @@ function renderAvance(aviso){
   const filas = activos.map(v => ({ v, a: avanceDe([v.id]), act: actividadDe(v.id, lunes) }))
     .sort((x, y) => (y.a.objetivo - x.a.objetivo) || (y.a.ventas - x.a.ventas) || x.v.nombre.localeCompare(y.v.nombre));
   const otros = S.ventas.filter(x => !idsActivos.has(x.vendedor_id)).reduce((s, x) => s + Number(x.importe || 0), 0);
+  const conUsuario = activos.filter(v => v.user_id), ing = new Map(activos.map(v => [v.id, ingresoDe(v)]));
+  const entraron = conUsuario.filter(v => ing.get(v.id).hoy), faltan = conUsuario.filter(v => !ing.get(v.id).hoy);
   const tot = avanceDe(null);
   const conObj = avanceDe(activos.filter(v => S.objetivos.some(o => o.vendedor_id === v.id)).map(v => v.id));
   content().innerHTML = aviso + `
@@ -1399,14 +1439,16 @@ function renderAvance(aviso){
       <div class="tile"><div class="label">Avance sobre el objetivo</div><div class="value">${conObj.pct == null ? '—' : Math.round(conObj.pct) + '%'}</div><div class="note">Ritmo esperado a la fecha: ${Math.round(tot.ritmo)}%</div></div>
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${conObj.proyeccion == null ? '—' : plata(conObj.proyeccion)}</div><div class="note">Al ritmo actual, vendedores con objetivo</div></div>
       <div class="tile"><div class="label">Días hábiles</div><div class="value">${tot.pasados} de ${tot.total}</div><div class="note">Lunes a viernes, sin contar feriados</div></div>
+      ${conUsuario.length ? `<div class="tile" id="tileIngresos"><div class="label">Entraron hoy a la aplicación</div><div class="value">${entraron.length} de ${conUsuario.length}</div><div class="note">${faltan.length ? 'Faltan: ' + esc(faltan.map(v => v.nombre.trim().split(/\s+/)[0]).join(', ')) : 'Entraron todos'}</div></div>` : ''}
     </div>
     <p class="sub">Hacé clic en un vendedor para ver su detalle y su plan semanal. La marca en la barra es el ritmo esperado a la fecha.</p>
     <div class="table-wrap"><table class="apilar resumen">
-      <thead><tr><th>Vendedor</th><th class="num">Objetivo</th><th class="num">Ventas</th><th>Avance</th><th class="num">Falta</th><th class="num">Proyección</th><th class="num">Actividades de esta semana<br>hechas / planificadas</th></tr></thead>
+      <thead><tr><th>Vendedor</th><th>Último ingreso</th><th class="num">Objetivo</th><th class="num">Ventas</th><th>Avance</th><th class="num">Falta</th><th class="num">Proyección</th><th class="num">Actividades de esta semana<br>hechas / planificadas</th></tr></thead>
       <tbody>
         ${filas.map(({ v, a, act }) => `
           <tr class="clickable" data-detalle="${v.id}">
-            <td data-label="Vendedor"><strong>${esc(v.nombre)}</strong>${v.user_id ? '' : '<div class="muted">Sin usuario vinculado</div>'}</td>
+            <td data-label="Vendedor"><strong>${esc(v.nombre)}</strong></td>
+            <td data-label="Último ingreso">${ingresoCelda(ing.get(v.id))}</td>
             <td data-label="Objetivo" class="num">${a.objetivo ? pesos(a.objetivo) : '<span class="muted">Sin objetivo</span>'}</td>
             <td data-label="Ventas" class="num">${pesos(a.ventas)}${hayEscala && (a.objetivo || a.ventas > 0) ? `<div class="muted cat-chip">${catCorta(categoriaDe(a.ventas, S.periodo))}</div>` : ''}</td>
             <td data-label="Avance">${a.objetivo ? medidor(a.pct, a.ritmo) : '<span class="muted">—</span>'}</td>
@@ -1414,8 +1456,8 @@ function renderAvance(aviso){
             <td data-label="Proyección" class="num">${a.proyeccion == null ? '—' : pesos(a.proyeccion)}</td>
             <td data-label="Actividades de esta semana" class="num">${act ? sumaAct(act, 'real') + ' / ' + sumaAct(act, 'plan') : '<span class="muted">Sin plan</span>'}</td>
           </tr>`).join('')}
-        ${otros ? `<tr class="sin-vendedor"><td data-label="Vendedor"><strong>Otros / sin vendedor</strong><div class="muted">Ventas del archivo sin vendedor asignado</div></td><td class="num">—</td><td data-label="Ventas" class="num">${pesos(otros)}</td><td>—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>` : ''}
-        <tr class="total"><td data-label=""><strong>Total</strong></td><td data-label="Objetivo" class="num">${pesos(tot.objetivo)}</td><td data-label="Ventas" class="num">${pesos(tot.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+        ${otros ? `<tr class="sin-vendedor"><td data-label="Vendedor"><strong>Otros / sin vendedor</strong><div class="muted">Ventas del archivo sin vendedor asignado</div></td><td></td><td class="num">—</td><td data-label="Ventas" class="num">${pesos(otros)}</td><td>—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>` : ''}
+        <tr class="total"><td data-label=""><strong>Total</strong></td><td></td><td data-label="Objetivo" class="num">${pesos(tot.objetivo)}</td><td data-label="Ventas" class="num">${pesos(tot.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
       </tbody>
     </table></div>`;
 }
@@ -1431,6 +1473,7 @@ function renderDetalleVendedor(aviso, id){
   const act = actividadDe(id, S.semana) || {};
   const dif = a.ventas - a.esperado;
   const cat = categoriaDe(a.ventas, S.periodo);
+  const g = S.veTodo ? ingresoDe(v) : null;
   const ventasSem = s => S.ventas.filter(x => x.vendedor_id === id && x.fecha >= s.ini && x.fecha <= s.fin).reduce((t, x) => t + Number(x.importe || 0), 0);
   const celda = (r, k) => r ? `${Number(r[k + '_real'] || 0)} / ${Number(r[k + '_plan'] || 0)}` : '<span class="muted">—</span>';
   content().innerHTML = aviso + `
@@ -1446,6 +1489,7 @@ function renderDetalleVendedor(aviso, id){
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="note">${a.proyeccion != null && a.objetivo ? Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo, al ritmo actual' : 'Al ritmo actual'}</div></div>
       <div class="tile"><div class="label">Para llegar al objetivo</div><div class="value">${a.objetivo ? (a.falta === 0 ? 'Cumplido' : (a.porDia == null ? '—' : plata(a.porDia))) : '—'}</div><div class="note">${a.objetivo && a.falta > 0 ? `por día hábil · faltan ${pesos(a.falta)} y ${a.restantes} ${a.restantes === 1 ? 'día' : 'días'}` : (a.objetivo ? 'Objetivo alcanzado' : '')}</div></div>
       ${cat ? `<div class="tile" id="tileCategoria"><div class="label">Categoría de comisión</div><div class="value">${cat.cat} · ${cat.pct ? pctTxt(cat.pct) : 'no comisiona'}</div><div class="note">${cat.sig ? `Faltan ${pesos(cat.sig.falta)} para la ${cat.sig.cat} (${pctTxt(cat.sig.pct)})` : 'La más alta'}</div></div>` : ''}
+      ${g ? `<div class="tile" id="tileIngreso"><div class="label">Último ingreso a la aplicación</div><div class="value chico">${g.sinUsuario ? 'Sin usuario' : g.txt}</div><div class="note">${g.sinUsuario ? 'Todavía no tiene usuario para entrar' : (g.dias ? `Entró ${g.entro} de ${g.dias} ${g.dias === 1 ? 'día hábil' : 'días hábiles'} del período` : '') + (S.cfg.ingresos_inicio ? `${g.dias ? ' · ' : ''}Se registra desde el ${diaMes(S.cfg.ingresos_inicio)}` : '')}</div></div>` : ''}
     </div>
 
     <h2 class="sec">Plan de la semana</h2>
@@ -2193,7 +2237,7 @@ function vistaReportes(im){
             <td data-label="Corresponde a"><select data-asignar="${esc(o.clave)}">
               <option value="">Sin vendedor</option>
               ${o.clave ? `<option value="_nuevo" ${im.asignacion[o.clave] === '_nuevo' ? 'selected' : ''}>Crear vendedor nuevo</option>` : ''}
-              ${[...S.vendedores].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}
+              ${S.vendedores.filter(v => v.activo || im.asignacion[o.clave] === String(v.id)).sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}
             </select></td></tr>`).join('')}</tbody></table></div>
       ${uno ? '' : `<details style="margin-top:12px"><summary class="link-btn" style="cursor:pointer">Ver los ${num(im.archivos.length)} reportes</summary>
         <div class="table-wrap" style="margin-top:8px"><table class="apilar">
@@ -2343,7 +2387,7 @@ function renderVentas(aviso){
                 <td data-label="Corresponde a"><select data-asignar="${esc(o.clave)}">
                   <option value="">Sin vendedor</option>
                   ${o.clave ? `<option value="_nuevo" ${im.asignacion[o.clave] === '_nuevo' ? 'selected' : ''}>Crear vendedor nuevo</option>` : ''}
-                  ${[...S.vendedores].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}
+                  ${S.vendedores.filter(v => v.activo || im.asignacion[o.clave] === String(v.id)).sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}
                 </select></td></tr>`).join('')}</tbody></table></div>
           <p class="muted" style="margin:10px 0 0">Al cargar, las ventas ${p.desde === p.hasta ? 'del ' + fechaCorta(p.desde) : 'entre el ' + fechaCorta(p.desde) + ' y el ' + fechaCorta(p.hasta)} quedan exactamente como dice este archivo: si ya había datos de esas fechas, se reemplazan.</p>`
           : `<div class="msg-box info" style="margin:16px 0 0">Elegí qué columna tiene el vendedor y cuál el importe. Si los títulos no están en la fila indicada, cambiá el número de fila.</div>`}
@@ -2522,6 +2566,7 @@ content().addEventListener('click', e => {
   if(t.id === 'btnNuevoVendedor'){ agregarVendedor(); return; }
   if(t.id === 'btnCrearUsuarios'){ crearUsuarios(t); return; }
   if(t.id === 'btnSoloVinculados'){ soloVinculados(); return; }
+  if(t.id === 'btnVerInactivos'){ S.verInactivos = !S.verInactivos; ir('vendedores'); return; }
   if(t.id === 'btnImportar'){ importar(); return; }
   if(t.id === 'btnCancelarImp'){ S.importacion = null; renderImportar(''); return; }
   if(t.closest('#dropzone') && t.id !== 'impArchivo'){ $('impArchivo').click(); return; }
