@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.1 (2026-10-02) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.2 (2026-10-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1961,7 +1961,210 @@ function resolverVendedor(clave){
   const cand = S.vendedores.filter(x => { const tv = new Set(norm(x.nombre + ' ' + x.nombre_erp).split(' ')); return tk.every(t => tv.has(t)); });
   return cand.length === 1 ? String(cand[0].id) : '';
 }
+// ---------- Reporte de ventas del sistema ----------
+// Sale como tabla dinámica: Vendedor > Cliente > Fecha > Comprobante > artículos, con subtotales en cada nivel.
+// La fila que trae el número de comprobante lleva el total de ese comprobante; el resto es subtotal o detalle.
+function esNumeroCelda(v){ return typeof v === 'number' ? Number.isFinite(v) : (typeof v === 'string' && /^-?\d+([.,]\d+)?$/.test(v.trim())); }
+function numCelda(v){ return typeof v === 'number' ? v : (v == null ? 0 : Number(String(v).trim().replace(',', '.')) || 0); }
+function claveNombre(v){ return String(v ?? '').replace(/\s+/g, ' ').trim().toUpperCase(); }
+function aplanarReporte(filas){
+  let h = -1, cab = null;
+  for(let i = 0; i < Math.min(filas.length, 12) && h < 0; i++){
+    const c = (filas[i] || []).map(norm);
+    if(c[0] === 'vendedor' && c.includes('cliente') && c.includes('numero') && c.includes('cantidad') && c.includes('neto')){ h = i; cab = c; }
+  }
+  if(h < 0) return null;
+  const iV = 0, iC = cab.indexOf('cliente'), iN = cab.indexOf('numero'), nl = cab.indexOf('cantidad');
+  const iF = cab.findIndex(x => x === 'fechafactura' || x === 'fecha factura' || x === 'fecha');
+  if(!(iC > iV && iF > iC && iN > iF && nl > iN)) return null;
+  // el total de cada fila está en la terna bajo "Total by ROWS"; si no figura, en la última
+  const arriba = h > 0 ? (filas[h - 1] || []).map(norm) : [];
+  let t = arriba.indexOf('total by rows');
+  if(t < 0 || cab[t] !== 'cantidad') t = cab.lastIndexOf('cantidad');
+  if(cab[t + 1] !== 'neto') return null;
+  const vacio = c => c == null || c === '';
+  const act = new Array(nl).fill(null);
+  const out = [], sinDetalle = [];
+  let sumaVend = 0, pend = null, vend = null, sinFecha = 0;
+  const cerrarVend = () => { if(vend && vend.n === 0 && Math.abs(vend.neto) > 0.5) sinDetalle.push({ vendedor: vend.nombre, neto: vend.neto }); };
+  const emitir = (lv, neto) => {
+    let k = 0;
+    while(k < nl && lv[k] == null) k++;
+    for(let i = k; i < nl; i++) act[i] = lv[i];
+    if(k === iV){ cerrarVend(); vend = { nombre: String(act[iV]), neto, n: 0 }; sumaVend += neto; }
+    if(lv[iN] != null){
+      if(vend) vend.n++;
+      const fecha = aFecha(act[iF]);
+      if(!fecha){ sinFecha++; return; }
+      out.push({ vend: act[iV], cli: act[iC], fecha, neto });
+    }
+  };
+  for(let r = h + 1; r < filas.length; r++){
+    const row = filas[r] || [];
+    if(row.every(vacio)) continue;
+    if(typeof row[0] === 'string' && /^total by/i.test(row[0].trim())) continue;
+    if(pend){
+      // el nombre de un artículo tenía un salto de línea: los números vienen en la fila siguiente, corridos a la izquierda
+      const resto = row.slice(1).filter(c => !vacio(c));
+      const pegados = row.slice(1, 1 + resto.length).every(c => !vacio(c));
+      const todos = row.filter(c => !vacio(c));
+      if(resto.length && resto.length % 3 === 0 && resto.every(esNumeroCelda) && pegados && !esNumeroCelda(row[0])){ emitir(pend, numCelda(resto[resto.length - 2])); pend = null; continue; }
+      if(todos.length % 3 === 0 && todos.every(esNumeroCelda)){ emitir(pend, numCelda(todos[todos.length - 2])); pend = null; continue; }
+      if(row.slice(nl).every(vacio)) continue;   // otra línea de texto del mismo artículo
+      throw new Error(`No pude leer la fila ${r + 1}: el reporte tiene un formato que no reconozco.`);
+    }
+    const lv = [];
+    for(let i = 0; i < nl; i++) lv.push(vacio(row[i]) ? null : row[i]);
+    if(lv.every(v => v == null)) continue;
+    if(vacio(row[t]) && vacio(row[t + 1]) && vacio(row[t + 2])){ pend = lv; continue; }
+    emitir(lv, numCelda(row[t + 1]));
+  }
+  cerrarVend();
+  if(pend) throw new Error('El reporte termina con una fila incompleta.');
+  const nulo = v => { const x = v == null ? '' : String(v).trim(); return !x || /^\[null\]$/i.test(x) ? null : x; };
+  const total = out.reduce((a, r) => a + r.neto, 0);
+  const faltante = sinDetalle.reduce((a, r) => a + r.neto, 0);
+  return {
+    filas: out.map(r => ({ fecha: r.fecha, clave: claveVendedor(nulo(r.vend)) || '', importe: r.neto, cnom: nulo(r.cli) })),
+    total, sinDetalle: sinDetalle.map(x => ({ vendedor: nulo(x.vendedor) || 'Sin vendedor', neto: x.neto })), sinFecha,
+    cuadra: Math.abs(total + faltante - sumaVend) < 1
+  };
+}
+// "REPORTE 16-09 AL 02-10 2026.xlsx" -> fechas que cubre el archivo (el año del nombre es el de la fecha final)
+function rangoDeNombre(nombre){
+  const m = String(nombre).match(/(\d{1,2})[-.\/](\d{1,2})\s+AL\s+(\d{1,2})[-.\/](\d{1,2})\s+(\d{4})/i);
+  if(!m) return null;
+  const [d1, m1, d2, m2, a] = m.slice(1).map(Number), p2 = n => String(n).padStart(2, '0');
+  if(m1 < 1 || m1 > 12 || m2 < 1 || m2 > 12 || d1 < 1 || d1 > 31 || d2 < 1 || d2 > 31) return null;
+  return { desde: `${m1 > m2 ? a - 1 : a}-${p2(m1)}-${p2(d1)}`, hasta: `${a}-${p2(m2)}-${p2(d2)}` };
+}
+// Abre lo que se soltó: Excel sueltos o un .zip con varios adentro
+async function abrirArchivosVentas(files){
+  const out = [];
+  for(const f of files){
+    const u8 = new Uint8Array(await f.arrayBuffer());
+    if(!/\.zip$/i.test(f.name)){ out.push({ nombre: f.name, datos: u8 }); continue; }
+    const z = XLSX.CFB.read(u8, { type: 'array' });
+    z.FileIndex.forEach((e, i) => {
+      const ruta = z.FullPaths[i] || '', nombre = ruta.split('/').pop();
+      if(/\.(xlsx|xlsm|xls|csv)$/i.test(nombre) && !/^(~\$|\.)/.test(nombre) && !/__MACOSX/.test(ruta) && e.content && e.content.length) out.push({ nombre, datos: new Uint8Array(e.content) });
+    });
+  }
+  return out;
+}
+function procesarReportes(){
+  const im = S.impVentas;
+  const filas = im.archivos.flatMap(a => a.filas);
+  const porNombre = new Map();
+  for(const r of filas){ const o = porNombre.get(r.clave) || { clave: r.clave, n: 0, total: 0 }; o.n++; o.total += r.importe; porNombre.set(r.clave, o); }
+  for(const o of porNombre.values()) if(!(o.clave in im.asignacion)) im.asignacion[o.clave] = resolverVendedor(o.clave) || (o.clave ? '_nuevo' : '');
+  const enCartera = new Set(S.plan.map(r => claveNombre(r.nombre))), vistos = new Set();
+  let nNuevos = 0;
+  for(const r of filas){
+    if(!r.cnom) continue;
+    const k = claveNombre(r.cnom);
+    if(vistos.has(k)) continue;
+    vistos.add(k);
+    if(!enCartera.has(k)) nNuevos++;
+  }
+  return { filas, nombres: [...porNombre.values()].sort((a, b) => b.total - a.total), sinImporte: 0, sinFecha: im.archivos.reduce((a, x) => a + x.sinFecha, 0),
+    desde: im.archivos.reduce((a, x) => x.desde < a ? x.desde : a, im.archivos[0].desde), hasta: im.archivos.reduce((a, x) => x.hasta > a ? x.hasta : a, im.archivos[0].hasta),
+    total: filas.reduce((a, r) => a + r.importe, 0), hayFecha: true, hayCliente: true, nClientes: vistos.size, nNuevos };
+}
+function vistaReportes(im){
+  const p = procesarVentas();
+  const uno = im.archivos.length === 1;
+  const sinDet = im.archivos.filter(a => a.sinDetalle.length), noCuadra = im.archivos.filter(a => !a.cuadra);
+  return `
+    <div class="card" style="margin-top:16px">
+      <p class="sub" style="margin-top:0"><strong>${uno ? esc(im.archivos[0].nombre) : num(im.archivos.length) + ' reportes del sistema'}</strong> · ${num(p.filas.length)} comprobantes · total <strong>${pesos(p.total)}</strong> · del ${fechaCorta(p.desde)} al ${fechaCorta(p.hasta)}</p>
+      <p class="sub" style="margin:0 0 8px"><strong>${num(p.nClientes)}</strong> ${p.nClientes === 1 ? 'cliente' : 'clientes'} con ventas${p.nNuevos ? `, ${num(p.nNuevos)} que no ${p.nNuevos === 1 ? 'está' : 'están'} en la cartera y se ${p.nNuevos === 1 ? 'agrega' : 'agregan'}` : ''}.
+        Se toma el neto de cada comprobante (ventas, notas de crédito y de débito). Cada cliente queda con el último vendedor que le vendió.</p>
+      ${noCuadra.length ? `<div class="msg-box error" style="margin:0 0 10px">${noCuadra.length === 1 ? 'Un reporte no cuadra' : noCuadra.length + ' reportes no cuadran'} con sus propios subtotales (${noCuadra.map(a => esc(a.nombre)).join(', ')}). Conviene exportarlo de nuevo antes de cargarlo.</div>` : ''}
+      ${sinDet.length ? `<div class="msg-box info" style="margin:0 0 10px">${sinDet.map(a => `<strong>${esc(a.nombre)}</strong> trae ${a.sinDetalle.length === 1 ? 'un vendedor' : a.sinDetalle.length + ' vendedores'} sin el detalle de comprobantes (${pesos(a.sinDetalle.reduce((t, x) => t + x.neto, 0))}): esa parte no se carga. Para tenerla, exportá ese reporte con todo desplegado.`).join('<br>')}</div>` : ''}
+      ${im.descartados.length ? `<div class="msg-box info" style="margin:0 0 10px">No se van a cargar: ${im.descartados.map(d => `${esc(d.nombre)} (${esc(d.error)})`).join('; ')}.</div>` : ''}
+      <div class="table-wrap"><table class="apilar">
+        <thead><tr><th>Como figura en el reporte</th><th class="num">Comprobantes</th><th class="num">Total</th><th>Corresponde a</th></tr></thead>
+        <tbody>${p.nombres.map(o => `
+          <tr><td data-label="Como figura en el reporte">${o.clave ? esc(o.clave) : '<span class="muted">(sin vendedor)</span>'}</td>
+            <td data-label="Comprobantes" class="num">${num(o.n)}</td><td data-label="Total" class="num">${pesos(o.total)}</td>
+            <td data-label="Corresponde a"><select data-asignar="${esc(o.clave)}">
+              <option value="">Sin vendedor</option>
+              ${o.clave ? `<option value="_nuevo" ${im.asignacion[o.clave] === '_nuevo' ? 'selected' : ''}>Crear vendedor nuevo</option>` : ''}
+              ${[...S.vendedores].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${im.asignacion[o.clave] === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}${v.activo ? '' : ' (inactivo)'}</option>`).join('')}
+            </select></td></tr>`).join('')}</tbody></table></div>
+      ${uno ? '' : `<details style="margin-top:12px"><summary class="link-btn" style="cursor:pointer">Ver los ${num(im.archivos.length)} reportes</summary>
+        <div class="table-wrap" style="margin-top:8px"><table class="apilar">
+          <thead><tr><th>Reporte</th><th>Fechas que cubre</th><th class="num">Comprobantes</th><th class="num">Total</th></tr></thead>
+          <tbody>${im.archivos.map(a => `<tr><td data-label="Reporte">${esc(a.nombre)}</td><td data-label="Fechas que cubre">${fechaCorta(a.desde)} al ${fechaCorta(a.hasta)}</td>
+            <td data-label="Comprobantes" class="num">${num(a.filas.length)}</td><td data-label="Total" class="num">${pesos(a.total)}</td></tr>`).join('')}</tbody></table></div></details>`}
+      <p class="muted" style="margin:10px 0 0">Al cargar, las ventas de las fechas que cubre cada reporte quedan exactamente como dice el reporte: si ya había datos de esas fechas, se reemplazan.</p>
+      <div class="form">
+        <button class="btn-primary" id="btnCargarVentas" ${im.enCurso ? 'disabled' : ''}>${uno ? 'Cargar ventas' : `Cargar los ${num(im.archivos.length)} reportes`}</button>
+        <button class="btn-ghost" id="btnCancelarVentas">Cancelar</button>
+        <span class="muted" id="ventasEstado"></span>
+      </div>
+    </div>`;
+}
+// Vendedores nuevos y alias: común a las dos formas de carga. Devuelve el id que corresponde a cada nombre del archivo.
+async function resolverVendedoresCarga(p, im, estado){
+  const ids = {}, creados = new Set();
+  for(const o of p.nombres){
+    const a = im.asignacion[o.clave];
+    if(a === '_nuevo'){
+      estado('Creando vendedor ' + o.clave + '…');
+      const nombre = o.clave.includes(',') ? o.clave.split(',').reverse().map(s => s.trim()).join(' ') : o.clave;
+      const { data, error } = await sb.from('comercial_vendedores').insert({ nombre: nombre.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()), nombre_erp: o.clave }).select('id');
+      if(error) throw error;
+      ids[o.clave] = data[0].id;
+      im.asignacion[o.clave] = String(data[0].id);
+      creados.add(o.clave);
+    } else ids[o.clave] = a ? Number(a) : null;
+  }
+  const alias = p.nombres.filter(o => o.clave && ids[o.clave] && !creados.has(o.clave) && !S.vendedores.some(v => v.id === ids[o.clave] && v.nombre_erp === o.clave))
+    .map(o => ({ alias: o.clave, vendedor_id: ids[o.clave] }));
+  if(alias.length){
+    const { error } = await sb.from('comercial_vendedor_alias').upsert(alias, { onConflict: 'alias' }).select('alias');
+    if(error) throw error;
+  }
+  return ids;
+}
+async function cargarReportes(){
+  const im = S.impVentas, p = procesarVentas();
+  if(!p.filas.length) return;
+  im.enCurso = true;
+  $('btnCargarVentas').disabled = true;
+  const estado = t => { const e = $('ventasEstado'); if(e) e.textContent = t; };
+  let hechos = 0, total = 0, comprobantes = 0, nuevos = 0;
+  try{
+    const ids = await resolverVendedoresCarga(p, im, estado);
+    for(const [i, a] of im.archivos.entries()){
+      estado(im.archivos.length === 1 ? 'Cargando ventas…' : `Cargando ${i + 1} de ${im.archivos.length}: ${a.nombre}`);
+      const agg = new Map();
+      for(const r of a.filas){
+        const k = r.fecha + '|' + r.clave + '|' + (r.cnom ? claveNombre(r.cnom) : '');
+        const o = agg.get(k) || { fecha: r.fecha, vendedor: r.clave || null, vendedor_id: ids[r.clave] ?? null, importe: 0, operaciones: 0 };
+        if(r.cnom && !o.cliente) o.cliente = r.cnom;
+        o.importe += r.importe; o.operaciones++; agg.set(k, o);
+      }
+      const filas = [...agg.values()].map(o => ({ ...o, importe: Math.round(o.importe * 100) / 100 }));
+      const { data, error } = await sb.rpc('comercial_ventas_cargar', { p_archivo: a.nombre, p_desde: a.desde, p_hasta: a.hasta, p_filas: filas });
+      if(error) throw new Error(`${a.nombre}: ${error.message}`);
+      hechos++; total += Number(data.total || 0); comprobantes += a.filas.length; nuevos += Number(data.clientes_nuevos || 0);
+    }
+    S.impVentas = null;
+    S.periodo = periodoDe(p.hasta);
+    S.aviso = { tipo: 'ok', html: `${hechos === 1 ? 'Reporte cargado' : `Se cargaron <strong>${num(hechos)}</strong> reportes`}: <strong>${num(comprobantes)}</strong> comprobantes por <strong>${pesos(total)}</strong>, del ${fechaCorta(p.desde)} al ${fechaCorta(p.hasta)}.${nuevos ? ` Se agregaron ${num(nuevos)} clientes que no estaban en la cartera.` : ''}` };
+    await recargar('avance');
+  } catch(e){
+    im.enCurso = false;
+    S.aviso = { tipo: 'error', html: `No se pudo terminar la carga: ${esc(e.message || e)}. ${hechos ? `Quedaron cargados ${num(hechos)} de ${num(im.archivos.length)} reportes. ` : 'Los datos que ya estaban no cambiaron. '}Podés volver a intentar: cargar de nuevo un reporte no duplica nada.` };
+    await recargar('ventas');
+  }
+}
+
 function procesarVentas(){
+  if(S.impVentas.tipo === 'reporte') return procesarReportes();
   const im = S.impVentas, m = im.mapa;
   const datos = im.filas.slice(im.cabecera + 1);
   const hayFecha = m.fecha != null;
@@ -2002,7 +2205,8 @@ function procesarVentas(){
 function renderVentas(aviso){
   const im = S.impVentas;
   let previa = '';
-  if(im && im.filas){
+  if(im && im.tipo === 'reporte') previa = vistaReportes(im);
+  else if(im && im.filas){
     const p = procesarVentas();
     const cols = (im.filas[im.cabecera] || []).map((c, i) => ({ i, t: aTexto(c) || 'Columna ' + (i + 1) }));
     const sel = (campo, vacio) => `<select data-mapa="${campo}">${vacio ? `<option value="">${vacio}</option>` : ''}${cols.map(c => `<option value="${c.i}" ${im.mapa[campo] === c.i ? 'selected' : ''}>${esc(c.t)}</option>`).join('')}</select>`;
@@ -2051,11 +2255,11 @@ function renderVentas(aviso){
   const cargas = [...S.cargas].sort((a, b) => b.id - a.id).slice(0, 15);
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Cargar ventas del sistema</h2>
-    <p class="sub">Subí todos los días el archivo de ventas que sale del sistema (Excel o CSV). Alcanza con que tenga una columna con el vendedor y otra con el importe; si además trae la fecha y el cliente de cada venta, mejor: así cada cliente queda con el último vendedor que le vendió.
+    <p class="sub">Subí todos los días el reporte de ventas tal como sale del sistema, sin tocarlo. También sirve una lista simple en Excel o CSV con una columna de vendedor y otra de importe (y, si las tiene, fecha y cliente).
       Cada vendedor ve su avance contra el objetivo apenas se carga.</p>
     <div class="dropzone" id="dropVentas">${im && im.error ? `<span class="vencido">${esc(im.error)}</span><br>` : ''}
-      <strong>Arrastrá el archivo de ventas acá</strong> o hacé clic para elegirlo
-      <input type="file" id="ventasArchivo" accept=".xlsx,.xls,.csv" class="hidden">
+      ${im && im.leyendo ? `<strong id="ventasLeyendo">${esc(im.leyendo)}</strong>` : `<strong>Arrastrá acá el reporte de ventas del sistema</strong> o hacé clic para elegirlo.<br><span class="muted">Puede ser uno, varios a la vez o el .zip con todos adentro.</span>`}
+      <input type="file" id="ventasArchivo" accept=".xlsx,.xlsm,.xls,.csv,.zip" multiple class="hidden">
     </div>
     ${previa}
     <h2 class="sec">Últimas cargas</h2>
@@ -2067,43 +2271,53 @@ function renderVentas(aviso){
       : `<div class="card"><p class="sub" style="margin:0">Todavía no se cargó ningún archivo de ventas.</p></div>`}`;
 }
 
-async function elegirVentas(file){
-  S.impVentas = { error: null };
+async function elegirVentas(sel){
+  const files = sel instanceof File ? [sel] : [...sel];
+  if(!files.length) return;
+  S.impVentas = { error: null, leyendo: 'Leyendo…' };
+  renderVentas('');
+  const avisar = t => { const e = $('ventasLeyendo'); if(e) e.textContent = t; return new Promise(r => setTimeout(r, 0)); };
   try{
     await cargarLector();
-    S.impVentas = { ...leerVentas(new Uint8Array(await file.arrayBuffer()), file.name), asignacion: {}, fecha: hoyISO(), modo: 'mes' };
+    const archivos = await abrirArchivosVentas(files);
+    if(!archivos.length) throw new Error('No encontré ningún Excel en lo que subiste.');
+    const reportes = [], otros = [];
+    for(const [i, a] of archivos.entries()){
+      await avisar(archivos.length === 1 ? `Leyendo ${a.nombre}…` : `Leyendo ${i + 1} de ${archivos.length}: ${a.nombre}`);
+      let rep = null;
+      try{
+        const wb = XLSX.read(a.datos, { type: 'array' });
+        for(const hoja of wb.SheetNames){
+          rep = aplanarReporte(XLSX.utils.sheet_to_json(wb.Sheets[hoja], { header: 1, raw: true, defval: null, blankrows: true }));
+          if(rep) break;
+        }
+      } catch(e){ otros.push({ nombre: a.nombre, error: e.message || 'no se pudo abrir' }); continue; }
+      if(!rep){ otros.push({ nombre: a.nombre, datos: a.datos, error: 'no tiene el formato del reporte de ventas' }); continue; }
+      if(!rep.filas.length){ otros.push({ nombre: a.nombre, error: 'no trae comprobantes' }); continue; }
+      let desde = rep.filas.reduce((m, r) => r.fecha < m ? r.fecha : m, rep.filas[0].fecha), hasta = rep.filas.reduce((m, r) => r.fecha > m ? r.fecha : m, rep.filas[0].fecha);
+      const rn = rangoDeNombre(a.nombre);
+      if(rn && rn.desde <= desde && rn.hasta >= hasta && rn.hasta <= hoyISO()){ desde = rn.desde; hasta = rn.hasta; }
+      reportes.push({ nombre: a.nombre, ...rep, desde, hasta });
+    }
+    if(reportes.length){
+      reportes.sort((a, b) => a.desde.localeCompare(b.desde) || a.hasta.localeCompare(b.hasta));
+      S.impVentas = { tipo: 'reporte', archivos: reportes, descartados: otros.map(o => ({ nombre: o.nombre, error: o.error })), asignacion: {} };
+    } else if(archivos.length === 1 && otros[0] && otros[0].datos){
+      S.impVentas = { ...leerVentas(otros[0].datos, otros[0].nombre), asignacion: {}, fecha: hoyISO(), modo: 'mes' };
+    } else throw new Error(otros.length === 1 ? `${otros[0].nombre}: ${otros[0].error}.` : 'Ninguno de los archivos tiene el formato del reporte de ventas del sistema. Si es una lista simple (vendedor e importe), subila de a un archivo.');
   } catch(e){ S.impVentas = { error: e.message || String(e) }; }
   renderVentas('');
 }
 
 async function cargarVentas(){
+  if(S.impVentas.tipo === 'reporte') return cargarReportes();
   const im = S.impVentas, p = procesarVentas();
   if(!p.filas.length) return;
   im.enCurso = true;
   $('btnCargarVentas').disabled = true;
   const estado = t => { $('ventasEstado').textContent = t; };
   try{
-    // 1) vendedores nuevos
-    const ids = {}, creados = new Set();
-    for(const o of p.nombres){
-      const a = im.asignacion[o.clave];
-      if(a === '_nuevo'){
-        estado('Creando vendedor ' + o.clave + '…');
-        const nombre = o.clave.includes(',') ? o.clave.split(',').reverse().map(s => s.trim()).join(' ') : o.clave;
-        const { data, error } = await sb.from('comercial_vendedores').insert({ nombre: nombre.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()), nombre_erp: o.clave }).select('id');
-        if(error) throw error;
-        ids[o.clave] = data[0].id;
-        im.asignacion[o.clave] = String(data[0].id);
-        creados.add(o.clave);
-      } else ids[o.clave] = a ? Number(a) : null;
-    }
-    // 2) recordar cómo figura cada vendedor en el archivo
-    const alias = p.nombres.filter(o => o.clave && ids[o.clave] && !creados.has(o.clave) && !S.vendedores.some(v => v.id === ids[o.clave] && v.nombre_erp === o.clave))
-      .map(o => ({ alias: o.clave, vendedor_id: ids[o.clave] }));
-    if(alias.length){
-      const { error } = await sb.from('comercial_vendedor_alias').upsert(alias, { onConflict: 'alias' }).select('alias');
-      if(error) throw error;
-    }
+    const ids = await resolverVendedoresCarga(p, im, estado);
     // 3) resumen por día y vendedor, en una sola operación
     const agg = new Map();
     for(const r of p.filas){
@@ -2182,7 +2396,7 @@ content().addEventListener('click', e => {
   if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
   if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
   if(t.id === 'btnCancelarVentas'){ S.impVentas = null; renderVentas(''); return; }
-  if(t.closest('#dropVentas') && t.id !== 'ventasArchivo'){ $('ventasArchivo').click(); return; }
+  if(t.closest('#dropVentas') && t.id !== 'ventasArchivo' && !(S.impVentas && S.impVentas.leyendo)){ $('ventasArchivo').click(); return; }
   if((el = t.closest('[data-orden]'))){
     const c = el.dataset.orden;
     S.ordenResumen = { campo: c, desc: S.ordenResumen.campo === c ? !S.ordenResumen.desc : c !== 'nombre' };
@@ -2216,7 +2430,7 @@ content().addEventListener('change', e => {
   if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
   if(t.id === 'selMes'){ cambiarMes(t.value); return; }
   if(t.id === 'selSemana'){ S.semana = t.value; ir('avance'); return; }
-  if(t.id === 'ventasArchivo' && t.files[0]){ elegirVentas(t.files[0]); return; }
+  if(t.id === 'ventasArchivo' && t.files[0]){ elegirVentas(t.files); return; }
   if(t.id === 'datosArchivo' && t.files[0]){ elegirDatos(t.files[0]); return; }
   if(S.impVentas && S.impVentas.filas){
     const im = S.impVentas;
@@ -2261,6 +2475,7 @@ content().addEventListener('drop', e => {
   if(!d) return;
   e.preventDefault();
   const f = e.dataTransfer.files[0];
+  if(f && d.id === 'dropVentas'){ elegirVentas(e.dataTransfer.files); return; }
   if(f) (d.id === 'dropVentas' ? elegirVentas : (d.id === 'dropDatos' ? elegirDatos : elegirArchivo))(f);
 });
 
