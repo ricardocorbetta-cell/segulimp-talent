@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.2 (2026-10-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.3 (2026-10-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -182,10 +182,10 @@
   body.vend header .session{width:auto; margin-left:auto; flex-wrap:nowrap; justify-content:flex-end;}
   body.vend .tabs{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; position:sticky; top:0; z-index:5; background:var(--paper); padding:6px 0; margin:0 0 8px;}
   body.vend .tabs button{padding:10px 4px; min-height:44px; font-size:14px;}
-  .mv-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 0 12px;}
-  .mv-hola{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; color:var(--brand-dark); margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mv-top{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:2px 8px; margin:0 0 12px;}
+  .mv-hola{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; color:var(--brand-dark); margin:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .mv-mes{display:flex; align-items:center; font-size:13.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
-  .mv-mes{flex:none;}
+  .mv-mes{flex:none; margin-left:auto;}
   .mv-mes button{flex:none; width:40px; height:40px; border:none; background:none; font-size:24px; line-height:1; color:var(--brand); cursor:pointer; border-radius:10px;}
   .mv-mes button:hover{background:var(--paper-2);}
 
@@ -206,6 +206,20 @@
   .mv-pie{font-size:12.5px; color:#BCD6E6;}
   .mv-frase{font-size:18px; font-weight:700; line-height:1.3; margin:16px 0 0;}
   .mv-frase span{display:block; font-size:14px; font-weight:500; color:#BCD6E6; margin-top:5px; line-height:1.45;}
+
+  .mv-cat{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 13px; margin-top:10px;}
+  .mv-cat-top{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .mv-cat .lbl{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  .mv-cat-l{display:flex; gap:5px;}
+  .mv-cat-l i{font-style:normal; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-size:13px; font-weight:700; color:var(--ink-soft); background:var(--paper-2); border:1px solid var(--line);}
+  .mv-cat-l i.paso{background:#D9EBF5; border-color:#D9EBF5; color:var(--brand-dark);}
+  .mv-cat-l i.act{background:var(--brand-dark); border-color:var(--brand-dark); color:#fff;}
+  .mv-cat .t{font-size:17px; font-weight:700; line-height:1.3; color:var(--ink); margin:9px 0 0;}
+  .mv-cat .d{font-size:14px; line-height:1.45; color:var(--ink-soft); margin:3px 0 0;}
+  .mv-cat .d b{color:var(--ink); font-weight:700;}
+  .mv-cat-b{height:8px; border-radius:4px; background:var(--paper-2); margin-top:10px; overflow:hidden;}
+  .mv-cat-b i{display:block; height:100%; border-radius:4px; background:var(--brand);}
+  .cat-chip{font-size:11.5px; white-space:nowrap;}
 
   .mv-duo{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;}
   .mv-dato{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 12px;}
@@ -451,6 +465,7 @@ async function cargarDatos(){
   let cfg = [];
   try { cfg = await traerTodo('comercial_config', 'clave, valor', 'clave'); } catch(_){}
   S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
+  try { S.escalas = await traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo'); } catch(_){ S.escalas = []; }
   if(!S.periodo) S.periodo = periodoDe(hoyISO());
   await cargarPeriodo();
 }
@@ -1283,6 +1298,48 @@ function avanceDe(ids){
     pct: objetivo ? ventas / objetivo * 100 : null, ritmo: total ? pasados / total * 100 : 0,
     esperado: objetivo * (total ? pasados / total : 0), porDia: restantes > 0 ? falta / restantes : null };
 }
+// Escala de comisiones: rige la del período, o la última cargada antes
+function escalaDe(periodo){
+  const clave = mesInfo(periodo).clave;
+  let e = null;
+  for(const x of S.escalas || []) if(x.periodo <= clave && (!e || x.periodo > e.periodo)) e = x;
+  return e;
+}
+function pctTxt(n){ return String(Math.round(Number(n) * 100) / 100).replace('.', ',') + '%'; }
+function categoriaDe(ventas, periodo){
+  const e = escalaDe(periodo);
+  if(!e) return null;
+  const tramos = [['A', 0, 0], ['B', Number(e.b_desde), Number(e.b_pct)], ['C', Number(e.c_desde), Number(e.c_pct)], ['D', Number(e.d_desde), Number(e.d_pct)]];
+  let i = 0;
+  while(i < 3 && ventas >= tramos[i + 1][1]) i++;
+  const sig = i < 3 ? { cat: tramos[i + 1][0], pct: tramos[i + 1][2], falta: tramos[i + 1][1] - ventas } : null;
+  const tramo = sig ? (ventas - tramos[i][1]) / (tramos[i + 1][1] - tramos[i][1]) : 1;
+  return { cat: tramos[i][0], pct: tramos[i][2], i, sig, tramo: Math.max(0, Math.min(1, tramo)) };
+}
+function catCorta(c){ return c ? `Cat. ${c.cat} · ${c.pct ? pctTxt(c.pct) : 'no comisiona'}` : ''; }
+function bloqueCategoria(a){
+  const c = categoriaDe(a.ventas, S.periodo);
+  if(!c) return '';
+  const cerrado = S.periodo < periodoDe(hoyISO());
+  let t, d;
+  if(cerrado){
+    t = c.pct ? `Cerraste en categoría ${c.cat}: ${pctTxt(c.pct)} de comisión.` : 'Cerraste en categoría A: sin comisión.';
+    d = c.sig ? `Faltaron ${pesos(c.sig.falta)} para la ${c.sig.cat} (${pctTxt(c.sig.pct)}).` : 'La más alta.';
+  } else if(!c.pct){
+    t = 'Todavía no comisionás.';
+    d = `Te faltan <b>${pesos(c.sig.falta)}</b> para la categoría ${c.sig.cat} (${pctTxt(c.sig.pct)}).`;
+  } else {
+    t = `Estás en categoría ${c.cat}: ${pctTxt(c.pct)} de comisión.`;
+    d = c.sig ? `Te faltan <b>${pesos(c.sig.falta)}</b> para la ${c.sig.cat} (${pctTxt(c.sig.pct)}).` : 'Es la más alta. Todo lo que sumes comisiona a esa tasa.';
+  }
+  return `<section class="mv-cat" id="miCategoria" data-cat="${c.cat}">
+      <div class="mv-cat-top"><span class="lbl">Tu comisión</span>
+        <span class="mv-cat-l" role="img" aria-label="Categoría ${c.cat} de A a D">${['A', 'B', 'C', 'D'].map((l, i) => `<i class="${i < c.i ? 'paso' : i === c.i ? 'act' : ''}">${l}</i>`).join('')}</span></div>
+      <p class="t">${t}</p>
+      <p class="d">${d}</p>
+      ${c.sig && !cerrado ? `<div class="mv-cat-b"><i style="width:${Math.max(2, Math.round(c.tramo * 100))}%"></i></div>` : ''}
+    </section>`;
+}
 function actividadDe(vendedorId, lunes){ return S.actividades.find(a => a.vendedor_id === vendedorId && a.semana === lunes) || null; }
 function sumaAct(a, suf){ return a ? ACTIVIDADES.reduce((s, [k]) => s + Number(a[k + '_' + suf] || 0), 0) : 0; }
 function puedeEditarVend(id){ return S.esAdmin || (S.esComercial && S.misVendedores.has(id)); }
@@ -1327,6 +1384,7 @@ function renderAvance(aviso){
   const lunes = lunesDe(hoyISO());
   const activos = S.vendedores.filter(v => v.activo);
   const idsActivos = new Set(activos.map(v => v.id));
+  const hayEscala = !!escalaDe(S.periodo);
   const filas = activos.map(v => ({ v, a: avanceDe([v.id]), act: actividadDe(v.id, lunes) }))
     .sort((x, y) => (y.a.objetivo - x.a.objetivo) || (y.a.ventas - x.a.ventas) || x.v.nombre.localeCompare(y.v.nombre));
   const otros = S.ventas.filter(x => !idsActivos.has(x.vendedor_id)).reduce((s, x) => s + Number(x.importe || 0), 0);
@@ -1350,7 +1408,7 @@ function renderAvance(aviso){
           <tr class="clickable" data-detalle="${v.id}">
             <td data-label="Vendedor"><strong>${esc(v.nombre)}</strong>${v.user_id ? '' : '<div class="muted">Sin usuario vinculado</div>'}</td>
             <td data-label="Objetivo" class="num">${a.objetivo ? pesos(a.objetivo) : '<span class="muted">Sin objetivo</span>'}</td>
-            <td data-label="Ventas" class="num">${pesos(a.ventas)}</td>
+            <td data-label="Ventas" class="num">${pesos(a.ventas)}${hayEscala && (a.objetivo || a.ventas > 0) ? `<div class="muted cat-chip">${catCorta(categoriaDe(a.ventas, S.periodo))}</div>` : ''}</td>
             <td data-label="Avance">${a.objetivo ? medidor(a.pct, a.ritmo) : '<span class="muted">—</span>'}</td>
             <td data-label="Falta" class="num">${a.objetivo ? pesos(a.falta) : '—'}</td>
             <td data-label="Proyección" class="num">${a.proyeccion == null ? '—' : pesos(a.proyeccion)}</td>
@@ -1372,6 +1430,7 @@ function renderDetalleVendedor(aviso, id){
   if(!S.semana || !semanas.some(s => s.lunes === S.semana)) S.semana = (semanas.find(s => s.lunes === hoyLunes) || semanas[0]).lunes;
   const act = actividadDe(id, S.semana) || {};
   const dif = a.ventas - a.esperado;
+  const cat = categoriaDe(a.ventas, S.periodo);
   const ventasSem = s => S.ventas.filter(x => x.vendedor_id === id && x.fecha >= s.ini && x.fecha <= s.fin).reduce((t, x) => t + Number(x.importe || 0), 0);
   const celda = (r, k) => r ? `${Number(r[k + '_real'] || 0)} / ${Number(r[k + '_plan'] || 0)}` : '<span class="muted">—</span>';
   content().innerHTML = aviso + `
@@ -1386,6 +1445,7 @@ function renderDetalleVendedor(aviso, id){
         <div class="note">${a.objetivo && a.corte ? `Ritmo esperado a la fecha: ${Math.round(a.ritmo)}%. ${dif >= 0 ? 'Vas ' + pesos(dif) + ' arriba del ritmo.' : 'Vas ' + pesos(-dif) + ' abajo del ritmo.'}` : 'La marca muestra el ritmo esperado a la fecha.'}</div></div>
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="note">${a.proyeccion != null && a.objetivo ? Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo, al ritmo actual' : 'Al ritmo actual'}</div></div>
       <div class="tile"><div class="label">Para llegar al objetivo</div><div class="value">${a.objetivo ? (a.falta === 0 ? 'Cumplido' : (a.porDia == null ? '—' : plata(a.porDia))) : '—'}</div><div class="note">${a.objetivo && a.falta > 0 ? `por día hábil · faltan ${pesos(a.falta)} y ${a.restantes} ${a.restantes === 1 ? 'día' : 'días'}` : (a.objetivo ? 'Objetivo alcanzado' : '')}</div></div>
+      ${cat ? `<div class="tile" id="tileCategoria"><div class="label">Categoría de comisión</div><div class="value">${cat.cat} · ${cat.pct ? pctTxt(cat.pct) : 'no comisiona'}</div><div class="note">${cat.sig ? `Faltan ${pesos(cat.sig.falta)} para la ${cat.sig.cat} (${pctTxt(cat.sig.pct)})` : 'La más alta'}</div></div>` : ''}
     </div>
 
     <h2 class="sec">Plan de la semana</h2>
@@ -1484,6 +1544,7 @@ function renderMiAvance(aviso, id){
       <div class="mv-dato"><div class="lbl">Necesitás por día hábil</div><div class="val">${plata(a.porDia)}</div><div class="nota">${a.restantes === 1 ? 'queda 1 día' : 'quedan ' + a.restantes + ' días'}</div></div>
       <div class="mv-dato"><div class="lbl">Si seguís así cerrás en</div><div class="val">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="nota">${a.proyeccion == null ? '' : Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo'}</div></div>
     </div>` : ''}
+    ${bloqueCategoria(a)}
     ${bloqueClientes()}
 
     <section class="mv-sem" id="miSemana" data-vendedor="${id}" data-modo="${modo}">
@@ -1602,7 +1663,7 @@ function renderObjetivos(aviso){
   const total = S.objetivos.reduce((s, o) => s + Number(o.monto || 0), 0);
   content().innerHTML = aviso + `
     <div class="barra"><h2 class="sec" style="margin:0">Objetivos de venta · ${mes.nombre}</h2>${selectorMes()}</div>
-    <p class="sub">Objetivo mensual de ventas de cada vendedor, en pesos. Dejá vacío al que no tiene objetivo ese mes.</p>
+    <p class="sub">Objetivo de ventas de cada vendedor para el período, en pesos. Dejá vacío al que no tiene objetivo.</p>
     <div class="table-wrap"><table class="apilar">
       <thead><tr><th>Vendedor</th><th>Objetivo del período ($)</th></tr></thead>
       <tbody>${activos.map(v => { const o = S.objetivos.find(x => x.vendedor_id === v.id); return `
@@ -1614,7 +1675,48 @@ function renderObjetivos(aviso){
       <button class="btn-primary" id="btnGuardarObjetivos">Guardar objetivos</button>
       <button class="btn-ghost" id="btnCopiarObjetivos">Copiar los del período anterior</button>
       <span class="muted" id="objEstado"></span>
+    </div>
+    ${bloqueEscala()}`;
+}
+function bloqueEscala(){
+  const mes = mesInfo(S.periodo), e = escalaDe(S.periodo);
+  const propia = e && e.periodo === mes.clave;
+  const origen = !e ? 'Todavía no hay una escala cargada para este período.'
+    : propia ? 'Cargada para este período. Vale también para los siguientes, hasta que cargues otra.'
+    : `Rige la que se cargó para el período ${mesInfo(e.periodo.slice(0, 7)).nombre}. Si la cambiás acá, vale desde este período en adelante.`;
+  return `
+    <h2 class="sec">Escala de comisiones · ${mes.nombre}</h2>
+    <p class="sub">Categoría del vendedor según lo que vendió en el período. Por debajo de la B es categoría A y no comisiona. ${origen}</p>
+    <div class="table-wrap" id="escala"><table class="apilar">
+      <thead><tr><th>Categoría</th><th>Desde ($)</th><th>Comisión (%)</th></tr></thead>
+      <tbody>${['b', 'c', 'd'].map(k => `
+        <tr><td data-label="Categoría"><strong>${k.toUpperCase()}</strong></td>
+          <td data-label="Desde ($)"><input type="text" inputmode="numeric" class="monto" data-esc="${k}_desde" value="${e ? nf.format(Number(e[k + '_desde'])) : ''}" aria-label="Categoría ${k.toUpperCase()}: desde qué venta"></td>
+          <td data-label="Comisión (%)"><input type="text" inputmode="decimal" class="monto" style="max-width:110px" data-esc="${k}_pct" value="${e ? String(Number(e[k + '_pct'])).replace('.', ',') : ''}" aria-label="Categoría ${k.toUpperCase()}: porcentaje de comisión"></td></tr>`).join('')}
+      </tbody></table></div>
+    <div class="form">
+      <button class="btn-primary" id="btnGuardarEscala">Guardar escala</button>
+      <span class="muted" id="escEstado"></span>
     </div>`;
+}
+async function guardarEscala(){
+  const est = $('escEstado'), fila = { periodo: mesInfo(S.periodo).clave };
+  for(const inp of $('escala').querySelectorAll('[data-esc]')){
+    const k = inp.dataset.esc, txt = inp.value.trim();
+    const n = k.endsWith('_pct') ? (/^\d+([.,]\d+)?\s*%?$/.test(txt) ? Number(txt.replace('%', '').replace(',', '.')) : null) : aNumero(txt);
+    if(n == null || n < 0 || (k.endsWith('_pct') ? n > 100 : n === 0)){ est.textContent = 'Revisá los valores: todos tienen que ser números' + (k.endsWith('_pct') ? ' y el porcentaje, entre 0 y 100.' : ' mayores a cero.'); inp.focus(); return; }
+    fila[k] = k.endsWith('_pct') ? n : Math.round(n);
+  }
+  if(!(fila.b_desde < fila.c_desde && fila.c_desde < fila.d_desde)){ est.textContent = 'Los montos tienen que ir de menor a mayor: B, C y D.'; return; }
+  const btn = $('btnGuardarEscala');
+  btn.disabled = true;
+  let res;
+  try { res = await sb.from('comercial_escalas').upsert(fila, { onConflict: 'periodo' }).select('periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct'); }
+  catch(e){ res = { error: e }; }
+  if(res.error || !res.data || !res.data.length){ btn.disabled = false; est.textContent = 'No se pudo guardar la escala' + (res.error ? ': ' + (res.error.message || res.error) : '.'); return; }
+  S.escalas = (S.escalas || []).filter(x => x.periodo !== fila.periodo).concat(res.data[0]).sort((x, y) => x.periodo < y.periodo ? -1 : 1);
+  S.aviso = { tipo: 'ok', html: 'Escala de comisiones guardada.' };
+  ir('objetivos');
 }
 
 async function guardarObjetivos(){
@@ -2394,6 +2496,7 @@ content().addEventListener('click', e => {
   if(t.id === 'mvActualizar'){ recargar(S.tab); return; }
   if(t.id === 'btnGuardarObjetivos'){ guardarObjetivos(); return; }
   if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
+  if(t.id === 'btnGuardarEscala'){ guardarEscala(); return; }
   if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
   if(t.id === 'btnCancelarVentas'){ S.impVentas = null; renderVentas(''); return; }
   if(t.closest('#dropVentas') && t.id !== 'ventasArchivo' && !(S.impVentas && S.impVentas.leyendo)){ $('ventasArchivo').click(); return; }
