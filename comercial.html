@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.4 (2026-10-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.5 (2026-10-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -246,6 +246,8 @@
   .mv-fila{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--paper);}
   .mv-fila .nom{flex:1; min-width:0; font-size:16px; font-weight:600;}
   .mv-fila .nom small{display:block; font-size:12.5px; font-weight:500; color:var(--ink-soft); margin-top:1px;}
+  .mv-step.fijo button{visibility:hidden;}
+  .mv-step.fijo input{background:var(--paper); color:var(--ink-soft);}
   .mv-fila .nom small.ok{color:var(--good); font-weight:600;}
   .mv-step{display:flex; align-items:center; gap:6px; flex:none;}
   .mv-step button{width:46px; height:46px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:24px; line-height:1; color:var(--brand-dark); cursor:pointer; touch-action:manipulation; padding:0;}
@@ -463,7 +465,7 @@ async function cargarDatos(){
   const desde = new Date(Date.now() - 30 * 864e5).toISOString();
   const [plan, vendedores, snapshots, log] = await Promise.all([
     traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
-    traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email', 'id'),
+    traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email, es_vendedor', 'id'),
     traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
     traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde))
   ]);
@@ -479,6 +481,7 @@ async function cargarDatos(){
   try { cfg = await traerTodo('comercial_config', 'clave, valor', 'clave'); } catch(_){}
   S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
   try { S.escalas = await traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo'); } catch(_){ S.escalas = []; }
+  try { S.metas = await traerTodo('comercial_metas', 'vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras', 'vendedor_id'); } catch(_){ S.metas = []; }
   S.ingUlt = [];
   if(S.veTodo){ try { S.ingUlt = await traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id'); } catch(_){} }
   if(!S.periodo) S.periodo = periodoDe(hoyISO());
@@ -1159,7 +1162,7 @@ async function crearUsuarios(btn){
   }
   try {
     const [vendedores, usuarios] = await Promise.all([
-      traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email', 'id'),
+      traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email, es_vendedor', 'id'),
       sb.rpc('comercial_usuarios')
     ]);
     S.vendedores = vendedores;
@@ -1176,13 +1179,14 @@ function renderVendedores(aviso){
   const cuenta = new Map();
   for(const r of S.plan) if(r.vendedor_id) cuenta.set(r.vendedor_id, (cuenta.get(r.vendedor_id) || 0) + 1);
   const nInactivos = S.vendedores.filter(v => !v.activo).length;
-  const lista = S.vendedores.filter(v => v.activo || S.verInactivos).sort((a, b) => (b.activo - a.activo) || (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
+  const lista = S.vendedores.filter(v => v.activo || S.verInactivos).sort((a, b) => (b.activo - a.activo) || (esVend(b) - esVend(a)) || (cuenta.get(b.id) || 0) - (cuenta.get(a.id) || 0) || a.nombre.localeCompare(b.nombre));
   const haySugeridos = lista.some(v => !v.user_id && sugerirUsuario(v));
   const faltan = sinUsuario();
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Vendedores</h2>
     <p class="sub">Cada vendedor entra al Hub con <strong>su email</strong> y ve <strong>solo su avance</strong>. Con el botón de abajo se crean los usuarios que faltan (rol Comercial): la contraseña inicial es el mismo email y el Hub les pide cambiarla la primera vez que entran.
-      Si además le das el rol Solo consulta desde Hub → Usuarios, ve a todo el equipo pero carga solo lo suyo. Acá se ven solo los vendedores activos; al que ya no vende, destildale Activo y deja de aparecer.</p>
+      Si además le das el rol Solo consulta desde Hub → Usuarios, ve a todo el equipo pero carga solo lo suyo. Acá se ven solo los activos; al que ya no está, destildale Activo y deja de aparecer.
+      <strong>Es vendedor</strong> marca a la fuerza de ventas: son los que tienen objetivo y aparecen en el tablero. Los demás (gerencia, administración, mostrador) pueden figurar en las ventas del sistema, pero se muestran aparte, en "Otras ventas".</p>
     ${faltan.length ? `<div class="card" style="margin:0 0 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
       <div style="flex:1; min-width:220px"><strong>${faltan.length === 1 ? 'Falta crear 1 usuario' : `Falta crear ${faltan.length} usuarios`}</strong>
         <div class="muted">${faltan.map(v => esc(v.nombre)).join(', ')}</div></div>
@@ -1196,7 +1200,7 @@ function renderVendedores(aviso){
     </div>
     ${haySugeridos ? `<div class="msg-box info">Hay usuarios del Hub que coinciden con un vendedor por email o por nombre: ya quedaron preseleccionados. Revisalos y tocá <strong>Guardar</strong> en cada fila.</div>` : ''}
     ${lista.length ? `<div class="table-wrap"><table class="apilar">
-      <thead><tr><th>Nombre</th><th>Nombre en el sistema</th><th>Email</th><th>Usuario del Hub</th><th>Activo</th><th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Nombre en el sistema</th><th>Email</th><th>Usuario del Hub</th><th>Es vendedor</th><th>Activo</th><th></th></tr></thead>
       <tbody>${lista.map(v => {
         const sug = v.user_id ? null : sugerirUsuario(v);
         const sel = v.user_id || sug || '';
@@ -1210,6 +1214,7 @@ function renderVendedores(aviso){
             ${huerfano ? `<option value="${esc(v.user_id)}" selected>Usuario sin rol comercial</option>` : ''}
             ${S.usuarios.map(u => `<option value="${esc(u.user_id)}" ${u.user_id === sel ? 'selected' : ''}>${esc(u.nombre)} — ${esc(u.email)}</option>`).join('')}
           </select>${sug ? '<div class="muted">Sugerido, falta guardar</div>' : ''}</td>
+          <td data-label="Es vendedor"><input type="checkbox" data-v-esvend ${v.es_vendedor !== false ? 'checked' : ''} aria-label="Es vendedor"></td>
           <td data-label="Activo"><input type="checkbox" data-v-activo ${v.activo ? 'checked' : ''} aria-label="Activo"></td>
           <td data-label=""><button class="btn-primary small" data-v-guardar ${sug ? '' : 'disabled'}>Guardar</button></td>
         </tr>`; }).join('')}</tbody></table></div>`
@@ -1224,6 +1229,7 @@ async function guardarVendedor(tr){
   const nombre = tr.querySelector('[data-v-nombre]').value.trim();
   if(!nombre){ btn.title = 'El nombre no puede quedar vacío.'; return; }
   const cambios = { nombre, user_id: tr.querySelector('[data-v-usuario]').value || null, activo: tr.querySelector('[data-v-activo]').checked,
+    es_vendedor: tr.querySelector('[data-v-esvend]').checked,
     email: tr.querySelector('[data-v-email]').value.trim().toLowerCase() || null };
   btn.disabled = true; btn.textContent = 'Guardando…';
   const { data, error } = await sb.from('comercial_vendedores').update(cambios).eq('id', id).select('id');
@@ -1315,6 +1321,10 @@ function avanceDe(ids){
     pct: objetivo ? ventas / objetivo * 100 : null, ritmo: total ? pasados / total * 100 : 0,
     esperado: objetivo * (total ? pasados / total : 0), porDia: restantes > 0 ? falta / restantes : null };
 }
+// Fuerza de ventas: activo y marcado como vendedor. El resto (gerencia, administración, mostrador…) puede
+// figurar en las ventas del sistema, pero no es parte del equipo que se sigue.
+function esVend(v){ return !!v && v.activo && v.es_vendedor !== false; }
+
 // Ingresos a la aplicación de un vendedor: último ingreso y días hábiles del período en que entró
 function ingresoDe(v){
   if(!v || !v.user_id) return { sinUsuario: true };
@@ -1378,6 +1388,15 @@ function bloqueCategoria(a){
 }
 function actividadDe(vendedorId, lunes){ return S.actividades.find(a => a.vendedor_id === vendedorId && a.semana === lunes) || null; }
 function sumaAct(a, suf){ return a ? ACTIVIDADES.reduce((s, [k]) => s + Number(a[k + '_' + suf] || 0), 0) : 0; }
+// Objetivo semanal de gestión que fija la empresa para un vendedor (Objetivos). Si existe, manda sobre el plan
+// que carga el vendedor; si no, vale el plan de la semana.
+function metaAct(vendedorId, k){
+  const m = (S.metas || []).find(x => x.vendedor_id === vendedorId);
+  const n = m ? Number(m[k] || 0) : 0;
+  return n > 0 ? n : null;
+}
+function planAct(r, vendedorId, k){ const m = metaAct(vendedorId, k); return m != null ? m : Number(r ? r[k + '_plan'] || 0 : 0); }
+function sumaPlan(r, vendedorId){ return ACTIVIDADES.reduce((s, [k]) => s + planAct(r, vendedorId, k), 0); }
 function puedeEditarVend(id){ return S.esAdmin || (S.esComercial && S.misVendedores.has(id)); }
 
 function medidor(pct, ritmo){
@@ -1420,12 +1439,25 @@ function renderAvance(aviso){
   if(S.verVendedor){ renderDetalleVendedor(aviso, S.verVendedor); return; }
   const mes = mesInfo(S.periodo);
   const lunes = lunesDe(hoyISO());
-  const activos = S.vendedores.filter(v => v.activo);
+  const activos = S.vendedores.filter(esVend);
   const idsActivos = new Set(activos.map(v => v.id));
   const hayEscala = !!escalaDe(S.periodo);
   const filas = activos.map(v => ({ v, a: avanceDe([v.id]), act: actividadDe(v.id, lunes) }))
     .sort((x, y) => (y.a.objetivo - x.a.objetivo) || (y.a.ventas - x.a.ventas) || x.v.nombre.localeCompare(y.v.nombre));
-  const otros = S.ventas.filter(x => !idsActivos.has(x.vendedor_id)).reduce((s, x) => s + Number(x.importe || 0), 0);
+  // ventas que no son de la fuerza de ventas: se muestran aparte, persona por persona
+  const otrasMap = new Map();
+  for(const x of S.ventas){
+    if(idsActivos.has(x.vendedor_id)) continue;
+    const v = x.vendedor_id ? S.vendedores.find(y => y.id === x.vendedor_id) : null;
+    const k = v ? 'v' + v.id : 'c' + (x.vendedor_clave || '');
+    const o = otrasMap.get(k) || { v, nombre: v ? v.nombre : (x.vendedor_clave || 'Sin vendedor en el sistema'),
+      tipo: v ? (v.activo ? 'No es vendedor' : 'Ya no está') : (x.vendedor_clave ? 'Nombre no reconocido' : 'Venta sin vendedor asignado'), total: 0, ops: 0 };
+    o.total += Number(x.importe || 0); o.ops += Number(x.operaciones || 0);
+    otrasMap.set(k, o);
+  }
+  const otras = [...otrasMap.values()].filter(o => Math.abs(o.total) > 0.5).sort((a, b) => b.total - a.total);
+  const otros = otras.reduce((s, o) => s + o.total, 0);
+  const totV = avanceDe(activos.map(v => v.id));
   const conUsuario = activos.filter(v => v.user_id), ing = new Map(activos.map(v => [v.id, ingresoDe(v)]));
   const entraron = conUsuario.filter(v => ing.get(v.id).hoy), faltan = conUsuario.filter(v => !ing.get(v.id).hoy);
   const tot = avanceDe(null);
@@ -1434,8 +1466,8 @@ function renderAvance(aviso){
     <div class="barra"><h2 class="sec" style="margin:0">Avance de ventas · ${mes.nombre}</h2>${selectorMes()}</div>
     ${tot.corte ? '' : `<div class="msg-box info">Todavía no se cargaron ventas ${mes.de}.${S.esAdmin ? ' Subí el archivo del sistema en <button class="link-btn" data-tab="ventas">Cargar ventas</button>.' : ''}</div>`}
     <div class="tiles">
-      <div class="tile"><div class="label">Ventas del período</div><div class="value">${plata(tot.ventas)}</div><div class="note">${tot.corte ? 'Datos al ' + diaMes(tot.corte) : 'Sin datos cargados'}</div></div>
-      <div class="tile"><div class="label">Objetivo del equipo</div><div class="value">${plata(tot.objetivo)}</div><div class="note">${S.objetivos.length} ${S.objetivos.length === 1 ? 'vendedor con objetivo' : 'vendedores con objetivo'}</div></div>
+      <div class="tile" id="tileVentas"><div class="label">Ventas de los vendedores</div><div class="value">${plata(totV.ventas)}</div><div class="note">${tot.corte ? 'Datos al ' + diaMes(tot.corte) + (otras.length ? ' · total facturado ' + plata(tot.ventas) : '') : 'Sin datos cargados'}</div></div>
+      <div class="tile"><div class="label">Objetivo del equipo</div><div class="value">${plata(totV.objetivo)}</div><div class="note">${S.objetivos.length} ${S.objetivos.length === 1 ? 'vendedor con objetivo' : 'vendedores con objetivo'}</div></div>
       <div class="tile"><div class="label">Avance sobre el objetivo</div><div class="value">${conObj.pct == null ? '—' : Math.round(conObj.pct) + '%'}</div><div class="note">Ritmo esperado a la fecha: ${Math.round(tot.ritmo)}%</div></div>
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${conObj.proyeccion == null ? '—' : plata(conObj.proyeccion)}</div><div class="note">Al ritmo actual, vendedores con objetivo</div></div>
       <div class="tile"><div class="label">Días hábiles</div><div class="value">${tot.pasados} de ${tot.total}</div><div class="note">Lunes a viernes, sin contar feriados</div></div>
@@ -1454,12 +1486,28 @@ function renderAvance(aviso){
             <td data-label="Avance">${a.objetivo ? medidor(a.pct, a.ritmo) : '<span class="muted">—</span>'}</td>
             <td data-label="Falta" class="num">${a.objetivo ? pesos(a.falta) : '—'}</td>
             <td data-label="Proyección" class="num">${a.proyeccion == null ? '—' : pesos(a.proyeccion)}</td>
-            <td data-label="Actividades de esta semana" class="num">${act ? sumaAct(act, 'real') + ' / ' + sumaAct(act, 'plan') : '<span class="muted">Sin plan</span>'}</td>
+            <td data-label="Actividades de esta semana" class="num">${act || sumaPlan(null, v.id) ? sumaAct(act, 'real') + ' / ' + sumaPlan(act, v.id) : '<span class="muted">Sin plan</span>'}</td>
           </tr>`).join('')}
-        ${otros ? `<tr class="sin-vendedor"><td data-label="Vendedor"><strong>Otros / sin vendedor</strong><div class="muted">Ventas del archivo sin vendedor asignado</div></td><td></td><td class="num">—</td><td data-label="Ventas" class="num">${pesos(otros)}</td><td>—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>` : ''}
-        <tr class="total"><td data-label=""><strong>Total</strong></td><td></td><td data-label="Objetivo" class="num">${pesos(tot.objetivo)}</td><td data-label="Ventas" class="num">${pesos(tot.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+        <tr class="total"><td data-label=""><strong>Total vendedores</strong></td><td></td><td data-label="Objetivo" class="num">${pesos(totV.objetivo)}</td><td data-label="Ventas" class="num">${pesos(totV.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
       </tbody>
-    </table></div>`;
+    </table></div>
+    ${otras.length ? `
+    <h2 class="sec">Otras ventas del período</h2>
+    <p class="sub">Ventas que en el sistema figuran a nombre de personas que no son vendedores, o sin vendedor. Se ven solo acá: no suman al avance ni al objetivo del equipo.${S.esAdmin ? ' Quién es vendedor se define en la pestaña <button class="link-btn" data-tab="vendedores">Vendedores</button>.' : ''}</p>
+    <div class="table-wrap"><table class="apilar resumen" id="otrasVentas">
+      <thead><tr><th>A nombre de</th><th>Qué es</th><th class="num">Comprobantes</th><th class="num">Ventas</th></tr></thead>
+      <tbody>
+        ${otras.map(o => `
+          <tr class="${o.v && o.v.activo ? 'clickable' : ''} ${o.v ? '' : 'sin-vendedor'}" ${o.v && o.v.activo ? `data-otro="${o.v.id}"` : ''}>
+            <td data-label="A nombre de"><strong>${esc(o.nombre)}</strong></td>
+            <td data-label="Qué es" class="muted">${o.tipo}</td>
+            <td data-label="Comprobantes" class="num">${num(o.ops)}</td>
+            <td data-label="Ventas" class="num">${pesos(o.total)}</td>
+          </tr>`).join('')}
+        <tr class="total"><td data-label=""><strong>Total otras ventas</strong></td><td></td><td class="num"></td><td data-label="Ventas" class="num">${pesos(otros)}</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub" style="margin-top:10px">Total facturado en el período: <strong>${pesos(tot.ventas)}</strong> (vendedores ${pesos(totV.ventas)} + otras ventas ${pesos(otros)}).</p>` : ''}`;
 }
 
 function renderDetalleVendedor(aviso, id){
@@ -1475,7 +1523,7 @@ function renderDetalleVendedor(aviso, id){
   const cat = categoriaDe(a.ventas, S.periodo);
   const g = S.veTodo ? ingresoDe(v) : null;
   const ventasSem = s => S.ventas.filter(x => x.vendedor_id === id && x.fecha >= s.ini && x.fecha <= s.fin).reduce((t, x) => t + Number(x.importe || 0), 0);
-  const celda = (r, k) => r ? `${Number(r[k + '_real'] || 0)} / ${Number(r[k + '_plan'] || 0)}` : '<span class="muted">—</span>';
+  const celda = (r, k) => r || metaAct(id, k) != null ? `${Number(r ? r[k + '_real'] || 0 : 0)} / ${planAct(r, id, k)}` : '<span class="muted">—</span>';
   content().innerHTML = aviso + `
     ${S.veTodo ? `<button class="back-btn" data-volver-avance>← Todos los vendedores</button>` : ''}
     <div class="barra"><h2 class="sec" style="margin:0">${S.veTodo ? esc(v ? v.nombre : 'Vendedor') : 'Mi avance'} · ${mes.nombre}</h2>${selectorMes()}</div>
@@ -1493,7 +1541,7 @@ function renderDetalleVendedor(aviso, id){
     </div>
 
     <h2 class="sec">Plan de la semana</h2>
-    <p class="sub">Cuántas gestiones comerciales ${S.veTodo ? 'planifica' : 'vas a hacer'} en la semana y cuántas ${S.veTodo ? 'hizo' : 'llevás hechas'}. Se compara abajo con las ventas de cada semana.</p>
+    <p class="sub">Cuántas gestiones comerciales ${S.veTodo ? 'planifica' : 'vas a hacer'} en la semana y cuántas ${S.veTodo ? 'hizo' : 'llevás hechas'}. Se compara abajo con las ventas de cada semana.${ACTIVIDADES.some(([k]) => metaAct(id, k) != null) ? ' Las que tienen objetivo semanal fijado (pestaña Objetivos) no se cambian acá.' : ''}</p>
     <div class="card" id="planSemana" data-vendedor="${id}">
       <div class="mes-nav" style="margin-bottom:14px">
         <label for="selSemana" class="muted">Semana</label>
@@ -1503,7 +1551,7 @@ function renderDetalleVendedor(aviso, id){
         <div class="cab"></div><div class="cab">Planificadas</div><div class="cab">Hechas</div>
         ${ACTIVIDADES.map(([k, n]) => `
           <label for="p_${k}">${n}</label>
-          <input type="number" min="0" step="1" inputmode="numeric" id="p_${k}" data-act="${k}_plan" value="${Number(act[k + '_plan'] || 0)}" ${edita ? '' : 'disabled'} aria-label="${n} planificadas">
+          <input type="number" min="0" step="1" inputmode="numeric" id="p_${k}" data-act="${k}_plan" value="${planAct(act, id, k)}" ${edita && metaAct(id, k) == null ? '' : 'disabled'} ${metaAct(id, k) != null ? 'title="Objetivo semanal fijado en la pestaña Objetivos"' : ''} aria-label="${n} planificadas">
           <input type="number" min="0" step="1" inputmode="numeric" data-act="${k}_real" value="${Number(act[k + '_real'] || 0)}" ${edita ? '' : 'disabled'} aria-label="${n} hechas">`).join('')}
       </div>
       <input type="text" id="planNota" maxlength="300" placeholder="Nota de la semana (zona, clientes clave, etc.)" value="${esc(act.nota || '')}" ${edita ? '' : 'disabled'} style="width:100%; margin-top:12px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:13.5px">
@@ -1522,7 +1570,7 @@ function renderDetalleVendedor(aviso, id){
             <td data-label="Ventas" class="num">${a.corte && s.ini <= a.corte ? pesos(ventasSem(s)) : '<span class="muted">—</span>'}</td>
           </tr>`; }).join('')}
         <tr class="total"><td data-label=""><strong>Total del período</strong></td>
-          ${ACTIVIDADES.map(([k, n]) => { const rs = semanas.map(s => actividadDe(id, s.lunes)).filter(Boolean); return `<td data-label="${n}" class="num">${rs.reduce((t, r) => t + Number(r[k + '_real'] || 0), 0)} / ${rs.reduce((t, r) => t + Number(r[k + '_plan'] || 0), 0)}</td>`; }).join('')}
+          ${ACTIVIDADES.map(([k, n]) => { const rs = semanas.map(s => actividadDe(id, s.lunes)); return `<td data-label="${n}" class="num">${rs.reduce((t, r) => t + Number(r ? r[k + '_real'] || 0 : 0), 0)} / ${rs.reduce((t, r) => t + planAct(r, id, k), 0)}</td>`; }).join('')}
           <td data-label="Ventas" class="num">${pesos(a.ventas)}</td></tr>
       </tbody>
     </table></div>`;
@@ -1545,10 +1593,10 @@ function listaSemanas(id){
   const filas = semanas.map(s => ({ s, r: actividadDe(id, s.lunes), v: corte && s.ini <= corte ? ventasSem(s) : null }));
   const tope = Math.max(1, ...filas.map(f => f.v || 0));
   return filas.map(({ s, r, v }) => {
-    const h = sumaAct(r, 'real'), p = sumaAct(r, 'plan');
+    const h = sumaAct(r, 'real'), p = sumaPlan(r, id);
     return `<button type="button" class="mv-s ${s.lunes === S.semana ? 'viendo' : ''}" data-semana="${s.lunes}" aria-label="Ver la semana del ${diaMes(s.ini)} al ${diaMes(s.fin)}">
       <span class="f">${diaMes(s.ini)} al ${diaMes(s.fin)}</span><span class="v">${v == null ? '—' : pesos(v)}</span>
-      <span class="g">${r ? `${h}${p ? ' de ' + p : ''} ${h === 1 && !p ? 'gestión' : 'gestiones'}` : 'Sin gestiones cargadas'}</span><span class="e">${s.lunes === hoyLunes ? 'Esta semana' : ''}</span>
+      <span class="g">${r || p ? `${h}${p ? ' de ' + p : ''} ${h === 1 && !p ? 'gestión' : 'gestiones'}` : 'Sin gestiones cargadas'}</span><span class="e">${s.lunes === hoyLunes ? 'Esta semana' : ''}</span>
       <span class="b"><i style="width:${v ? Math.max(3, Math.round(v / tope * 100)) : 0}%"></i></span>
     </button>`; }).join('');
 }
@@ -1560,7 +1608,7 @@ function renderMiAvance(aviso, id){
   if(!S.semana || !semanas.some(s => s.lunes === S.semana)) S.semana = (semanas.find(s => s.lunes === hoyLunes) || semanas[0]).lunes;
   const sem = semanas.find(s => s.lunes === S.semana);
   const act = actividadDe(id, S.semana) || {};
-  const modo = S.modoSemana || (sumaAct(act, 'plan') === 0 && S.semana >= hoyLunes ? 'plan' : 'real');
+  const modo = S.modoSemana || (sumaPlan(act, id) === 0 && S.semana >= hoyLunes ? 'plan' : 'real');
   const [frase, detalle] = fraseAvance(a);
   const enCurso = S.periodo >= periodoDe(hoyISO());
   const estado = !a.objetivo || !a.corte ? '' : (a.falta === 0 || a.ventas >= a.esperado ? 'bien' : 'falta');
@@ -1604,13 +1652,13 @@ function renderMiAvance(aviso, id){
       <p class="mv-pista solo-real">Lo que registrás en Mis clientes se suma solo. Acá sumá el resto.</p>
       <p class="mv-pista solo-plan">¿Cuántas vas a hacer esta semana?</p>
       ${ACTIVIDADES.map(([k, n]) => `
-        <div class="mv-fila">
+        <div class="mv-fila ${metaAct(id, k) != null ? 'fija' : ''}">
           <div class="nom">${n}<small data-meta="${k}"></small></div>
-          ${['real', 'plan'].map(t => `<div class="mv-step solo-${t}">
-            <button type="button" data-paso="-1" aria-label="Restar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'del plan'}">−</button>
-            <input type="number" min="0" step="1" inputmode="numeric" data-act="${k}_${t}" value="${Number(act[k + '_' + t] || 0)}" aria-label="${n} ${t === 'real' ? 'hechas' : 'planificadas'}">
-            <button type="button" class="sumar" data-paso="1" aria-label="Sumar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'al plan'}">+</button>
-          </div>`).join('')}
+          ${['real', 'plan'].map(t => { const fija = t === 'plan' && metaAct(id, k) != null; return `<div class="mv-step solo-${t} ${fija ? 'fijo' : ''}">
+            <button type="button" data-paso="-1" ${fija ? 'disabled' : ''} aria-label="Restar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'del plan'}">−</button>
+            <input type="number" min="0" step="1" inputmode="numeric" data-act="${k}_${t}" value="${t === 'plan' ? planAct(act, id, k) : Number(act[k + '_real'] || 0)}" ${fija ? 'readonly' : ''} aria-label="${n} ${t === 'real' ? 'hechas' : 'planificadas'}">
+            <button type="button" class="sumar" data-paso="1" ${fija ? 'disabled' : ''} aria-label="Sumar ${n.toLowerCase()} ${t === 'real' ? 'hechas' : 'al plan'}">+</button>
+          </div>`; }).join('')}
         </div>`).join('')}
       <input type="text" class="mv-nota" id="mvNota" maxlength="300" placeholder="Nota de la semana (opcional)" value="${esc(act.nota || '')}" aria-label="Nota de la semana">
       <div class="mv-estado" id="mvEstado" aria-live="polite">${act.actualizado_en ? 'Guardado ' + fechaHora(act.actualizado_en) : 'Se guarda solo.'}</div>
@@ -1643,7 +1691,8 @@ function pintarSemana(){
     h += r; p += pl;
     const m = caja.querySelector(`[data-meta="${k}"]`);
     const cumplida = pl > 0 && r >= pl;
-    m.textContent = caja.dataset.modo === 'plan' ? (r ? 'Hechas: ' + r : '') : (pl ? (cumplida ? 'Meta cumplida: ' + pl : 'Meta: ' + pl) : 'Sin meta');
+    const fija = m.closest('.mv-fila').classList.contains('fija');
+    m.textContent = caja.dataset.modo === 'plan' ? (fija ? 'Objetivo fijado por la empresa' : (r ? 'Hechas: ' + r : '')) : (pl ? (cumplida ? 'Objetivo cumplido: ' + pl : 'Objetivo: ' + pl) : 'Sin objetivo');
     m.classList.toggle('ok', cumplida && caja.dataset.modo !== 'plan');
   }
   $('mvHechas').textContent = h;
@@ -1703,7 +1752,7 @@ async function guardarPlan(){
 // ====== OBJETIVOS ======
 function renderObjetivos(aviso){
   const mes = mesInfo(S.periodo);
-  const activos = S.vendedores.filter(v => v.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = S.vendedores.filter(v => esVend(v) || (v.activo && S.objetivos.some(o => o.vendedor_id === v.id))).sort((a, b) => a.nombre.localeCompare(b.nombre));
   const total = S.objetivos.reduce((s, o) => s + Number(o.monto || 0), 0);
   content().innerHTML = aviso + `
     <div class="barra"><h2 class="sec" style="margin:0">Objetivos de venta · ${mes.nombre}</h2>${selectorMes()}</div>
@@ -1720,7 +1769,50 @@ function renderObjetivos(aviso){
       <button class="btn-ghost" id="btnCopiarObjetivos">Copiar los del período anterior</button>
       <span class="muted" id="objEstado"></span>
     </div>
+    ${bloqueMetas()}
     ${bloqueEscala()}`;
+}
+function bloqueMetas(){
+  const lista = S.vendedores.filter(esVend).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  if(!lista.length) return '';
+  return `
+    <h2 class="sec">Objetivos semanales de gestión</h2>
+    <p class="sub">Cuántas gestiones tiene que hacer cada vendedor <strong>por semana</strong>. Valen para todas las semanas y el vendedor los ve como su objetivo en "Mi semana", sin poder cambiarlos. Donde lo dejes vacío, cada vendedor carga su propio plan.</p>
+    <div class="table-wrap" id="metas"><table class="apilar">
+      <thead><tr><th>Vendedor</th>${ACTIVIDADES.map(([, n]) => `<th>${n}</th>`).join('')}</tr></thead>
+      <tbody>${lista.map(v => `
+        <tr data-meta-vend="${v.id}"><td data-label="Vendedor"><strong>${esc(v.nombre)}</strong></td>
+          ${ACTIVIDADES.map(([k, n]) => `<td data-label="${n}"><input type="number" min="0" step="1" inputmode="numeric" class="monto" style="max-width:90px" data-meta-act="${k}" value="${metaAct(v.id, k) ?? ''}" placeholder="—" aria-label="${n} por semana de ${esc(v.nombre)}"></td>`).join('')}</tr>`).join('')}
+      </tbody></table></div>
+    <div class="form">
+      <button class="btn-primary" id="btnGuardarMetas">Guardar objetivos de gestión</button>
+      <span class="muted" id="metasEstado"></span>
+    </div>`;
+}
+async function guardarMetas(){
+  const est = $('metasEstado'), filas = [];
+  for(const tr of $('metas').querySelectorAll('[data-meta-vend]')){
+    const fila = { vendedor_id: Number(tr.dataset.metaVend) };
+    let cambio = false;
+    for(const inp of tr.querySelectorAll('[data-meta-act]')){
+      const txt = inp.value.trim(), n = txt === '' ? 0 : Number(txt);
+      if(!Number.isInteger(n) || n < 0 || n > 999){ est.textContent = 'Revisá las cantidades: números enteros de 0 a 999.'; inp.focus(); return; }
+      fila[inp.dataset.metaAct] = n;
+      if(n !== (metaAct(fila.vendedor_id, inp.dataset.metaAct) || 0)) cambio = true;
+    }
+    if(cambio) filas.push(fila);
+  }
+  if(!filas.length){ est.textContent = 'No hay cambios para guardar.'; return; }
+  const btn = $('btnGuardarMetas');
+  btn.disabled = true;
+  let res;
+  try { res = await sb.from('comercial_metas').upsert(filas, { onConflict: 'vendedor_id' }).select('vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras'); }
+  catch(e){ res = { error: e }; }
+  if(res.error || !res.data || !res.data.length){ btn.disabled = false; est.textContent = 'No se pudieron guardar' + (res.error ? ': ' + (res.error.message || res.error) : '.'); return; }
+  const ids = new Set(res.data.map(x => x.vendedor_id));
+  S.metas = (S.metas || []).filter(x => !ids.has(x.vendedor_id)).concat(res.data);
+  S.aviso = { tipo: 'ok', html: 'Objetivos de gestión guardados.' };
+  ir('objetivos');
 }
 function bloqueEscala(){
   const mes = mesInfo(S.periodo), e = escalaDe(S.periodo);
@@ -2517,7 +2609,7 @@ content().addEventListener('click', e => {
     const d = new Date(a, m - 1 + Number(el.dataset.mes), 1);
     cambiarMes(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); return;
   }
-  if((el = t.closest('[data-detalle]'))){ S.verVendedor = Number(el.dataset.detalle); S.semana = null; ir('avance'); window.scrollTo(0, 0); return; }
+  if((el = t.closest('[data-detalle], [data-otro]'))){ S.verVendedor = Number(el.dataset.detalle || el.dataset.otro); S.semana = null; ir('avance'); window.scrollTo(0, 0); return; }
   if(t.closest('[data-volver-avance]')){ S.verVendedor = null; ir('avance'); return; }
   if(t.id === 'btnGuardarPlan'){ guardarPlan(); return; }
   if((el = t.closest('#miSemana [data-paso]'))){
@@ -2541,6 +2633,7 @@ content().addEventListener('click', e => {
   if(t.id === 'btnGuardarObjetivos'){ guardarObjetivos(); return; }
   if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
   if(t.id === 'btnGuardarEscala'){ guardarEscala(); return; }
+  if(t.id === 'btnGuardarMetas'){ guardarMetas(); return; }
   if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
   if(t.id === 'btnCancelarVentas'){ S.impVentas = null; renderVentas(''); return; }
   if(t.closest('#dropVentas') && t.id !== 'ventasArchivo' && !(S.impVentas && S.impVentas.leyendo)){ $('ventasArchivo').click(); return; }
@@ -2590,7 +2683,7 @@ content().addEventListener('change', e => {
   }
   if(t.matches('[data-reasignar]')){ reasignar(t); return; }
   if(t.matches('[data-estado]')){ t.closest('tr').querySelector('[data-guardar]').disabled = false; return; }
-  if(t.matches('[data-v-usuario], [data-v-activo]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; return; }
+  if(t.matches('[data-v-usuario], [data-v-activo], [data-v-esvend]')){ t.closest('tr').querySelector('[data-v-guardar]').disabled = false; return; }
   if(t.id === 'impArchivo' && t.files[0]){ elegirArchivo(t.files[0]); return; }
   if(t.id === 'impFecha' && S.importacion){ S.importacion.fecha = t.value; }
 });
