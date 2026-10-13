@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.5 (2026-10-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.6 (2026-10-13) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -220,6 +220,11 @@
   .mv-cat-b{height:8px; border-radius:4px; background:var(--paper-2); margin-top:10px; overflow:hidden;}
   .mv-cat-b i{display:block; height:100%; border-radius:4px; background:var(--brand);}
   .cat-chip{font-size:11.5px; white-space:nowrap;}
+  .modo-carga{display:grid; gap:8px; margin:14px 0 4px;}
+  .modo-carga .opcion{display:flex; gap:10px; align-items:flex-start; padding:12px; border:1px solid var(--line); border-radius:10px; cursor:pointer; background:#fff;}
+  .modo-carga .opcion.sel{border-color:var(--brand); background:#F5F9FC;}
+  .modo-carga .opcion input{margin-top:3px;}
+  .modo-carga .opcion > span{display:grid; gap:3px; font-size:13.5px;}
   .ing{font-weight:600; white-space:nowrap;}
   .ing::before{content:''; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#C98A1B;}
   .ing.hoy::before{background:#2E9E6B;}
@@ -1012,12 +1017,20 @@ function renderImportar(aviso){
           ${d.descartadas ? ` · ${num(d.descartadas)} ${d.descartadas === 1 ? 'fila descartada' : 'filas descartadas'} por no tener código o cliente` : ''}${d.duplicadas ? ` · ${num(d.duplicadas)} ${d.duplicadas === 1 ? 'código repetido' : 'códigos repetidos'} (queda la última fila)` : ''}</p>
         <div class="muted">Columnas reconocidas</div>
         <div class="cols">${Object.keys(d.mapa).map(c => `<span class="chip ok">${ETIQUETAS[c]}</span>`).join('')}</div>
-        ${faltan.length ? `<div class="muted">No están en el archivo (quedan vacías)</div><div class="cols">${faltan.map(c => `<span class="chip plano">${ETIQUETAS[c]}</span>`).join('')}</div>` : ''}
+        ${faltan.length && imp.modo !== 'oficial' ? `<div class="muted">No están en el archivo (quedan vacías)</div><div class="cols">${faltan.map(c => `<span class="chip plano">${ETIQUETAS[c]}</span>`).join('')}</div>` : ''}
         ${nuevos.length ? `<div class="muted">Vendedores nuevos que se van a crear</div><div class="cols">${nuevos.slice(0, 40).map(k => `<span class="chip plano">${esc(k)}</span>`).join('')}</div>` : ''}
+        <div class="modo-carga" role="radiogroup" aria-label="Qué es este archivo">
+          <label class="opcion ${imp.modo === 'oficial' ? 'sel' : ''}"><input type="radio" name="impModo" value="oficial" ${imp.modo === 'oficial' ? 'checked' : ''}>
+            <span><strong>Listado de clientes del sistema (cartera oficial)</strong>
+            <span class="muted">Cada cliente queda con el vendedor que dice el archivo; los que no tienen vendedor van a la pileta. Los clientes que no figuran salen de las carteras y de la pileta (sus ventas quedan en el historial). Después de esta fecha sigue la regla de siempre: el cliente es del último que le vende.</span></span></label>
+          <label class="opcion ${imp.modo === 'plan' ? 'sel' : ''}"><input type="radio" name="impModo" value="plan" ${imp.modo === 'plan' ? 'checked' : ''}>
+            <span><strong>Plan de trabajo</strong>
+            <span class="muted">Actualiza ventas, última compra, segmento y prioridad de cada cliente. No cambia quién atiende a cada uno.</span></span></label>
+        </div>
         <div class="form">
-          <label for="impFecha">Fecha del reporte</label>
+          <label for="impFecha">${imp.modo === 'oficial' ? 'Fecha del listado' : 'Fecha del reporte'}</label>
           <input type="date" id="impFecha" value="${esc(imp.fecha || hoyISO())}" max="${hoyISO()}">
-          <button class="btn-primary" id="btnImportar" ${imp.enCurso ? 'disabled' : ''}>Importar ${num(d.filas.length)} clientes</button>
+          <button class="btn-primary" id="btnImportar" ${imp.enCurso ? 'disabled' : ''}>${imp.modo === 'oficial' ? (imp.confirmar ? `Confirmar: cargar la cartera oficial` : `Cargar cartera oficial (${num(d.filas.length)} clientes)`) : `Importar ${num(d.filas.length)} clientes`}</button>
           <button class="btn-ghost" id="btnCancelarImp" ${imp.enCurso ? 'disabled' : ''}>Cancelar</button>
         </div>
         <div id="impProgreso"></div>
@@ -1026,7 +1039,9 @@ function renderImportar(aviso){
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Cargar cartera de clientes</h2>
     <p class="sub">Opcional: para seguir cliente por cliente. Subí el Excel con el mismo formato que “Plan_Trabajo_Comercial_Clientes” (hoja “Plan de trabajo”). Cada carga actualiza ventas, última compra, segmento y prioridad de cada cliente.
-      <strong>Nunca pisa</strong> el estado ni los comentarios que ya cargaron los vendedores, ni las reasignaciones hechas acá.</p>
+      <strong>Nunca pisa</strong> el estado ni los comentarios que ya cargaron los vendedores, ni las reasignaciones hechas acá.
+      También podés subir el <strong>listado de clientes del sistema</strong> (código, razón social y vendedor): define la cartera oficial a esa fecha.</p>
+    ${S.cfg.cartera_oficial_fecha ? `<div class="msg-box info" id="carteraOficial">Cartera oficial vigente: listado del <strong>${fechaCorta(S.cfg.cartera_oficial_fecha)}</strong>${S.cfg.cartera_oficial_archivo ? ` (${esc(S.cfg.cartera_oficial_archivo)})` : ''}.</div>` : ''}
     <div class="dropzone" id="dropzone">${imp && imp.error ? `<span class="vencido">${esc(imp.error)}</span><br>` : ''}
       <strong>Arrastrá el Excel acá</strong> o hacé clic para elegirlo
       <input type="file" id="impArchivo" accept=".xlsx,.xls,.csv" class="hidden">
@@ -1046,13 +1061,46 @@ function renderImportar(aviso){
         </tr>`).join('')}</tbody></table></div>` : `<div class="card"><p class="sub" style="margin:0">Todavía no se cargó ningún reporte.</p></div>`}`;
 }
 
+async function importarOficial(){
+  const imp = S.importacion;
+  const fecha = $('impFecha').value || hoyISO();
+  imp.fecha = fecha;
+  if(fecha > hoyISO()){ S.aviso = { tipo: 'error', html: 'La fecha del listado no puede ser posterior a hoy.' }; renderImportar(avisoHtml()); return; }
+  if(!imp.confirmar){ imp.confirmar = true; renderImportar(''); return; }
+  imp.enCurso = true;
+  $('btnImportar').disabled = true; $('btnCancelarImp').disabled = true;
+  $('impProgreso').innerHTML = `<p class="muted" style="margin:14px 0 0">Cargando la cartera oficial…</p><div class="progress"><div style="width:50%"></div></div>`;
+  const filas = imp.datos.filas.map(r => ({ codigo: r.codigo, cliente: r.cliente, vendedor: r.vendedor ?? null }));
+  let res;
+  try { res = await sb.rpc('comercial_cartera_oficial', { p_fecha: fecha, p_archivo: imp.datos.archivo, p_filas: filas }); }
+  catch(e){ res = { error: e }; }
+  if(res.error || !res.data){
+    imp.enCurso = false; imp.confirmar = false;
+    S.aviso = { tipo: 'error', html: `No se pudo cargar la cartera: ${esc((res.error && (res.error.message || res.error)) || 'sin respuesta')}. No se cambió nada.` };
+    await recargar('importar');
+    return;
+  }
+  const r = res.data;
+  S.importacion = null;
+  S.aviso = { tipo: 'ok', html: `Cartera oficial al ${fechaCorta(fecha)} cargada: <strong>${num(r.clientes)}</strong> clientes (${num(r.con_vendedor)} con vendedor, ${num(r.sin_vendedor)} sin vendedor, que van a la pileta).
+    ${num(r.cambiaron)} cambiaron de vendedor${r.nuevos ? `, ${num(r.nuevos)} son nuevos` : ''} y ${num(r.fuera)} salieron de las carteras.${r.vendedores_nuevos ? ` Hay ${r.vendedores_nuevos} ${r.vendedores_nuevos === 1 ? 'vendedor nuevo' : 'vendedores nuevos'}, inactivos hasta que los actives en la pestaña Vendedores.` : ''}` };
+  await recargar('importar');
+}
+function avisoHtml(){ const a = S.aviso; S.aviso = null; return a ? `<div class="msg-box ${a.tipo}">${a.html}</div>` : ''; }
+
 async function elegirArchivo(file){
   S.importacion = { datos: null, error: null };
   try{
     await cargarLector();
     const datos = leerLibro(new Uint8Array(await file.arrayBuffer()), file.name);
     if(!datos.filas.length) throw new Error('El archivo no tiene filas con código y cliente.');
-    S.importacion = { datos, fecha: hoyISO() };
+    // un listado de clientes del sistema (código, razón social, vendedor) es la cartera oficial;
+    // un archivo con ventas, prioridad, etc. es el plan de trabajo
+    const conDatos = ['ventas', 'ultima_compra', 'prioridad', 'segmento', 'nivel_valor', 'comprobantes'].some(c => datos.mapa[c] != null);
+    const m = file.name.match(/(\d{2})[-_.](\d{2})[-_.](\d{4})/);
+    const fArchivo = m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+    S.importacion = { datos, modo: !conDatos && datos.mapa.vendedor != null ? 'oficial' : 'plan',
+      fecha: fArchivo && /^\d{4}-\d{2}-\d{2}$/.test(fArchivo) && fArchivo <= hoyISO() ? fArchivo : hoyISO() };
   } catch(e){
     S.importacion = { datos: null, error: e.message || String(e) };
   }
@@ -1061,6 +1109,7 @@ async function elegirArchivo(file){
 
 async function importar(){
   const imp = S.importacion;
+  if(imp.modo === 'oficial'){ await importarOficial(); return; }
   const fecha = $('impFecha').value || hoyISO();
   imp.fecha = fecha; imp.enCurso = true;
   $('btnImportar').disabled = true; $('btnCancelarImp').disabled = true;
@@ -2662,6 +2711,7 @@ content().addEventListener('click', e => {
   if(t.id === 'btnVerInactivos'){ S.verInactivos = !S.verInactivos; ir('vendedores'); return; }
   if(t.id === 'btnImportar'){ importar(); return; }
   if(t.id === 'btnCancelarImp'){ S.importacion = null; renderImportar(''); return; }
+  if(t.name === 'impModo' && S.importacion){ S.importacion.modo = t.value; S.importacion.confirmar = false; if($('impFecha')) S.importacion.fecha = $('impFecha').value; renderImportar(''); return; }
   if(t.closest('#dropzone') && t.id !== 'impArchivo'){ $('impArchivo').click(); return; }
 });
 
