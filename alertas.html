@@ -247,7 +247,7 @@ const CLAVE_ULTIMA = 'alertas-ultima-activacion';
 let perfil = null;
 let aviso = null; // { tipo: 'ok'|'error'|'aviso', html }
 let ultimaCarga = 0;
-const db = { dist: null, sitios: [], sectores: [], equipos: [], contactos: [], reportes: [], tipos: [], productos: [], lotes: [], reposiciones: [] };
+const db = { dist: null, sitios: [], sectores: [], equipos: [], contactos: [], reportes: [], tipos: [], productos: [], lotes: [], reposiciones: [], comodatos: [] };
 const ui = {
   inactivos: false,
   filtro: { estado: 'pendiente', sitio: '', dias: '30' },
@@ -287,6 +287,12 @@ const pendientes = lista => lista.filter(r => r.estado === 'pendiente');
 const nombreTipo = e => (tipo(e.tipo_id) || {}).nombre || e.tipo || '';
 const nombreProducto = e => (producto(e.producto_id) || {}).nombre || '';
 const stickersLibres = () => db.lotes.reduce((t, l) => t + (l.cantidad - l.activados), 0);
+const comodatosDe = s => s && s.cliente_id ? db.comodatos.filter(c => c.cliente_id === s.cliente_id) : [];
+const comodato = id => db.comodatos.find(c => c.id === Number(id));
+const nombreComodato = c => c.descripcion ? `${c.descripcion} (${c.codigo})` : `Código ${c.codigo}`;
+const instaladosCom = c => Math.max(0, c.cantidad - (c.retirados || 0));
+const fechaDia = iso => iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '—';
+const sinUbicarDe = s => comodatosDe(s).reduce((t, c) => t + (c.sin_ubicar || 0), 0);
 
 function lugar(eq){
   if(!eq) return '';
@@ -329,6 +335,9 @@ async function cargar(){
   if(reportes.error) throw new Error(mensajeError(reportes.error));
   db.dist = (d.data || [])[0] || null;
   Object.assign(db, { sitios, sectores, equipos, contactos, tipos, productos, lotes, reposiciones, reportes: reportes.data || [] });
+  // Equipos en comodato de los clientes vinculados con la cartera (si la tabla no está, se sigue sin ellos)
+  try { db.comodatos = await todas('comodatos_estado', 'id, cliente_id, codigo, linea, descripcion, cantidad, retirados, ubicados, sin_ubicar, fecha, retiro_nota', [['fecha', 'desc'], ['id']]); }
+  catch(_){ db.comodatos = []; }
 }
 
 async function cargarAvisos(ids){
@@ -610,16 +619,19 @@ function vistaClientes(){
       </div>
     </div>
     ${lista.length === 0 ? `<div class="table-wrap"><div class="vacio">Todavía no hay clientes cargados.</div></div>` : `
+    ${lista.length > 8 ? `<input type="search" id="buscarCliente" placeholder="Buscar cliente" style="width:270px; max-width:100%; margin-bottom:10px;">` : ''}
     <div class="table-wrap"><table>
-      <thead><tr><th>Cliente</th><th class="num">Sectores</th><th class="num">Objetos</th><th class="num">Pendientes</th><th></th></tr></thead>
+      <thead><tr><th>Cliente</th><th class="num">Sectores</th><th class="num">Objetos</th><th class="num">Comodato sin ubicar</th><th class="num">Pendientes</th><th></th></tr></thead>
       <tbody>
         ${lista.map(s => {
           const nPend = pendientes(reportesDeSitio(s.id)).length;
+          const nCom = sinUbicarDe(s);
           return `
-          <tr class="fila-link ${s.activo ? '' : 'inactivo'}" data-ac="ir" data-href="#cliente/${s.id}">
+          <tr class="fila-link ${s.activo ? '' : 'inactivo'}" data-ac="ir" data-href="#cliente/${s.id}" data-buscar-cli="${esc(s.nombre.toLowerCase())}">
             <td data-label="Cliente"><strong>${esc(s.nombre)}</strong>${s.activo ? '' : ' <span class="chip gris">Inactivo</span>'}<br><span class="muted">${esc(s.direccion || 'Sin dirección')}</span></td>
             <td class="num" data-label="Sectores">${sectoresDe(s.id).length}</td>
             <td class="num" data-label="Objetos">${equiposDeSitio(s.id).filter(e => e.activo).length}</td>
+            <td class="num" data-label="Comodato sin ubicar">${nCom || (s.cliente_id ? '0' : '—')}</td>
             <td class="num" data-label="Pendientes">${nPend ? `<span class="chip pendiente">${nPend}</span>` : '0'}</td>
             <td class="acciones"><a class="btn-ghost small" href="#cliente/${s.id}">Abrir</a></td>
           </tr>`;
@@ -658,6 +670,8 @@ function vistaCliente(s){
       <div class="tile mini"><div class="label">Reportes pendientes</div><div class="value">${nPend}</div><div class="nota">${plural(reportes.length, 'reporte', 'reportes')} en total</div></div>
       <div class="tile mini"><div class="label">Reposiciones en 30 días</div><div class="value">${repos30}</div><div class="nota"><a href="#consumo" data-ac="ver-consumo" data-id="${s.id}">Ver consumo de este cliente</a></div></div>
     </div>
+
+    ${seccionComodato(s)}
 
     <h3 class="seccion">Sectores y objetos
       <span class="acciones">
@@ -740,6 +754,60 @@ function vistaCliente(s){
   `;
 }
 
+// ====== Comodato ======
+// Los equipos que el cliente tiene en comodato según la base de comodatos de Seguimiento Comercial.
+function seccionComodato(s){
+  const lista = comodatosDe(s).filter(c => instaladosCom(c) > 0 || c.retirados);
+  if(!lista.length) return '';
+  const inst = lista.reduce((t, c) => t + instaladosCom(c), 0);
+  const ubic = lista.reduce((t, c) => t + (c.ubicados || 0), 0);
+  const sinU = lista.reduce((t, c) => t + (c.sin_ubicar || 0), 0);
+  return `
+    <h3 class="seccion">Equipos en comodato</h3>
+    <p class="area-sub">${plural(inst, 'equipo instalado', 'equipos instalados')} según la base de comodatos: ${ubic} con sticker y ${sinU} sin ubicar. Al activar un sticker en este cliente, elegí cuál de estos equipos es.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Equipo</th><th>Entregado</th><th class="num">Instalados</th><th class="num">Con sticker</th><th class="num">Sin ubicar</th><th></th></tr></thead>
+      <tbody>${lista.map(c => `
+        <tr class="${instaladosCom(c) ? '' : 'inactivo'}">
+          <td data-label="Equipo"><strong>${esc(nombreComodato(c))}</strong>${c.linea ? `<br><span class="muted">${esc(c.linea)}</span>` : ''}</td>
+          <td data-label="Entregado">${c.fecha ? fechaDia(c.fecha) : '—'}</td>
+          <td class="num" data-label="Instalados">${instaladosCom(c)}${c.retirados ? ` <span class="muted">(${c.retirados} retirado${c.retirados === 1 ? '' : 's'})</span>` : ''}</td>
+          <td class="num" data-label="Con sticker">${c.ubicados || 0}</td>
+          <td class="num" data-label="Sin ubicar">${c.sin_ubicar ? `<span class="chip pendiente">${c.sin_ubicar}</span>` : '0'}</td>
+          <td class="acciones">${puedeGestionar() ? `<button class="btn-ghost small" data-ac="retiro-comodato" data-id="${c.id}">Informar retiro</button>` : ''}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+function opcionesComodato(sitioId, actual){
+  const lista = comodatosDe(sitio(sitioId)).filter(c => c.sin_ubicar > 0);
+  if(!lista.length) return '';
+  // Una opción por código: se asigna a la entrega más antigua de ese código que todavía tenga equipos sin ubicar.
+  const porCod = new Map();
+  for(const c of [...lista].sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')))){
+    const o = porCod.get(c.codigo) || { c, n: 0 };
+    o.n += c.sin_ubicar;
+    porCod.set(c.codigo, o);
+  }
+  return opcion('', 'No es un equipo de comodato', actual || '') +
+    [...porCod.values()].sort((a, b) => b.n - a.n).map(o => opcion(String(o.c.id), `${nombreComodato(o.c)} · ${o.n} sin ubicar`, actual)).join('');
+}
+function dlgRetiroComodato(c){
+  abrirDialogo(`
+    <h2>Informar retiro</h2>
+    <p class="area-sub" style="margin:0;"><strong>${esc(nombreComodato(c))}</strong> · entregados ${c.cantidad} el ${c.fecha ? fechaDia(c.fecha) : '—'}${c.ubicados ? ` · ${c.ubicados} con sticker activo` : ''}</p>
+    <div class="campo"><label for="xRet">Cuántos se retiraron en total (de ${c.cantidad})</label><input type="number" id="xRet" name="retirados" min="0" max="${c.cantidad}" step="1" required inputmode="numeric" value="${Math.min(c.cantidad, (c.retirados || 0) + 1)}" style="max-width:140px;"></div>
+    <div class="campo"><label for="xRetNota">Nota (opcional)</label><input type="text" id="xRetNota" name="nota" maxlength="300" value="${esc(c.retiro_nota || '')}"></div>
+    ${c.ubicados ? `<p class="hint">Si se retira un equipo con sticker, primero desactivá su objeto.</p>` : ''}
+    ${pie('Guardar')}
+  `, async fd => {
+    const n = Math.round(Number(txt(fd, 'retirados')));
+    if(!(n >= 0 && n <= c.cantidad)) throw new Error(`Poné un número entre 0 y ${c.cantidad}.`);
+    const res = await sb.rpc('comodatos_retirar', { p_id: c.id, p_cantidad: n, p_nota: txt(fd, 'nota') || null });
+    if(res.error) throw new Error(mensajeError(res.error));
+    aviso = { tipo: 'ok', html: 'Retiro registrado.' };
+  });
+}
+
 // ====== Objeto ======
 function vistaObjeto(e){
   const s = sitio(e.sitio_id);
@@ -754,7 +822,7 @@ function vistaObjeto(e){
     <div class="titulo-fila">
       <div>
         <div class="area-title">${esc(e.ubicacion)} ${e.activo ? '' : '<span class="chip gris">Inactivo</span>'}</div>
-        <p class="area-sub">${esc([s && s.nombre, se && se.nombre, nombreTipo(e), nombreProducto(e)].filter(Boolean).join(' · '))}</p>
+        <p class="area-sub">${esc([s && s.nombre, se && se.nombre, nombreTipo(e), nombreProducto(e)].filter(Boolean).join(' · '))}${e.comodato_id && comodato(e.comodato_id) ? `<br>Equipo en comodato: ${esc(nombreComodato(comodato(e.comodato_id)))}, entregado ${comodato(e.comodato_id).fecha ? fechaDia(comodato(e.comodato_id).fecha) : '—'}` : ''}</p>
       </div>
       <div class="acciones">
         ${puedeGestionar() && prod && e.activo ? `<button class="btn-primary" data-ac="reponer" data-id="${e.id}">Registrar reposición</button>` : ''}
@@ -837,6 +905,8 @@ function vistaActivar(cod){
       <div class="campo"><label for="aSector">Sector</label>
         <select id="aSector" name="sector"></select>
         <input type="text" id="aSectorNuevo" name="sector_nuevo" maxlength="80" placeholder="Nombre del sector nuevo (ej.: 2do piso)" style="margin-top:8px;"></div>
+      <div class="campo hidden" id="aComCampo"><label for="aCom">Equipo de comodato</label>
+        <select id="aCom" name="comodato"></select></div>
       <div class="dos">
         <div class="campo"><label for="aTipo">Qué es</label>
           <select id="aTipo" name="tipo" required>${tipos.map(t => opcion(t.id, t.nombre, u.tipo)).join('')}</select></div>
@@ -877,6 +947,13 @@ function opcionesSector(sitioId, actual){
 }
 
 function prepararFormularios(){
+  const buscarCli = document.getElementById('buscarCliente');
+  if(buscarCli){
+    buscarCli.oninput = () => {
+      const q = buscarCli.value.trim().toLowerCase();
+      content().querySelectorAll('tr[data-buscar-cli]').forEach(tr => tr.classList.toggle('hidden', !!q && !tr.dataset.buscarCli.includes(q)));
+    };
+  }
   const buscar = document.getElementById('buscarObjeto');
   if(buscar){
     buscar.oninput = () => {
@@ -893,9 +970,13 @@ function prepararFormularios(){
   if(fa){
     const u = recordado();
     const selSitio = fa.querySelector('#aSitio'), selSector = fa.querySelector('#aSector'), nuevo = fa.querySelector('#aSectorNuevo');
+    const selCom = fa.querySelector('#aCom'), campoCom = fa.querySelector('#aComCampo');
     const pintarSectores = () => {
       selSector.innerHTML = selSitio.value ? opcionesSector(selSitio.value, selSitio.value === u.sitio ? u.sector : '') : '<option value="">Primero elegí el cliente</option>';
       nuevo.classList.toggle('hidden', selSector.value !== '__nuevo');
+      const oc = selSitio.value ? opcionesComodato(selSitio.value, '') : '';
+      selCom.innerHTML = oc;
+      campoCom.classList.toggle('hidden', !oc);
     };
     selSitio.onchange = pintarSectores;
     selSector.onchange = () => { nuevo.classList.toggle('hidden', selSector.value !== '__nuevo'); if(selSector.value === '__nuevo') nuevo.focus(); };
@@ -915,7 +996,8 @@ function prepararFormularios(){
       const res = await sb.rpc('alertas_activar_sticker', {
         p_codigo: cod, p_sitio_id: fd.get('sitio'),
         p_sector_id: esNuevo ? null : fd.get('sector'), p_sector_nuevo: esNuevo ? txt(fd, 'sector_nuevo') : null,
-        p_tipo_id: fd.get('tipo'), p_producto_id: fd.get('producto') || null, p_ubicacion: txt(fd, 'ubicacion')
+        p_tipo_id: fd.get('tipo'), p_producto_id: fd.get('producto') || null, p_ubicacion: txt(fd, 'ubicacion'),
+        p_comodato_id: fd.get('comodato') ? Number(fd.get('comodato')) : null
       });
       if(res.error){ err.textContent = mensajeError(res.error); btn.disabled = false; return; }
       estadoCodigo.delete(cod);
@@ -1565,6 +1647,7 @@ const ACCIONES = {
       aviso = { tipo: 'ok', html: 'Sector eliminado.' };
     });
   },
+  'retiro-comodato': el => { const c = comodato(el.dataset.id); if(c) dlgRetiroComodato(c); },
   'activar-codigo': el => { if(el.dataset.id){ recordar({ ...recordado(), sitio: el.dataset.id, sector: '' }); } dlgActivarCodigo(); },
   'editar-objeto': el => dlgObjeto(equipo(el.dataset.id)),
   'toggle-objeto': el => { const e = equipo(el.dataset.id); alternar('alertas_equipos', e, 'Objeto',

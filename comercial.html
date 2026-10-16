@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.6 (2026-10-13) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.7 (2026-10-16) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -274,6 +274,25 @@
   .mv-s .b i{display:block; height:100%; border-radius:3px; background:var(--brand);}
   .mv-step button:focus-visible, .mv-seg button:focus-visible, .mv-s:focus-visible, .mv-mes button:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
 
+  /* ===== Comodatos ===== */
+  .mc-com{display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; margin-top:10px; padding:9px 12px; min-height:42px; border-radius:11px; border:1px solid var(--line); background:var(--paper); font-family:'Inter',sans-serif; font-size:13px; color:var(--ink); cursor:pointer; text-align:left;}
+  .mc-com b{font-weight:700;}
+  .mc-com span.ver{color:var(--brand); font-weight:600; white-space:nowrap;}
+  .mc-com-l{margin-top:6px; border:1px solid var(--line); border-radius:11px; overflow:hidden;}
+  .mc-com-f{display:grid; grid-template-columns:1fr auto; gap:2px 10px; padding:9px 12px; border-bottom:1px solid var(--line); font-size:13px;}
+  .mc-com-f:last-child{border-bottom:none;}
+  .mc-com-f .c{font-weight:600; overflow-wrap:anywhere;}
+  .mc-com-f .n{font-weight:700; text-align:right; white-space:nowrap;}
+  .mc-com-f .d{grid-column:1 / -1; font-size:12px; color:var(--ink-soft);}
+  .mc-com-f .r{grid-column:1 / -1; display:flex; gap:8px; align-items:center; margin-top:4px;}
+  .mc-com-f .r input{width:76px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; font-size:15px; font-family:'Inter',sans-serif;}
+  .com-det td{background:#F7FAFC;}
+  .com-det table{font-size:12.5px;}
+  .com-det table td, .com-det table th{padding:7px 9px;}
+  .com-det input[type=number]{width:70px; padding:6px 8px; border:1px solid var(--line); border-radius:7px; font-family:'Inter',sans-serif;}
+  .com-cod input[type=text]{width:100%; min-width:180px; padding:7px 9px; border:1px solid var(--line); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px;}
+  .com-vinc input[type=search]{width:100%; min-width:220px; padding:7px 9px; border:1px solid var(--line); border-radius:7px; font-family:'Inter',sans-serif; font-size:13px;}
+
   /* ===== Mis clientes y pileta ===== */
   .mv-buscar{width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-family:'Inter',sans-serif; font-size:15px; background:#fff; margin:0 0 10px;}
   .mc-filtros{display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; margin:0 0 10px; scrollbar-width:none;}
@@ -363,7 +382,9 @@ const S = {
   periodo: null, objetivos: [], ventas: [], actividades: [], cargas: [], alias: [],
   semana: null, verVendedor: null, verInactivos: false, impVentas: null,
   ventasCli: [],
-  mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null },
+  comodatos: [], comCli: [], comExtra: [], comPorCli: new Map(), comResumen: new Map(),
+  com: { q: '', vendedor: '', filtro: 'todos', abierto: null, mostrar: 60 },
+  mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null, com: null, ret: null, entregas: null },
   pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
   nuevoDato: false,
   cfg: {}
@@ -487,6 +508,7 @@ async function cargarDatos(){
   S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
   try { S.escalas = await traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo'); } catch(_){ S.escalas = []; }
   try { S.metas = await traerTodo('comercial_metas', 'vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras', 'vendedor_id'); } catch(_){ S.metas = []; }
+  await cargarComodatos();
   S.ingUlt = [];
   if(S.veTodo){ try { S.ingUlt = await traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id'); } catch(_){} }
   if(!S.periodo) S.periodo = periodoDe(hoyISO());
@@ -572,6 +594,7 @@ function pestanas(){
     t.push(['seguimiento', 'Cartera por vendedor']);
     t.push(['cartera', 'Cartera de clientes']);
   }
+  if(S.comodatos.length) t.push(['comodatos', 'Comodatos']);
   t.push(['pileta', 'Pileta']);
   if(S.esAdmin) t.push(['importar', 'Cargar cartera']);
   return t;
@@ -595,6 +618,7 @@ function ir(tab){
   else if(tab === 'vendedores') renderVendedores(aviso);
   else if(tab === 'clientes') renderMisClientes(aviso);
   else if(tab === 'pileta') renderPileta(aviso);
+  else if(tab === 'comodatos') renderComodatos(aviso);
 }
 function sinDatos(aviso){
   content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">
@@ -1972,7 +1996,8 @@ const FILTROS_MC = [
   ['todos', 'Todos', () => true],
   ['sincontacto', 'Sin contactar', r => sinContactar(r)],
   ['porvencer', 'Por vencer', r => { const d = diasHasta(r.vence_pileta); return d != null && d <= 30; }],
-  ['compraron', 'Compraron este período', (r, comp) => comp.has(r.cliente_id)]
+  ['compraron', 'Compraron este período', (r, comp) => comp.has(r.cliente_id)],
+  ['comodato', 'Con equipos', r => S.comPorCli.has(r.cliente_id)]
 ];
 function tarjetaCliente(r){
   const d = diasHasta(r.vence_pileta), uc = ultimaCompra(r);
@@ -1985,7 +2010,8 @@ function tarjetaCliente(r){
     ${r.contacto || r.telefono ? `<div class="mc-sub">${[r.contacto ? esc(r.contacto) : '', r.telefono ? telLink(r.telefono) : ''].filter(Boolean).join(', ')}</div>` : ''}
     ${r.nota_alta ? `<div class="mc-sub">${esc(r.nota_alta)}</div>` : ''}
     <div class="mc-datos"><span>Última compra <strong>${uc ? fechaCorta(uc) : 'sin compras'}</strong></span><span>Último contacto <strong>${r.ultimo_contacto ? fechaCorta(r.ultimo_contacto) : 'ninguno'}</strong></span></div>
-    <div class="mc-chips">${d == null ? '' : `<span class="chip ${d <= 7 ? 'alta' : (d <= 30 ? 'media' : '')}">${d <= 0 ? 'Hoy pasa a la pileta' : (d === 1 ? 'Mañana pasa a la pileta' : d + ' días para abordarlo')}</span>`}${r.es_prospecto ? '<span class="chip plano">Dato nuevo</span>' : ''}${r.asignado_origen === 'pileta' ? '<span class="chip plano">De la pileta</span>' : ''}</div>
+    <div class="mc-chips">${d == null ? '' : `<span class="chip ${d <= 7 ? 'alta' : (d <= 30 ? 'media' : '')}">${d <= 0 ? 'Hoy pasa a la pileta' : (d === 1 ? 'Mañana pasa a la pileta' : d + ' días para abordarlo')}</span>`}${r.es_prospecto ? '<span class="chip plano">Dato nuevo</span>' : ''}${r.asignado_origen === 'pileta' ? '<span class="chip plano">De la pileta</span>' : ''}${chipComodato(r.cliente_id)}</div>
+    ${bloqueComodatoCard(r.cliente_id)}
     ${tipo ? `<div class="mc-form">
         <input type="text" data-nota maxlength="300" placeholder="Nota (opcional)" aria-label="Nota del contacto">
         <div class="mc-form-b"><button type="button" class="btn-primary" data-confirmar>Registrar ${tipo[0] === 'presupuesto' ? 'presupuesto' : tipo[1].toLowerCase()}</button><button type="button" class="btn-ghost" data-cancelar>Cancelar</button></div>
@@ -2629,6 +2655,259 @@ async function cargarVentas(){
   }
 }
 
+// ====== COMODATOS ======
+// Equipos entregados en comodato (base de comodatos). Se cuentan como instalados salvo los informados como retirados.
+async function cargarComodatos(){
+  S.comodatos = []; S.comCli = []; S.comExtra = [];
+  try {
+    S.comodatos = await traerTodo('comodatos_estado', 'id, cliente_id, cliente_planilla, codigo, linea, descripcion, cantidad, retirados, ubicados, fecha, nota, origen, retiro_nota', 'id');
+    S.comCli = await traerTodo('comodatos_clientes', 'cliente_id, equipos, retirados, codigos, primera_entrega, ultima_entrega, ventas_12m, ventas_3m, ultima_compra', 'cliente_id');
+  } catch(_){ S.comodatos = []; S.comCli = []; }
+  indexarComodatos();
+  if(S.veTodo && S.comodatos.length){
+    const enPlan = new Set(S.plan.map(r => r.cliente_id));
+    const faltan = [...new Set(S.comodatos.map(c => c.cliente_id).filter(id => id && !enPlan.has(id)))];
+    for(let i = 0; i < faltan.length; i += 150){
+      const { data } = await sb.from('comercial_clientes').select('id, codigo, nombre, localidad, vendedor_id, listado').in('id', faltan.slice(i, i + 150));
+      S.comExtra.push(...(data || []));
+    }
+  }
+}
+function indexarComodatos(){
+  S.comPorCli = new Map();
+  for(const c of S.comodatos){
+    if(!c.cliente_id) continue;
+    if(!S.comPorCli.has(c.cliente_id)) S.comPorCli.set(c.cliente_id, []);
+    S.comPorCli.get(c.cliente_id).push(c);
+  }
+  S.comResumen = new Map(S.comCli.map(x => [x.cliente_id, x]));
+}
+function instalados(c){ return Math.max(0, Number(c.cantidad) - Number(c.retirados || 0)); }
+function equiposDe(id){ return (S.comPorCli.get(id) || []).reduce((s, c) => s + instalados(c), 0); }
+function nombreCodigo(c){ return c.descripcion ? `${c.descripcion} (${c.codigo})` : `Código ${c.codigo}`; }
+function porCodigo(lista){
+  const m = new Map();
+  for(const c of lista){ const k = c.codigo; const o = m.get(k) || { codigo: k, descripcion: c.descripcion, linea: c.linea, n: 0 }; o.n += instalados(c); m.set(k, o); }
+  return [...m.values()].filter(o => o.n > 0).sort((a, b) => b.n - a.n);
+}
+function chipComodato(id){
+  const n = equiposDe(id);
+  if(!n) return '';
+  const x = S.comResumen.get(id);
+  return x && Number(x.ventas_3m) <= 0 ? `<span class="chip alta">Tiene ${num(n)} equipos y no compró en 3 meses</span>` : '';
+}
+function bloqueComodatoCard(id){
+  const lista = (S.comPorCli.get(id) || []).filter(c => instalados(c) > 0 || c.retirados);
+  const n = equiposDe(id);
+  if(!lista.length) return '';
+  const abierto = S.mc.com === id;
+  const cods = porCodigo(lista);
+  const entregas = S.mc.entregas === id;
+  return `<button type="button" class="mc-com" data-com-ver="${id}" aria-expanded="${abierto}">
+      <span>Comodato: <b>${num(n)} ${n === 1 ? 'equipo' : 'equipos'}</b>${cods.length > 1 ? ` de ${cods.length} tipos` : ''}</span><span class="ver">${abierto ? 'Ocultar' : 'Ver'}</span></button>
+    ${abierto ? `<div class="mc-com-l">${cods.map(o => `
+      <div class="mc-com-f"><span class="c">${esc(nombreCodigo(o))}</span><span class="n">${num(o.n)}</span></div>`).join('')}
+      <div class="mc-com-f"><span class="d">Última entrega ${fechaCorta(lista.map(c => c.fecha).filter(Boolean).sort().pop())}</span>
+        <span class="r"><button type="button" class="link-btn" data-com-entregas="${id}">${entregas ? 'Ocultar entregas' : 'Avisar que se retiró un equipo'}</button></span></div>
+      ${entregas ? lista.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))).map(c => `
+      <div class="mc-com-f" data-com-id="${c.id}">
+        <span class="c">${esc(nombreCodigo(c))}</span><span class="n">${num(instalados(c))}</span>
+        <span class="d">Entregado ${fechaCorta(c.fecha)}${c.retirados ? ` · ${num(c.retirados)} retirado${c.retirados === 1 ? '' : 's'}` : ''}</span>
+        ${S.mc.ret === c.id ? `<span class="r"><label class="muted" for="ret${c.id}">Retirados (de ${num(c.cantidad)})</label><input type="number" id="ret${c.id}" data-com-cant min="0" max="${c.cantidad}" value="${Math.min(c.cantidad, Number(c.retirados || 0) + 1)}" inputmode="numeric"><button type="button" class="btn-primary small" data-com-guardar>Guardar</button><button type="button" class="btn-ghost small" data-com-cancelar>Cancelar</button></span><span class="mc-err" data-com-err></span>`
+          : `<span class="r"><button type="button" class="link-btn" data-com-retiro="${c.id}">Se retiró de esta entrega</button></span>`}
+      </div>`).join('') : ''}</div>` : ''}`;
+}
+async function guardarRetiro(fila, cant, nota){
+  const id = Number(fila.dataset.comId);
+  const err = fila.querySelector('[data-com-err]');
+  const c = S.comodatos.find(x => x.id === id);
+  const n = Math.round(Number(cant));
+  if(!c || !(n >= 0 && n <= c.cantidad)){ if(err) err.textContent = `Poné un número entre 0 y ${c ? c.cantidad : 0}.`; return false; }
+  let res;
+  try { res = await sb.rpc('comodatos_retirar', { p_id: id, p_cantidad: n, p_nota: nota || null }); } catch(e){ res = { error: e }; }
+  if(res.error){ if(err) err.textContent = res.error.message || 'No se pudo guardar.'; return false; }
+  c.retirados = n;
+  try { S.comCli = await traerTodo('comodatos_clientes', 'cliente_id, equipos, retirados, codigos, primera_entrega, ultima_entrega, ventas_12m, ventas_3m, ultima_compra', 'cliente_id'); } catch(_){}
+  indexarComodatos();
+  return true;
+}
+
+// --- Vista de administración ---
+function clienteCom(id){
+  const r = S.plan.find(p => p.cliente_id === id);
+  if(r) return { id, codigo: r.codigo, nombre: r.nombre, localidad: r.localidad, vendedor_id: r.vendedor_id, enCartera: true };
+  const x = S.comExtra.find(p => p.id === id);
+  return x ? { id, codigo: x.codigo, nombre: x.nombre, localidad: x.localidad, vendedor_id: x.vendedor_id, enCartera: false } : { id, codigo: '', nombre: 'Cliente ' + id, enCartera: false };
+}
+function filasComodato(){
+  const vend = new Map(S.vendedores.map(v => [v.id, v]));
+  const filas = [];
+  for(const [id, lista] of S.comPorCli){
+    const eq = lista.reduce((s, c) => s + instalados(c), 0);
+    if(!eq) continue;
+    const cl = clienteCom(id), x = S.comResumen.get(id) || {};
+    const v = cl.vendedor_id ? vend.get(cl.vendedor_id) : null;
+    const v12 = Number(x.ventas_12m || 0), v3 = Number(x.ventas_3m || 0);
+    filas.push({ id, cl, eq, lista, v12, v3, ult: x.ultima_compra, entrega: x.ultima_entrega,
+      vendedor: !cl.enCartera ? 'Fuera de cartera' : (v && v.activo ? v.nombre : (cl.vendedor_id ? 'Vendedor inactivo' : 'Pileta')),
+      vendedorId: cl.enCartera ? (cl.vendedor_id && v && v.activo ? cl.vendedor_id : '_pileta') : '_fuera',
+      porEq: v12 / eq / 12 });
+  }
+  const base = filas.filter(f => f.cl.enCartera && f.v12 > 0).map(f => f.porEq).sort((a, b) => a - b);
+  const mediana = base.length ? base[Math.floor(base.length / 2)] : 0;
+  for(const f of filas){
+    f.senal = !f.cl.enCartera ? ['fuera', 'Fuera de cartera', 'alta']
+      : (f.v12 <= 0 ? ['sin12', 'Sin compras en 12 meses', 'alta']
+      : (f.v3 <= 0 ? ['sin3', 'Sin compras en 3 meses', 'media']
+      : (f.porEq < mediana / 4 ? ['poco', 'Compra poco para los equipos que tiene', 'media'] : ['ok', 'Compra', 'ok'])));
+  }
+  return { filas, mediana };
+}
+const FILTROS_COM = [
+  ['todos', 'Todos', () => true],
+  ['oportunidad', 'Oportunidades', f => f.cl.enCartera && f.senal[0] !== 'ok'],
+  ['sin3', 'Sin compras en 3 meses', f => f.cl.enCartera && (f.senal[0] === 'sin3' || f.senal[0] === 'sin12')],
+  ['poco', 'Compra poco', f => f.senal[0] === 'poco'],
+  ['fuera', 'Fuera de cartera', f => !f.cl.enCartera]
+];
+function renderComodatos(aviso){
+  const { filas, mediana } = filasComodato();
+  const total = filas.reduce((s, f) => s + f.eq, 0);
+  const enC = filas.filter(f => f.cl.enCartera), fuera = filas.filter(f => !f.cl.enCartera);
+  const sinVinc = new Map();
+  for(const c of S.comodatos) if(!c.cliente_id && instalados(c)){ const o = sinVinc.get(c.cliente_planilla) || { nombre: c.cliente_planilla, n: 0 }; o.n += instalados(c); sinVinc.set(c.cliente_planilla, o); }
+  const op = enC.filter(f => f.senal[0] !== 'ok');
+  // por vendedor
+  const pv = new Map();
+  for(const f of filas){
+    const o = pv.get(f.vendedorId) || { id: f.vendedorId, nombre: f.vendedor, cli: 0, eq: 0, v12: 0, op: 0, opEq: 0 };
+    o.cli++; o.eq += f.eq; o.v12 += f.v12; if(f.cl.enCartera && f.senal[0] !== 'ok'){ o.op++; o.opEq += f.eq; }
+    pv.set(f.vendedorId, o);
+  }
+  const vendRows = [...pv.values()].sort((a, b) => (a.id === '_fuera') - (b.id === '_fuera') || (a.id === '_pileta') - (b.id === '_pileta') || b.eq - a.eq);
+  const cods = porCodigo(S.comodatos);
+  const cliPorCod = new Map();
+  for(const c of S.comodatos) if(instalados(c)){ if(!cliPorCod.has(c.codigo)) cliPorCod.set(c.codigo, new Set()); cliPorCod.get(c.codigo).add(c.cliente_id || c.cliente_planilla); }
+
+  content().innerHTML = aviso + `
+    <div class="tiles">
+      <div class="tile"><div class="label">Equipos instalados</div><div class="value">${num(total)}</div><div class="note">En ${num(filas.length)} clientes · ${num(cods.length)} códigos</div></div>
+      <div class="tile"><div class="label">En la cartera</div><div class="value">${num(enC.reduce((s, f) => s + f.eq, 0))}</div><div class="note">${num(enC.length)} clientes · compraron ${plata(enC.reduce((s, f) => s + f.v12, 0))} en 12 meses</div></div>
+      <div class="tile ${op.length ? 'alerta' : ''}"><div class="label">Oportunidades</div><div class="value">${num(op.length)}</div><div class="note">Clientes con equipos que no compran o compran poco · ${num(op.reduce((s, f) => s + f.eq, 0))} equipos</div></div>
+      <div class="tile"><div class="label">Fuera de cartera</div><div class="value">${num(fuera.reduce((s, f) => s + f.eq, 0))}</div><div class="note">${num(fuera.length)} clientes que ya no están en el listado: recuperar o retirar los equipos</div></div>
+      ${sinVinc.size ? `<div class="tile"><div class="label">Sin vincular</div><div class="value">${num([...sinVinc.values()].reduce((s, o) => s + o.n, 0))}</div><div class="note">${num(sinVinc.size)} nombres de la planilla sin cliente del sistema</div></div>` : ''}
+    </div>
+    <p class="sub" style="margin-top:8px">Todos los equipos de la planilla cuentan como instalados hasta que alguien avise que se retiraron (el vendedor desde Mis clientes, o mantenimiento desde Alerta Segulimp). Las compras son de los reportes de ventas cargados${mediana ? `; un cliente típico compra ${plata(mediana)} por equipo por mes` : ''}.</p>
+
+    <h2 class="sec">Por vendedor</h2>
+    <div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Vendedor</th><th class="num">Clientes con equipos</th><th class="num">Equipos</th><th class="num">Compras 12 meses</th><th class="num">Por equipo por mes</th><th class="num">Oportunidades</th></tr></thead>
+      <tbody>${vendRows.map(o => `<tr class="clickable ${o.id === '_fuera' || o.id === '_pileta' ? 'sin-vendedor' : ''}" data-com-vend="${o.id}">
+        <td data-label="Vendedor"><strong>${esc(o.nombre)}</strong></td>
+        <td data-label="Clientes con equipos" class="num">${num(o.cli)}</td>
+        <td data-label="Equipos" class="num">${num(o.eq)}</td>
+        <td data-label="Compras 12 meses" class="num">${plata(o.v12)}</td>
+        <td data-label="Por equipo por mes" class="num">${o.eq ? plata(o.v12 / o.eq / 12) : '—'}</td>
+        <td data-label="Oportunidades" class="num">${o.op ? `${num(o.op)} <span class="muted">(${num(o.opEq)} eq.)</span>` : '0'}</td></tr>`).join('')}</tbody>
+    </table></div>
+
+    <h2 class="sec">Equipos contra compras</h2>
+    <p class="sub">Cada cliente con sus equipos en comodato y lo que compró. Tocá un cliente para ver las entregas.</p>
+    <div class="filtros">
+      <input type="search" id="comQ" placeholder="Buscar cliente o código" value="${esc(S.com.q)}">
+      <select id="comVend"><option value="">Todos los vendedores</option>${vendRows.map(o => `<option value="${o.id}" ${String(o.id) === S.com.vendedor ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}</select>
+    </div>
+    <div class="presets" id="comPresets"></div>
+    <div id="comLista"></div>
+
+    ${sinVinc.size ? `<h2 class="sec">Sin vincular</h2>
+    <p class="sub">Nombres de la planilla que no se pudieron unir con un cliente del sistema. Elegí el cliente y tocá Vincular.</p>
+    <datalist id="comClientes">${S.plan.filter(r => !r.es_prospecto).map(r => `<option value="${esc(r.codigo + ' · ' + r.nombre)}"></option>`).join('')}</datalist>
+    <div class="table-wrap com-vinc"><table class="apilar">
+      <thead><tr><th>En la planilla</th><th class="num">Equipos</th><th>Cliente del sistema</th><th></th></tr></thead>
+      <tbody>${[...sinVinc.values()].sort((a, b) => b.n - a.n).map(o => `<tr data-planilla="${esc(o.nombre)}">
+        <td data-label="En la planilla"><strong>${esc(o.nombre)}</strong></td><td data-label="Equipos" class="num">${num(o.n)}</td>
+        <td data-label="Cliente del sistema"><input type="search" list="comClientes" data-vinc-q placeholder="Código o nombre" aria-label="Cliente del sistema para ${esc(o.nombre)}"><div class="mc-err" data-vinc-err></div></td>
+        <td><button type="button" class="btn-ghost small" data-vincular ${S.esAdmin ? '' : 'disabled'}>Vincular</button></td></tr>`).join('')}</tbody>
+    </table></div>` : ''}
+
+    <h2 class="sec">Códigos de equipo</h2>
+    <p class="sub">${S.esAdmin ? 'Escribí qué es cada código (por ejemplo, "Dispenser de toalla intercalada"). Se ve en Mis clientes y en Alerta Segulimp.' : 'Qué es cada código de equipo.'}</p>
+    <div class="table-wrap com-cod"><table class="apilar">
+      <thead><tr><th>Código</th><th>Línea</th><th class="num">Equipos</th><th class="num">Clientes</th><th>Descripción</th><th></th></tr></thead>
+      <tbody>${cods.map(o => `<tr data-codigo="${esc(o.codigo)}">
+        <td data-label="Código"><strong>${esc(o.codigo)}</strong></td><td data-label="Línea">${esc(o.linea || '')}</td>
+        <td data-label="Equipos" class="num">${num(o.n)}</td><td data-label="Clientes" class="num">${num((cliPorCod.get(o.codigo) || new Set()).size)}</td>
+        <td data-label="Descripción">${S.esAdmin ? `<input type="text" data-cod-desc maxlength="120" value="${esc(o.descripcion || '')}" placeholder="Sin descripción" aria-label="Descripción del código ${esc(o.codigo)}">` : esc(o.descripcion || '—')}</td>
+        <td>${S.esAdmin ? `<button type="button" class="btn-ghost small" data-cod-guardar disabled>Guardar</button>` : ''}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  pintarComodatos();
+}
+function pintarComodatos(){
+  const caja = $('comLista');
+  if(!caja) return;
+  const { filas } = filasComodato();
+  const q = norm(S.com.q);
+  const base = filas.filter(f => (!S.com.vendedor || String(f.vendedorId) === S.com.vendedor)
+    && (!q || norm(f.cl.nombre + ' ' + f.cl.codigo + ' ' + (f.cl.localidad || '') + ' ' + f.lista.map(c => c.codigo + ' ' + (c.descripcion || '') + ' ' + c.cliente_planilla).join(' ')).includes(q)));
+  const fl = FILTROS_COM.find(x => x[0] === S.com.filtro) || FILTROS_COM[0];
+  $('comPresets').innerHTML = FILTROS_COM.map(([id, nombre, test]) =>
+    `<button type="button" class="preset ${id === fl[0] ? 'active' : ''}" data-com-filtro="${id}">${nombre}<b>${num(base.filter(test).length)}</b></button>`).join('');
+  const lista = base.filter(fl[2]).sort((a, b) => b.eq - a.eq || a.cl.nombre.localeCompare(b.cl.nombre));
+  const eq = lista.reduce((s, f) => s + f.eq, 0);
+  caja.innerHTML = `<p class="conteo">${num(lista.length)} ${lista.length === 1 ? 'cliente' : 'clientes'} · ${num(eq)} equipos · ${plata(lista.reduce((s, f) => s + f.v12, 0))} comprados en 12 meses</p>
+    ${lista.length ? `<div class="table-wrap"><table class="apilar">
+      <thead><tr><th>Cliente</th><th>Vendedor</th><th class="num">Equipos</th><th>Qué tiene</th><th class="num">Compras 12 meses</th><th class="num">Por equipo por mes</th><th>Última compra</th><th>Señal</th></tr></thead>
+      <tbody>${lista.slice(0, S.com.mostrar).map(f => filaCom(f)).join('')}</tbody>
+    </table></div>
+    ${lista.length > S.com.mostrar ? `<button class="btn-ghost mas" id="comMas">Ver ${Math.min(60, lista.length - S.com.mostrar)} más</button>` : ''}`
+    : `<div class="card"><p class="sub" style="margin:0">No hay clientes con ese filtro.</p></div>`}`;
+}
+function filaCom(f){
+  const cods = porCodigo(f.lista);
+  const abierto = S.com.abierto === f.id;
+  return `<tr class="clickable" data-com-cli="${f.id}">
+    <td data-label="Cliente"><strong>${esc(f.cl.nombre)}</strong><div class="muted">${esc([f.cl.codigo, f.cl.localidad].filter(Boolean).join(' · '))}</div></td>
+    <td data-label="Vendedor">${esc(f.vendedor)}</td>
+    <td data-label="Equipos" class="num">${num(f.eq)}</td>
+    <td data-label="Qué tiene">${cods.slice(0, 3).map(o => `<span style="white-space:nowrap">${esc(o.descripcion || o.codigo)} ×${num(o.n)}</span>`).join('<br>')}${cods.length > 3 ? `<div class="muted">y ${cods.length - 3} más</div>` : ''}</td>
+    <td data-label="Compras 12 meses" class="num">${plata(f.v12)}</td>
+    <td data-label="Por equipo por mes" class="num">${f.v12 ? plata(f.porEq) : '—'}</td>
+    <td data-label="Última compra">${f.ult ? fechaCorta(f.ult) : 'sin compras'}</td>
+    <td data-label="Señal"><span class="chip ${f.senal[2]}">${esc(f.senal[1])}</span></td>
+  </tr>
+  ${abierto ? `<tr class="com-det"><td colspan="8">
+    <table><thead><tr><th>Código</th><th class="num">Entregados</th><th class="num">Retirados</th><th class="num">Con sticker</th><th>Fecha</th><th>En la planilla</th><th></th></tr></thead>
+    <tbody>${[...f.lista].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))).map(c => `<tr data-com-id="${c.id}">
+      <td>${esc(nombreCodigo(c))}</td><td class="num">${num(c.cantidad)}</td>
+      <td class="num">${S.esAdmin ? `<input type="number" data-com-cant min="0" max="${c.cantidad}" value="${Number(c.retirados || 0)}" aria-label="Retirados">` : num(c.retirados || 0)}</td>
+      <td class="num">${num(c.ubicados || 0)}</td><td>${fechaCorta(c.fecha)}</td>
+      <td><span class="muted">${esc(c.cliente_planilla)} · ${esc(c.origen || '')}${c.nota ? ' · ' + esc(c.nota) : ''}${c.retiro_nota ? ' · Retiro: ' + esc(c.retiro_nota) : ''}</span><div class="mc-err" data-com-err></div></td>
+      <td>${S.esAdmin ? `<button type="button" class="btn-ghost small" data-com-guardar-adm disabled>Guardar</button>` : ''}</td></tr>`).join('')}</tbody></table>
+  </td></tr>` : ''}`;
+}
+async function vincularPlanilla(tr){
+  const inp = tr.querySelector('[data-vinc-q]'), err = tr.querySelector('[data-vinc-err]');
+  const v = inp.value.trim();
+  const cod = v.split(' · ')[0].trim();
+  const r = S.plan.find(p => p.codigo === cod) || S.plan.find(p => norm(p.nombre) === norm(v));
+  if(!r){ err.textContent = 'Elegí un cliente de la lista.'; return; }
+  let res;
+  try { res = await sb.rpc('comodatos_vincular', { p_planilla: tr.dataset.planilla, p_cliente: r.cliente_id }); } catch(e){ res = { error: e }; }
+  if(res.error){ err.textContent = res.error.message || 'No se pudo vincular.'; return; }
+  await cargarComodatos();
+  S.aviso = { tipo: 'ok', html: `<strong>${esc(tr.dataset.planilla)}</strong> quedó vinculado con ${esc(r.nombre)}.` };
+  ir('comodatos');
+}
+async function guardarDescripcion(tr, btn){
+  const desc = tr.querySelector('[data-cod-desc]').value.trim();
+  btn.disabled = true;
+  const { error } = await sb.from('comodatos_codigos').update({ descripcion: desc || null, actualizado_en: new Date().toISOString() }).eq('codigo', tr.dataset.codigo).select('codigo');
+  if(error){ btn.disabled = false; toast('No se pudo guardar: ' + (error.message || error)); return; }
+  for(const c of S.comodatos) if(c.codigo === tr.dataset.codigo) c.descripcion = desc || null;
+  toast('Descripción guardada');
+}
+
 // ====== EVENTOS ======
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
@@ -2640,6 +2919,27 @@ content().addEventListener('click', e => {
   const t = e.target;
   let el;
   if((el = t.closest('[data-tab]'))){ if(el.dataset.filtro){ S.mc.filtro = el.dataset.filtro; S.mc.q = ''; } ir(el.dataset.tab); window.scrollTo(0, 0); return; }
+  if((el = t.closest('[data-com-ver]'))){ const id = Number(el.dataset.comVer); S.mc.com = S.mc.com === id ? null : id; S.mc.ret = null; S.mc.entregas = null; pintarMisClientes(); return; }
+  if((el = t.closest('#mcLista [data-com-entregas]'))){ const id = Number(el.dataset.comEntregas); S.mc.entregas = S.mc.entregas === id ? null : id; S.mc.ret = null; pintarMisClientes(); return; }
+  if((el = t.closest('#mcLista [data-com-retiro]'))){ S.mc.ret = Number(el.dataset.comRetiro); pintarMisClientes(); const i = document.querySelector('#mcLista [data-com-cant]'); if(i) i.focus(); return; }
+  if(t.closest('#mcLista [data-com-cancelar]')){ S.mc.ret = null; pintarMisClientes(); return; }
+  if((el = t.closest('#mcLista [data-com-guardar]'))){
+    const fila = el.closest('[data-com-id]'); el.disabled = true;
+    guardarRetiro(fila, fila.querySelector('[data-com-cant]').value).then(ok => { if(ok){ S.mc.ret = null; pintarMisClientes(); toast('Retiro registrado'); } else el.disabled = false; });
+    return;
+  }
+  if((el = t.closest('[data-com-filtro]'))){ S.com.filtro = el.dataset.comFiltro; S.com.mostrar = 60; pintarComodatos(); return; }
+  if(t.id === 'comMas'){ S.com.mostrar += 60; pintarComodatos(); return; }
+  if((el = t.closest('[data-com-vend]'))){ S.com.vendedor = el.dataset.comVend; S.com.filtro = 'todos'; const s = $('comVend'); if(s) s.value = S.com.vendedor; pintarComodatos(); $('comLista').scrollIntoView({ block: 'start' }); return; }
+  if((el = t.closest('[data-com-guardar-adm]'))){
+    const fila = el.closest('[data-com-id]'); el.disabled = true;
+    guardarRetiro(fila, fila.querySelector('[data-com-cant]').value, 'Informado por administración').then(ok => { if(ok){ toast('Retiro guardado'); pintarComodatos(); } else el.disabled = false; });
+    return;
+  }
+  if((el = t.closest('[data-vincular]'))){ vincularPlanilla(el.closest('tr')); return; }
+  if((el = t.closest('[data-cod-guardar]'))){ guardarDescripcion(el.closest('tr'), el); return; }
+  if(t.closest('.com-det')) return;
+  if((el = t.closest('[data-com-cli]'))){ const id = Number(el.dataset.comCli); S.com.abierto = S.com.abierto === id ? null : id; pintarComodatos(); return; }
   if(t.id === 'btnNuevoDato'){ S.nuevoDato = true; ir(S.tab); return; }
   if(t.id === 'ndCancelar'){ S.nuevoDato = false; ir(S.tab); return; }
   if((el = t.closest('[data-filtro-mc]'))){ S.mc.filtro = el.dataset.filtroMc; S.mc.mostrar = 30; S.mc.abierto = null; pintarMisClientes(); return; }
@@ -2720,6 +3020,7 @@ content().addEventListener('change', e => {
   const f = { fVendedor: 'vendedor', fEstado: 'estado', fPrioridad: 'prioridad', fSegmento: 'segmento', fOrden: 'orden' }[t.id];
   if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
   if(t.id === 'selMes'){ cambiarMes(t.value); return; }
+  if(t.id === 'comVend'){ S.com.vendedor = t.value; S.com.mostrar = 60; pintarComodatos(); return; }
   if(t.id === 'selSemana'){ S.semana = t.value; ir('avance'); return; }
   if(t.id === 'ventasArchivo' && t.files[0]){ elegirVentas(t.files); return; }
   if(t.id === 'datosArchivo' && t.files[0]){ elegirDatos(t.files[0]); return; }
@@ -2743,6 +3044,9 @@ content().addEventListener('submit', e => { if(e.target.id === 'ndForm'){ e.prev
 content().addEventListener('input', e => {
   const t = e.target;
   if(t.id === 'mcQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.mc.q = t.value; S.mc.mostrar = 30; S.mc.abierto = null; pintarMisClientes(); }, 200); return; }
+  if(t.id === 'comQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.com.q = t.value; S.com.mostrar = 60; pintarComodatos(); }, 200); return; }
+  if(t.matches('[data-cod-desc]')){ t.closest('tr').querySelector('[data-cod-guardar]').disabled = false; return; }
+  if(t.closest('.com-det') && t.matches('[data-com-cant]')){ t.closest('tr').querySelector('[data-com-guardar-adm]').disabled = false; return; }
   if(t.id === 'pilQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.pil.q = t.value.trim(); cargarPileta(false); }, 350); return; }
   if(t.id === 'fQ'){
     clearTimeout(esperaBusqueda);
