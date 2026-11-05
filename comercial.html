@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.7 (2026-10-16) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.7.1 (2026-11-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -495,7 +495,7 @@ async function cargarDatos(){
     traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
     traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde))
   ]);
-  S.plan = plan; S.vendedores = vendedores; S.snapshots = snapshots; S.log = log;
+  S.plan = plan.map(actualizarCompra); S.vendedores = vendedores; S.snapshots = snapshots; S.log = log;
   S.misVendedores = new Set(vendedores.filter(v => v.user_id === S.perfil.user_id && v.activo).map(v => v.id));
   if(S.esAdmin){
     const { data, error } = await sb.rpc('comercial_usuarios');
@@ -1962,6 +1962,15 @@ async function copiarObjetivos(){
 // ====== MIS CLIENTES, PILETA Y DATOS NUEVOS ======
 const TIPOS_CONTACTO = [['visita', 'Visita', 'Visita registrada'], ['llamada', 'Llamada', 'Llamada registrada'], ['whatsapp', 'WhatsApp', 'WhatsApp registrado'], ['presupuesto', 'Presup.', 'Presupuesto registrado']];
 function diasHasta(iso){ return iso ? Math.round((new Date(iso + 'T12:00:00') - new Date(hoyISO() + 'T12:00:00')) / 864e5) : null; }
+// Los días sin comprar y el segmento vienen del plan de trabajo (Excel de julio) y quedan viejos:
+// si el cliente compró después, según las ventas cargadas, se cuentan desde esa compra.
+function actualizarCompra(r){
+  const u = ultimaCompra(r);
+  if(!u) return r;
+  const dias = Math.max(0, -diasHasta(u));
+  const masNueva = !!r.ultima_venta && (!r.ultima_compra || r.ultima_venta > r.ultima_compra);
+  return { ...r, dias_sin_compra: dias, segmento_recencia: masNueva ? null : r.segmento_recencia };
+}
 function ultimaCompra(r){ return !r.ultima_venta || (r.ultima_compra && r.ultima_compra > r.ultima_venta) ? r.ultima_compra : r.ultima_venta; }
 function misClientes(){ return S.plan.filter(r => S.misVendedores.has(r.vendedor_id) && !r.en_pileta); }
 function sinContactar(r){ return !r.ultimo_contacto || (r.asignado_desde && r.ultimo_contacto < r.asignado_desde); }
@@ -2182,7 +2191,7 @@ async function tomarCliente(card){
   if(p.resumen){ p.resumen.tomados = res.data.tomados; if(p.resumen.total) p.resumen.total--; }
   try {
     const { data } = await sb.from('comercial_plan_vivo').select('*').eq('cliente_id', id).maybeSingle();
-    if(data) S.plan = S.plan.filter(x => x.cliente_id !== id).concat(data);
+    if(data) S.plan = S.plan.filter(x => x.cliente_id !== id).concat(data.map(actualizarCompra));
   } catch(_){}
   pintarPileta();
   toast('Tomado. Ya está en Mis clientes.');
