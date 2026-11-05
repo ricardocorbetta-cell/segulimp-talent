@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.7.1 (2026-11-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.8 (2026-11-05) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -317,6 +317,16 @@
   .mc-form-b{display:flex; gap:8px; margin-top:8px;}
   .mc-form-b .btn-primary{flex:1; min-height:46px; font-size:14.5px;}
   .mc-form-b .btn-ghost{min-height:46px;}
+  .qc-t{background:var(--paper);} .qc-t .c{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
+  .mc-com-f .d .chip{margin-right:4px;}
+  .mv-op-f{display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:8px 0 0; font-size:14px;}
+  .mv-op-f b{font-weight:600; overflow-wrap:anywhere;} .mv-op-f strong{white-space:nowrap;}
+  .mv-op-f span{grid-column:1 / -1; font-size:12.5px; color:var(--ink-soft);}
+  .pr-prox{margin-top:9px; padding:8px 11px; border-radius:10px; background:var(--paper); font-size:13px; line-height:1.4; overflow-wrap:anywhere;}
+  .pr-prox.hoy{background:var(--mid-bg);} .pr-prox.venc, .pr-prox.sin{background:var(--bad-bg);}
+  .pr-mov{display:flex; gap:8px; margin-top:8px;}
+  .pr-mov .btn-ghost{flex:1; min-height:42px;}
+  .pr-mov select{flex:1; min-height:42px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink);}
   .mc-err{font-size:13px; color:var(--bad); margin-top:8px; line-height:1.4;}
   .mc-err:empty{display:none;}
   .mc-pie{display:flex; justify-content:flex-end; margin-top:10px;}
@@ -384,9 +394,12 @@ const S = {
   ventasCli: [],
   comodatos: [], comCli: [], comExtra: [], comPorCli: new Map(), comResumen: new Map(),
   com: { q: '', vendedor: '', filtro: 'todos', abierto: null, mostrar: 60 },
-  mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null, com: null, ret: null, entregas: null },
+  mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null, com: null, ret: null, entregas: null, qc: null },
   pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
   nuevoDato: false,
+  op: { filas: null, error: null, cargando: null, vendedor: '', tipo: '', q: '', mostrar: 30 },
+  pr: { filas: null, embudo: null, error: null, filtro: 'abiertos', vendedor: '', q: '', abierto: null },
+  qc: new Map(),
   cfg: {}
 };
 
@@ -576,6 +589,7 @@ async function iniciar(session){
 async function recargar(tab){
   await guardarPendiente();
   content().innerHTML = `<p class="sub">Cargando datos…</p>`;
+  S.op.filas = null; S.pr.filas = null; S.qc.clear();
   try{
     await cargarDatos();
   } catch(e){
@@ -587,13 +601,15 @@ async function recargar(tab){
 
 // ====== NAVEGACIÓN ======
 function pestanas(){
-  if(!S.veTodo) return [['avance', 'Mi avance'], ['clientes', 'Mis clientes'], ['pileta', 'Pileta']];
+  if(!S.veTodo) return [['avance', 'Mi avance'], ['clientes', 'Mis clientes'], ['oportunidades', 'Oportunidades'], ['prospectos', 'Prospectos'], ['pileta', 'Pileta']];
   const t = [['avance', 'Avance de ventas']];
   if(S.esAdmin){ t.push(['ventas', 'Cargar ventas']); t.push(['objetivos', 'Objetivos']); t.push(['vendedores', 'Vendedores']); }
   if(S.plan.length){
     t.push(['seguimiento', 'Cartera por vendedor']);
     t.push(['cartera', 'Cartera de clientes']);
   }
+  t.push(['oportunidades', 'Oportunidades']);
+  t.push(['prospectos', 'Prospectos']);
   if(S.comodatos.length) t.push(['comodatos', 'Comodatos']);
   t.push(['pileta', 'Pileta']);
   if(S.esAdmin) t.push(['importar', 'Cargar cartera']);
@@ -619,6 +635,8 @@ function ir(tab){
   else if(tab === 'clientes') renderMisClientes(aviso);
   else if(tab === 'pileta') renderPileta(aviso);
   else if(tab === 'comodatos') renderComodatos(aviso);
+  else if(tab === 'oportunidades') renderOportunidades(aviso);
+  else if(tab === 'prospectos') renderProspectos(aviso);
 }
 function sinDatos(aviso){
   content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">
@@ -1711,6 +1729,7 @@ function renderMiAvance(aviso, id){
     </div>` : ''}
     ${bloqueCategoria(a)}
     ${bloqueClientes()}
+    ${bloqueParaSemana()}
 
     <section class="mv-sem" id="miSemana" data-vendedor="${id}" data-modo="${modo}">
       <div class="mv-sem-top">
@@ -1742,6 +1761,7 @@ function renderMiAvance(aviso, id){
     <div class="mv-semanas" id="mvSemanas">${listaSemanas(id)}</div>
     <p style="text-align:center; margin:22px 0 0"><button type="button" class="link-btn" id="mvActualizar">↻ Actualizar datos</button></p>`;
   pintarSemana();
+  pintarParaSemana();
 }
 function leerSemana(){
   const caja = $('miSemana');
@@ -2021,6 +2041,7 @@ function tarjetaCliente(r){
     <div class="mc-datos"><span>Última compra <strong>${uc ? fechaCorta(uc) : 'sin compras'}</strong></span><span>Último contacto <strong>${r.ultimo_contacto ? fechaCorta(r.ultimo_contacto) : 'ninguno'}</strong></span></div>
     <div class="mc-chips">${d == null ? '' : `<span class="chip ${d <= 7 ? 'alta' : (d <= 30 ? 'media' : '')}">${d <= 0 ? 'Hoy pasa a la pileta' : (d === 1 ? 'Mañana pasa a la pileta' : d + ' días para abordarlo')}</span>`}${r.es_prospecto ? '<span class="chip plano">Dato nuevo</span>' : ''}${r.asignado_origen === 'pileta' ? '<span class="chip plano">De la pileta</span>' : ''}${chipComodato(r.cliente_id)}</div>
     ${bloqueComodatoCard(r.cliente_id)}
+    ${bloqueQueCompra(r.cliente_id)}
     ${tipo ? `<div class="mc-form">
         <input type="text" data-nota maxlength="300" placeholder="Nota (opcional)" aria-label="Nota del contacto">
         <div class="mc-form-b"><button type="button" class="btn-primary" data-confirmar>Registrar ${tipo[0] === 'presupuesto' ? 'presupuesto' : tipo[1].toLowerCase()}</button><button type="button" class="btn-ghost" data-cancelar>Cancelar</button></div>
@@ -2110,6 +2131,7 @@ async function guardarNuevoDato(){
   if(res.error || !res.data){ btn.disabled = false; err.textContent = res.error ? (res.error.message || String(res.error)) : 'No se pudo guardar.'; return; }
   S.nuevoDato = false;
   if(!res.data.en_pileta){ S.mc.q = v('ndNombre'); S.mc.filtro = 'todos'; }   // que lo vea apenas lo carga
+  S.pr.filtro = 'nuevo'; S.pr.q = ''; S.pr.vendedor = '';
   S.aviso = { tipo: 'ok', html: res.data.en_pileta ? 'Dato nuevo cargado en la pileta: lo puede tomar cualquier vendedor.' : 'Dato nuevo cargado. Queda en tu cartera: tenés 3 meses para abordarlo.' };
   S.pil.total = null;
   await recargar(S.tab);
@@ -2306,13 +2328,25 @@ function aplanarReporte(filas){
   if(cab[t + 1] !== 'neto') return null;
   const vacio = c => c == null || c === '';
   const act = new Array(nl).fill(null);
-  const out = [], sinDetalle = [];
+  const out = [], sinDetalle = [], lineas = [];
+  // líneas de artículo: una fila es detalle si la siguiente no arranca más adentro (si arranca más adentro, era un subtotal)
+  const iRub = cab.indexOf('rubro'), iProv = cab.indexOf('proveedor'), iCod = cab.indexOf('codigo'), iArt = cab.indexOf('articulo');
+  let previa = null;
+  const cerrarLinea = kSig => {
+    if(previa && (kSig == null || kSig <= previa.hondo) && previa.d.fecha && previa.d.num != null) lineas.push(previa.d);
+    previa = null;
+  };
   let sumaVend = 0, pend = null, vend = null, sinFecha = 0;
   const cerrarVend = () => { if(vend && vend.n === 0 && Math.abs(vend.neto) > 0.5) sinDetalle.push({ vendedor: vend.nombre, neto: vend.neto }); };
-  const emitir = (lv, neto) => {
+  const emitir = (lv, neto, cant = 0, util = 0) => {
     let k = 0;
     while(k < nl && lv[k] == null) k++;
+    cerrarLinea(k);
     for(let i = k; i < nl; i++) act[i] = lv[i];
+    let hondo = nl - 1;
+    while(hondo >= 0 && lv[hondo] == null) hondo--;
+    const en = i => i >= 0 ? act[i] : null;
+    previa = { hondo, d: { vend: act[iV], cli: act[iC], fecha: aFecha(act[iF]), num: act[iN], rubro: en(iRub), prov: en(iProv), cod: en(iCod), art: en(iArt), cant, neto, util } };
     if(k === iV){ cerrarVend(); vend = { nombre: String(act[iV]), neto, n: 0 }; sumaVend += neto; }
     if(lv[iN] != null){
       if(vend) vend.n++;
@@ -2330,8 +2364,8 @@ function aplanarReporte(filas){
       const resto = row.slice(1).filter(c => !vacio(c));
       const pegados = row.slice(1, 1 + resto.length).every(c => !vacio(c));
       const todos = row.filter(c => !vacio(c));
-      if(resto.length && resto.length % 3 === 0 && resto.every(esNumeroCelda) && pegados && !esNumeroCelda(row[0])){ emitir(pend, numCelda(resto[resto.length - 2])); pend = null; continue; }
-      if(todos.length % 3 === 0 && todos.every(esNumeroCelda)){ emitir(pend, numCelda(todos[todos.length - 2])); pend = null; continue; }
+      if(resto.length && resto.length % 3 === 0 && resto.every(esNumeroCelda) && pegados && !esNumeroCelda(row[0])){ emitir(pend, numCelda(resto[resto.length - 2]), numCelda(resto[resto.length - 3]), numCelda(resto[resto.length - 1])); pend = null; continue; }
+      if(todos.length % 3 === 0 && todos.every(esNumeroCelda)){ emitir(pend, numCelda(todos[todos.length - 2]), numCelda(todos[todos.length - 3]), numCelda(todos[todos.length - 1])); pend = null; continue; }
       if(row.slice(nl).every(vacio)) continue;   // otra línea de texto del mismo artículo
       throw new Error(`No pude leer la fila ${r + 1}: el reporte tiene un formato que no reconozco.`);
     }
@@ -2339,8 +2373,9 @@ function aplanarReporte(filas){
     for(let i = 0; i < nl; i++) lv.push(vacio(row[i]) ? null : row[i]);
     if(lv.every(v => v == null)) continue;
     if(vacio(row[t]) && vacio(row[t + 1]) && vacio(row[t + 2])){ pend = lv; continue; }
-    emitir(lv, numCelda(row[t + 1]));
+    emitir(lv, numCelda(row[t + 1]), numCelda(row[t]), numCelda(row[t + 2]));
   }
+  cerrarLinea(null);
   cerrarVend();
   if(pend) throw new Error('El reporte termina con una fila incompleta.');
   const nulo = v => { const x = v == null ? '' : String(v).trim(); return !x || /^\[null\]$/i.test(x) ? null : x; };
@@ -2348,6 +2383,10 @@ function aplanarReporte(filas){
   const faltante = sinDetalle.reduce((a, r) => a + r.neto, 0);
   return {
     filas: out.map(r => ({ fecha: r.fecha, clave: claveVendedor(nulo(r.vend)) || '', importe: r.neto, cnom: nulo(r.cli) })),
+    lineas: lineas.map(r => ({ fecha: r.fecha, clave: claveVendedor(nulo(r.vend)) || '', cnom: nulo(r.cli),
+      codigo: r.cod == null ? null : String(r.cod).trim() || null,
+      articulo: (r.art == null ? null : String(r.art).replace(/\s+/g, ' ').trim() || null) ?? (r.cod == null ? nulo(r.rubro) : null),
+      rubro: nulo(r.rubro), proveedor: nulo(r.prov), cantidad: r.cant, neto: r.neto, utilidad: r.util })),
     total, sinDetalle: sinDetalle.map(x => ({ vendedor: nulo(x.vendedor) || 'Sin vendedor', neto: x.neto })), sinFecha,
     cuadra: Math.abs(total + faltante - sumaVend) < 1
   };
@@ -2457,7 +2496,7 @@ async function cargarReportes(){
   im.enCurso = true;
   $('btnCargarVentas').disabled = true;
   const estado = t => { const e = $('ventasEstado'); if(e) e.textContent = t; };
-  let hechos = 0, total = 0, comprobantes = 0, nuevos = 0;
+  let hechos = 0, total = 0, comprobantes = 0, nuevos = 0, lineas = 0;
   try{
     const ids = await resolverVendedoresCarga(p, im, estado);
     for(const [i, a] of im.archivos.entries()){
@@ -2472,11 +2511,27 @@ async function cargarReportes(){
       const filas = [...agg.values()].map(o => ({ ...o, importe: Math.round(o.importe * 100) / 100 }));
       const { data, error } = await sb.rpc('comercial_ventas_cargar', { p_archivo: a.nombre, p_desde: a.desde, p_hasta: a.hasta, p_filas: filas });
       if(error) throw new Error(`${a.nombre}: ${error.message}`);
+      if(a.lineas && a.lineas.length){
+        // el detalle por artículo va en una segunda llamada, con el mismo rango de fechas
+        estado(im.archivos.length === 1 ? 'Cargando el detalle por artículo…' : `Artículos ${i + 1} de ${im.archivos.length}: ${a.nombre}`);
+        const lin = new Map();
+        for(const r of a.lineas){
+          const k = [r.fecha, r.clave, r.cnom ? claveNombre(r.cnom) : '', r.codigo || '~' + claveNombre(r.articulo || '')].join('|');
+          const o = lin.get(k) || { fecha: r.fecha, vendedor: r.clave || null, cliente: r.cnom, codigo: r.codigo, articulo: r.articulo, rubro: r.rubro, proveedor: r.proveedor, cantidad: 0, neto: 0, utilidad: 0 };
+          o.cantidad += r.cantidad; o.neto += r.neto; o.utilidad += r.utilidad;
+          if(!o.articulo && r.articulo) o.articulo = r.articulo;
+          lin.set(k, o);
+        }
+        const r2 = await sb.rpc('comercial_articulos_cargar', { p_archivo: a.nombre, p_desde: a.desde, p_hasta: a.hasta,
+          p_filas: [...lin.values()].map(o => ({ ...o, neto: Math.round(o.neto * 100) / 100, utilidad: Math.round(o.utilidad * 100) / 100 })) });
+        if(r2.error) throw new Error(`${a.nombre} (detalle por artículo): ${r2.error.message}`);
+        lineas += a.lineas.length;
+      }
       hechos++; total += Number(data.total || 0); comprobantes += a.filas.length; nuevos += Number(data.clientes_nuevos || 0);
     }
     S.impVentas = null;
     S.periodo = periodoDe(p.hasta);
-    S.aviso = { tipo: 'ok', html: `${hechos === 1 ? 'Reporte cargado' : `Se cargaron <strong>${num(hechos)}</strong> reportes`}: <strong>${num(comprobantes)}</strong> comprobantes por <strong>${pesos(total)}</strong>, del ${fechaCorta(p.desde)} al ${fechaCorta(p.hasta)}.${nuevos ? ` Se agregaron ${num(nuevos)} clientes que no estaban en la cartera.` : ''}` };
+    S.aviso = { tipo: 'ok', html: `${hechos === 1 ? 'Reporte cargado' : `Se cargaron <strong>${num(hechos)}</strong> reportes`}: <strong>${num(comprobantes)}</strong> comprobantes por <strong>${pesos(total)}</strong>${lineas ? ` (${num(lineas)} líneas de artículo)` : ''}, del ${fechaCorta(p.desde)} al ${fechaCorta(p.hasta)}.${nuevos ? ` Se agregaron ${num(nuevos)} clientes que no estaban en la cartera.` : ''}` };
     await recargar('avance');
   } catch(e){
     im.enCurso = false;
@@ -2917,6 +2972,254 @@ async function guardarDescripcion(tr, btn){
   toast('Descripción guardada');
 }
 
+// ====== QUÉ COMPRAN: PATRONES Y OPORTUNIDADES ======
+// Salen del detalle por artículo de las ventas: cada cuánto compra cada cliente cada artículo.
+const TIPOS_PATRON = { reponer: ['Le toca reponer', 'media'], dejo: ['Dejó de comprar', 'alta'] };
+function cadaCuanto(d){ d = Math.round(Number(d)); return d <= 1 ? 'todos los días' : (d < 11 ? `cada ${d} días` : (d < 45 ? `cada ${Math.round(d / 7)} semanas` : `cada ${Math.round(d / 30)} meses`)); }
+function haceDias(d){ d = Number(d); return d <= 0 ? 'hoy' : (d === 1 ? 'ayer' : `hace ${d} días`); }
+async function cargarPatrones(forzar){
+  const o = S.op;
+  if(o.filas && !forzar) return o;
+  if(!o.cargando) o.cargando = (async () => {
+    try {
+      const { data, error } = await sb.rpc('comercial_patrones', { p_vendedor: null, p_cliente: null, p_tipo: null, p_limite: 5000 });
+      o.error = error ? (error.message || String(error)) : null; o.filas = data || [];
+    } catch(e){ o.error = e.message || String(e); o.filas = []; }
+    o.cargando = null;
+  })();
+  await o.cargando;
+  return o;
+}
+function patronesPorCliente(filas){
+  const m = new Map();
+  for(const f of filas){
+    let c = m.get(f.cliente_id);
+    if(!c){ c = { id: f.cliente_id, nombre: f.cliente, vendedor_id: f.vendedor_id, vendedor: f.vendedor, items: [], mes: 0, reponer: 0, dejo: 0 }; m.set(f.cliente_id, c); }
+    c.items.push(f); c.mes += Number(f.neto_mes || 0); c[f.tipo]++;
+  }
+  for(const c of m.values()) c.items.sort((a, b) => (a.tipo === b.tipo ? 0 : (a.tipo === 'reponer' ? -1 : 1)) || Number(b.neto_mes || 0) - Number(a.neto_mes || 0));
+  return [...m.values()].sort((a, b) => b.mes - a.mes);
+}
+function lineaPatron(f, conTipo = true){
+  const t = TIPOS_PATRON[f.tipo] || [f.tipo, ''];
+  return `<div class="mc-com-f"><span class="c">${esc(f.articulo)}</span><span class="n">${plata(f.neto_prom)}</span>
+    <span class="d">${conTipo ? `<span class="chip ${t[1]}">${t[0]}</span> ` : ''}Lo compra ${cadaCuanto(f.intervalo)}${Number(f.cantidad_prom) > 0 ? ` (${num(Math.round(Number(f.cantidad_prom) * 10) / 10)} u.)` : ''}. Última vez ${fechaCorta(f.ultima)}, ${haceDias(f.dias)}.</span></div>`;
+}
+function sinArticulos(){
+  return `<div class="msg-box info">Todavía no hay ventas por artículo cargadas.${S.esAdmin ? ' Volvé a soltar los reportes de ventas en <button class="link-btn" data-tab="ventas">Cargar ventas</button>: desde ahora también se guarda qué artículos lleva cada cliente.' : ' Se completa cuando administración cargue los reportes de ventas.'}</div>`;
+}
+function renderOportunidades(aviso){
+  content().innerHTML = aviso + `
+    <div class="mv-top"><h1 class="mv-hola">Oportunidades</h1></div>
+    <p class="sub">Salen de lo que compra cada cliente, artículo por artículo. <b>Le toca reponer</b>: según cada cuánto lo compra, ya le corresponde. <b>Dejó de comprar</b>: lo compraba seguido y pasó bastante más tiempo del habitual. El importe es lo que suele gastar por mes en esos artículos.</p>
+    <div id="opCaja"><p class="sub">Cargando…</p></div>`;
+  cargarPatrones().then(pintarOportunidades);
+}
+function pintarOportunidades(){
+  const caja = $('opCaja');
+  if(!caja || S.tab !== 'oportunidades') return;
+  const o = S.op;
+  if(o.error){ caja.innerHTML = `<div class="msg-box error">No se pudieron leer las oportunidades: ${esc(o.error)}</div>`; return; }
+  if(!o.filas.length){ caja.innerHTML = sinArticulos(); return; }
+  const q = norm(o.q);
+  const base = o.filas.filter(f => !o.vendedor || String(f.vendedor_id ?? '_') === o.vendedor);
+  const filas = base.filter(f => (!o.tipo || f.tipo === o.tipo) && (!q || norm(f.cliente + ' ' + f.articulo).includes(q)));
+  const clientes = patronesPorCliente(filas);
+  const cuenta = t => base.filter(f => !t || f.tipo === t).length;
+  const mesTotal = clientes.reduce((s, c) => s + c.mes, 0);
+  let resumen = '';
+  if(S.veTodo && !o.vendedor){
+    const pv = new Map();
+    for(const f of o.filas){
+      const k = f.vendedor_id ?? '_';
+      const x = pv.get(k) || { id: k, nombre: f.vendedor || 'Sin vendedor', reponer: 0, dejo: 0, mes: 0, cli: new Set() };
+      x[f.tipo]++; x.mes += Number(f.neto_mes || 0); x.cli.add(f.cliente_id); pv.set(k, x);
+    }
+    resumen = `<div class="table-wrap" style="margin-bottom:14px"><table class="apilar resumen">
+      <thead><tr><th>Vendedor</th><th class="num">Clientes</th><th class="num">Le toca reponer</th><th class="num">Dejó de comprar</th><th class="num">En juego por mes</th></tr></thead>
+      <tbody>${[...pv.values()].sort((a, b) => b.mes - a.mes).map(x => `<tr><td data-label="Vendedor"><button type="button" class="link-btn" data-op-vend="${esc(x.id)}">${esc(x.nombre)}</button></td>
+        <td class="num" data-label="Clientes">${num(x.cli.size)}</td><td class="num" data-label="Le toca reponer">${num(x.reponer)}</td><td class="num" data-label="Dejó de comprar">${num(x.dejo)}</td><td class="num" data-label="En juego por mes">${pesos(x.mes)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  const vends = S.veTodo ? [...new Map(o.filas.map(f => [String(f.vendedor_id ?? '_'), f.vendedor || 'Sin vendedor'])).entries()].sort((a, b) => a[1].localeCompare(b[1])) : [];
+  caja.innerHTML = `
+    <p class="sub" style="margin-top:-4px">Ventas por artículo cargadas hasta el ${fechaCorta(o.filas[0].datos_al)}.</p>
+    ${resumen}
+    ${S.veTodo ? `<div class="filtros" style="margin-bottom:10px"><select id="opVend" aria-label="Vendedor"><option value="">Todos los vendedores</option>${vends.map(([id, n]) => `<option value="${esc(id)}" ${id === o.vendedor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>` : ''}
+    <input type="search" class="mv-buscar" id="opQ" placeholder="Buscar cliente o artículo" value="${esc(o.q)}" aria-label="Buscar cliente o artículo">
+    <div class="mc-filtros">${[['', 'Todas'], ['reponer', 'Le toca reponer'], ['dejo', 'Dejó de comprar']].map(([id, n]) => `<button type="button" data-op-tipo="${id}" aria-pressed="${id === o.tipo}">${n} ${num(cuenta(id))}</button>`).join('')}</div>
+    <p class="sub">${num(clientes.length)} ${clientes.length === 1 ? 'cliente' : 'clientes'}, ${pesos(mesTotal)} por mes en juego.</p>
+    <div class="mc-grid">${clientes.slice(0, o.mostrar).map(c => `<article class="mc">
+      <div class="mc-top"><h3>${esc(c.nombre)}</h3><span class="mc-v" title="Lo que suele gastar por mes en estos artículos">${plata(c.mes)}/mes</span></div>
+      ${S.veTodo ? `<div class="mc-sub">${esc(c.vendedor || 'Sin vendedor')}</div>` : ''}
+      <div class="mc-com-l">${c.items.slice(0, c.ver ? 99 : 6).map(f => lineaPatron(f)).join('')}</div>
+      ${c.items.length > 6 ? `<div class="mc-sub" style="margin-top:6px">y ${c.items.length - 6} artículos más</div>` : ''}
+    </article>`).join('') || '<div class="card"><p class="sub" style="margin:0">No hay oportunidades con ese filtro.</p></div>'}</div>
+    ${clientes.length > o.mostrar ? `<button type="button" class="btn-ghost mas" id="opMas">Ver más (${num(clientes.length - o.mostrar)})</button>` : ''}`;
+}
+
+// En "Mi avance": los clientes donde hay más para hacer esta semana, y los prospectos con un paso para hoy
+function bloqueParaSemana(){ return `<section class="mv-cli hidden" id="mvOp"></section>`; }
+async function pintarParaSemana(){
+  const [o] = await Promise.all([cargarPatrones(), S.pr.filas ? null : cargarProspectos()]);
+  const caja = $('mvOp');
+  if(!caja) return;
+  const cli = o.error ? [] : patronesPorCliente(o.filas.filter(f => S.misVendedores.has(f.vendedor_id)));
+  const hoy = hoyISO();
+  const pasos = (S.pr.filas || []).filter(p => S.misVendedores.has(p.vendedor_id) && prAbierto(p) && (!p.proxima_fecha || p.proxima_fecha <= hoy)).length;
+  if(!cli.length && !pasos) return;
+  caja.classList.remove('hidden');
+  caja.innerHTML = `${cli.length ? `<h2 class="mv-h" style="font-size:20px; margin:0">Para esta semana</h2>
+      <div class="mv-cli-n" style="margin-bottom:2px">Clientes que según lo que compran necesitan algo ahora</div>
+      ${cli.slice(0, 4).map(c => `<div class="mv-op-f"><b>${esc(c.nombre)}</b><strong>${plata(c.mes)}/mes</strong><span>${[c.reponer ? `${c.reponer} para reponer` : '', c.dejo ? `${c.dejo} que dejó de llevar` : ''].filter(Boolean).join(', ')}</span></div>`).join('')}
+      <button type="button" class="mv-alerta" style="background:var(--paper); border-color:var(--line); color:var(--brand-dark)" data-tab="oportunidades">Ver ${cli.length === 1 ? 'el cliente' : `los ${num(cli.length)} clientes`} con oportunidades</button>` : ''}
+    ${pasos ? `<button type="button" class="mv-alerta" data-tab="prospectos">${pasos === 1 ? '1 prospecto tiene' : pasos + ' prospectos tienen'} un paso para hoy o sin definir.</button>` : ''}`;
+}
+
+// En cada tarjeta de Mis clientes: qué compra, qué le toca y qué ofrecerle
+async function cargarQueCompra(id){
+  if(S.qc.has(id)) return;
+  S.qc.set(id, { cargando: true });
+  try {
+    const [p, s, t] = await Promise.all([
+      sb.rpc('comercial_cliente_productos', { p_cliente: id }),
+      sb.rpc('comercial_sugerencias', { p_cliente: id, p_limite: 6 }),
+      sb.rpc('comercial_patrones', { p_vendedor: null, p_cliente: id, p_tipo: null, p_limite: 50 })]);
+    const e = p.error || s.error || t.error;
+    S.qc.set(id, e ? { error: e.message || String(e) } : { productos: p.data || [], sugerencias: s.data || [], patrones: t.data || [] });
+  } catch(e){ S.qc.set(id, { error: e.message || String(e) }); }
+  if(S.mc.qc === id) pintarMisClientes();
+}
+function bloqueQueCompra(id){
+  const abierto = S.mc.qc === id, d = S.qc.get(id);
+  let cuerpo = '';
+  if(abierto){
+    if(!d || d.cargando) cuerpo = '<div class="mc-com-f"><span class="d">Cargando…</span></div>';
+    else if(d.error) cuerpo = `<div class="mc-com-f"><span class="d">No se pudo leer: ${esc(d.error)}</span></div>`;
+    else if(!d.productos.length) cuerpo = '<div class="mc-com-f"><span class="d">Todavía no hay detalle de los artículos que compra.</span></div>';
+    else {
+      const sec = (t, html) => html ? `<div class="mc-com-f qc-t"><span class="c">${t}</span></div>${html}` : '';
+      cuerpo = sec('Le toca reponer', d.patrones.filter(f => f.tipo === 'reponer').map(f => lineaPatron(f, false)).join(''))
+        + sec('Dejó de comprar', d.patrones.filter(f => f.tipo === 'dejo').map(f => lineaPatron(f, false)).join(''))
+        + sec('Ofrecele', d.sugerencias.map(s => `<div class="mc-com-f"><span class="c">${esc(s.articulo)}</span><span class="n">${Math.round(Number(s.porcentaje))}%</span>
+            <span class="d">Lo llevan ${num(s.clientes)} de ${num(s.parecidos)} clientes que compran lo mismo que este${s.rubro ? ` (${esc(s.rubro)})` : ''}.</span></div>`).join(''))
+        + sec('Lo que más compra (último año)', d.productos.slice(0, 6).map(p => `<div class="mc-com-f"><span class="c">${esc(p.articulo)}</span><span class="n">${plata(p.neto_12m)}</span>
+            <span class="d">${num(p.compras)} ${p.compras === 1 ? 'compra' : 'compras'}${p.intervalo ? ', ' + cadaCuanto(p.intervalo) : ''}. Última ${fechaCorta(p.ultima)}.</span></div>`).join(''));
+    }
+  }
+  return `<button type="button" class="mc-com" data-qc="${id}" aria-expanded="${abierto}"><span>Qué compra y qué ofrecerle</span><span class="ver">${abierto ? 'Ocultar' : 'Ver'}</span></button>
+    ${abierto ? `<div class="mc-com-l">${cuerpo}</div>` : ''}`;
+}
+
+// ====== PROSPECTOS: EMBUDO POR ETAPAS ======
+const ETAPAS = [['nuevo', 'Nuevo'], ['contactado', 'Contactado'], ['visitado', 'Visitado'], ['presupuesto', 'Presupuesto'], ['ganado', 'Ganado'], ['perdido', 'Perdido']];
+const etapaNombre = e => (ETAPAS.find(x => x[0] === e) || [e, e])[1];
+const prAbierto = p => p.etapa !== 'ganado' && p.etapa !== 'perdido';
+async function cargarProspectos(){
+  const pr = S.pr;
+  try {
+    const pedidos = [sb.rpc('comercial_prospectos', { p_vendedor: null })];
+    if(S.veTodo) pedidos.push(sb.rpc('comercial_embudo', { p_desde: null }));
+    const [l, e] = await Promise.all(pedidos);
+    if(l.error) throw l.error;
+    pr.filas = l.data || []; pr.embudo = e && !e.error ? e.data || [] : null; pr.error = null;
+  } catch(e){ pr.error = e.message || String(e); pr.filas = pr.filas || []; }
+}
+function renderProspectos(aviso){
+  content().innerHTML = aviso + `
+    <div class="mv-top"><h1 class="mv-hola">Prospectos</h1>${S.misVendedores.size && !S.nuevoDato ? `<button type="button" class="btn-primary" id="btnNuevoDato" style="min-height:44px">+ Dato nuevo</button>` : ''}</div>
+    ${S.nuevoDato ? formNuevoDato() : ''}
+    <p class="sub">Cada dato nuevo pasa por Nuevo, Contactado, Visitado y Presupuesto hasta que se gana o se pierde. Avanza solo cuando registrás una llamada, visita o presupuesto, y pasa a Ganado cuando aparece su primera compra.</p>
+    <div id="prCaja"><p class="sub">Cargando…</p></div>`;
+  if(S.nuevoDato) $('ndNombre').focus();
+  cargarProspectos().then(pintarProspectos);
+}
+const FILTROS_PR = [
+  ['abiertos', 'Abiertos', p => prAbierto(p)],
+  ['hoy', 'Para hoy', p => prAbierto(p) && (!p.proxima_fecha || p.proxima_fecha <= hoyISO())],
+  ...ETAPAS.map(([id, n]) => [id, id === 'ganado' ? 'Ganados' : (id === 'perdido' ? 'Perdidos' : n), p => p.etapa === id])
+];
+function pintarProspectos(){
+  const caja = $('prCaja');
+  if(!caja || S.tab !== 'prospectos') return;
+  const pr = S.pr;
+  if(pr.error && !pr.filas.length){ caja.innerHTML = `<div class="msg-box error">No se pudieron leer los prospectos: ${esc(pr.error)}</div>`; return; }
+  const base = pr.filas.filter(p => !pr.vendedor || String(p.vendedor_id ?? '_') === pr.vendedor);
+  const f = FILTROS_PR.find(x => x[0] === pr.filtro) || FILTROS_PR[0];
+  const q = norm(pr.q);
+  const filas = base.filter(p => f[2](p) && (!q || norm(p.nombre + ' ' + (p.localidad || '') + ' ' + (p.contacto || '')).includes(q)));
+  let embudo = '';
+  if(pr.embudo && pr.embudo.length){
+    const tot = k => pr.embudo.reduce((s, x) => s + Number(x[k] || 0), 0);
+    const fila = (x, n) => `<td class="num" data-label="Nuevo">${num(+x.nuevo)}</td><td class="num" data-label="Contactado">${num(+x.contactado)}</td><td class="num" data-label="Visitado">${num(+x.visitado)}</td><td class="num" data-label="Presupuesto">${num(+x.presupuesto)}</td>
+      <td class="num" data-label="Ganados (90 días)">${num(+x.ganado)}</td><td class="num" data-label="Perdidos (90 días)">${num(+x.perdido)}</td><td class="num" data-label="Sin próximo paso">${+x.sin_proxima ? `<span class="chip alta">${num(+x.sin_proxima)}</span>` : '0'}</td><td class="num" data-label="Pasos vencidos">${+x.vencidas ? `<span class="chip media">${num(+x.vencidas)}</span>` : '0'}</td>
+      <td class="num" data-label="Conversión">${x.conversion == null ? '—' : nf.format(Number(x.conversion)) + '%'}</td>`;
+    const t = { nuevo: tot('nuevo'), contactado: tot('contactado'), visitado: tot('visitado'), presupuesto: tot('presupuesto'), ganado: tot('ganado'), perdido: tot('perdido'), sin_proxima: tot('sin_proxima'), vencidas: tot('vencidas') };
+    const carg = tot('cargados');
+    t.conversion = carg ? Math.round(1000 * pr.embudo.reduce((s, x) => s + Number(x.cargados || 0) * Number(x.conversion || 0) / 100, 0) / carg) / 10 : null;
+    embudo = `<h2 class="mv-h" style="font-size:20px; margin:4px 0 8px">Embudo por vendedor</h2>
+      <div class="table-wrap" style="margin-bottom:6px"><table class="apilar resumen"><thead><tr><th>Vendedor</th><th class="num">Nuevo</th><th class="num">Contactado</th><th class="num">Visitado</th><th class="num">Presupuesto</th><th class="num">Ganados</th><th class="num">Perdidos</th><th class="num">Sin próximo paso</th><th class="num">Pasos vencidos</th><th class="num">Conversión</th></tr></thead>
+      <tbody>${pr.embudo.map(x => `<tr><td data-label="Vendedor"><button type="button" class="link-btn" data-pr-vend="${esc(x.vendedor_id ?? '_')}">${esc(x.vendedor)}</button></td>${fila(x)}</tr>`).join('')}
+      <tr class="total"><td data-label="Vendedor"><strong>Total</strong></td>${fila(t)}</tr></tbody></table></div>
+      <p class="sub" style="margin-bottom:16px">Ganados y perdidos: últimos 90 días. Conversión: de los datos cargados en los últimos 90 días, cuántos ya compraron.</p>`;
+  }
+  const vends = S.veTodo ? [...new Map(pr.filas.map(p => [String(p.vendedor_id ?? '_'), p.vendedor || 'Sin vendedor (pileta)'])).entries()].sort((a, b) => a[1].localeCompare(b[1])) : [];
+  caja.innerHTML = embudo + `
+    ${S.veTodo ? `<div class="filtros" style="margin-bottom:10px"><select id="prVend" aria-label="Vendedor"><option value="">Todos los vendedores</option>${vends.map(([id, n]) => `<option value="${esc(id)}" ${id === pr.vendedor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>` : ''}
+    <input type="search" class="mv-buscar" id="prQ" placeholder="Buscar prospecto" value="${esc(pr.q)}" aria-label="Buscar prospecto">
+    <div class="mc-filtros">${FILTROS_PR.map(([id, n, t]) => `<button type="button" data-pr-filtro="${id}" aria-pressed="${id === f[0]}">${n} ${num(base.filter(t).length)}</button>`).join('')}</div>
+    <div class="mc-grid" id="prLista">${filas.map(tarjetaProspecto).join('') || `<div class="card"><p class="sub" style="margin:0">${base.length ? 'No hay prospectos con ese filtro.' : (S.misVendedores.size ? 'Todavía no cargaste datos nuevos. Tocá "+ Dato nuevo" para sumar uno.' : 'No hay prospectos cargados.')}</p></div>`}</div>`;
+}
+function textoProxima(p){
+  if(!prAbierto(p)) return '';
+  if(!p.proxima_fecha) return `<div class="pr-prox sin">Sin próximo paso definido</div>`;
+  const d = diasHasta(p.proxima_fecha);
+  const cuando = d < 0 ? `venció hace ${-d === 1 ? '1 día' : -d + ' días'}` : (d === 0 ? 'hoy' : (d === 1 ? 'mañana' : `el ${fechaCorta(p.proxima_fecha)}`));
+  return `<div class="pr-prox ${d < 0 ? 'venc' : (d === 0 ? 'hoy' : '')}">Próximo paso: <b>${esc(p.proxima_accion)}</b>, ${cuando}</div>`;
+}
+function tarjetaProspecto(p){
+  const ab = S.pr.abierto && S.pr.abierto.id === Number(p.cliente_id) ? S.pr.abierto : null;
+  const lugar = [p.localidad, p.rubro].filter(Boolean).map(esc).join(', ');
+  const chipE = { nuevo: 'plano', contactado: '', visitado: 'media', presupuesto: 'media', ganado: 'ok', perdido: 'alta' }[p.etapa] ?? '';
+  const tipo = ab && ab.tipo ? TIPOS_CONTACTO.find(t => t[0] === ab.tipo) : null;
+  let acciones = '';
+  if(puedeEditar(p) && prAbierto(p)){
+    if(tipo) acciones = `<div class="mc-form"><input type="text" data-pr-nota maxlength="300" placeholder="Nota (opcional)" aria-label="Nota del contacto">
+        <div class="mc-form-b"><button type="button" class="btn-primary" data-pr-confirmar>Registrar ${tipo[0] === 'presupuesto' ? 'presupuesto' : tipo[1].toLowerCase()}</button><button type="button" class="btn-ghost" data-pr-cancelar>Cancelar</button></div></div>`;
+    else if(ab && ab.modo === 'proxima') acciones = `<div class="mc-form"><input type="text" data-pr-accion maxlength="200" placeholder="Qué vas a hacer (ej.: llevar muestras)" value="${esc(p.proxima_accion || '')}" aria-label="Próximo paso">
+        <input type="date" data-pr-fecha min="${hoyISO()}" value="${esc(p.proxima_fecha || '')}" aria-label="Fecha del próximo paso" style="margin-top:8px">
+        <div class="mc-form-b"><button type="button" class="btn-primary" data-pr-guardar-prox>Guardar próximo paso</button><button type="button" class="btn-ghost" data-pr-cancelar>Cancelar</button></div></div>`;
+    else if(ab && ab.modo === 'perdido') acciones = `<div class="mc-form"><input type="text" data-pr-motivo maxlength="300" placeholder="Por qué se perdió (ej.: compra en otro lado)" aria-label="Motivo">
+        <div class="mc-form-b"><button type="button" class="btn-primary" data-pr-perder>Marcar como perdido</button><button type="button" class="btn-ghost" data-pr-cancelar>Cancelar</button></div></div>`;
+    else acciones = `<div class="mc-acc">${TIPOS_CONTACTO.map(([k, n]) => `<button type="button" data-pr-contacto="${k}">${n}</button>`).join('')}</div>
+      <div class="pr-mov"><button type="button" class="btn-ghost" data-pr-prox>${p.proxima_fecha ? 'Cambiar próximo paso' : 'Definir próximo paso'}</button>
+        <select data-pr-etapa aria-label="Mover a otra etapa"><option value="">Mover a…</option>${ETAPAS.filter(e => e[0] !== p.etapa).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}</select></div>`;
+  } else if(puedeEditar(p) && p.etapa === 'perdido') acciones = `<div class="mc-pie"><button type="button" class="link-btn" data-pr-reabrir>Volver a trabajarlo</button></div>`;
+  return `<article class="mc" data-prospecto="${p.cliente_id}">
+    <div class="mc-top"><h3>${esc(p.nombre)}</h3><span class="chip ${chipE}">${etapaNombre(p.etapa)}</span></div>
+    ${lugar ? `<div class="mc-sub">${lugar}</div>` : ''}
+    ${p.contacto || p.telefono ? `<div class="mc-sub">${[p.contacto ? esc(p.contacto) : '', p.telefono ? telLink(p.telefono) : ''].filter(Boolean).join(', ')}</div>` : ''}
+    ${p.nota_alta ? `<div class="mc-sub">${esc(p.nota_alta)}</div>` : ''}
+    ${S.veTodo ? `<div class="mc-sub">Vendedor: <b>${esc(p.vendedor || 'sin vendedor (pileta)')}</b></div>` : ''}
+    <div class="mc-datos"><span>${p.etapa === 'ganado' ? 'Ganado' : (p.etapa === 'perdido' ? 'Perdido' : 'En esta etapa')} ${p.dias_en_etapa > 0 ? `hace <strong>${p.dias_en_etapa === 1 ? '1 día' : p.dias_en_etapa + ' días'}</strong>` : '<strong>desde hoy</strong>'}</span><span>Contactos <strong>${num(+p.contactos)}</strong></span>${p.ultimo_contacto ? `<span>Último <strong>${fechaCorta(p.ultimo_contacto)}</strong></span>` : ''}</div>
+    ${textoProxima(p)}
+    ${p.etapa === 'perdido' && p.motivo_perdida ? `<div class="pr-prox">Motivo: ${esc(p.motivo_perdida)}</div>` : ''}
+    ${acciones}<div class="mc-err"></div>
+  </article>`;
+}
+async function accionProspecto(card, fn, params, okTexto){
+  const err = card.querySelector('.mc-err');
+  for(const b of card.querySelectorAll('button, select')) b.disabled = true;
+  err.textContent = '';
+  let res;
+  try { res = await sb.rpc(fn, params); } catch(e){ res = { error: e }; }
+  if(res.error){ for(const b of card.querySelectorAll('button, select')) b.disabled = false; err.textContent = 'No se pudo: ' + (res.error.message || res.error) + '.'; return false; }
+  S.pr.abierto = null;
+  await cargarProspectos();
+  pintarProspectos();
+  toast(okTexto);
+  return res.data;
+}
+
 // ====== EVENTOS ======
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
@@ -2949,6 +3252,39 @@ content().addEventListener('click', e => {
   if((el = t.closest('[data-cod-guardar]'))){ guardarDescripcion(el.closest('tr'), el); return; }
   if(t.closest('.com-det')) return;
   if((el = t.closest('[data-com-cli]'))){ const id = Number(el.dataset.comCli); S.com.abierto = S.com.abierto === id ? null : id; pintarComodatos(); return; }
+  if((el = t.closest('[data-qc]'))){ const id = Number(el.dataset.qc); S.mc.qc = S.mc.qc === id ? null : id; if(S.mc.qc) cargarQueCompra(id); pintarMisClientes(); return; }
+  if((el = t.closest('[data-op-tipo]'))){ S.op.tipo = el.dataset.opTipo; S.op.mostrar = 30; pintarOportunidades(); return; }
+  if((el = t.closest('[data-op-vend]'))){ S.op.vendedor = el.dataset.opVend; S.op.mostrar = 30; pintarOportunidades(); return; }
+  if(t.id === 'opMas'){ S.op.mostrar += 30; pintarOportunidades(); return; }
+  if((el = t.closest('[data-pr-filtro]'))){ S.pr.filtro = el.dataset.prFiltro; S.pr.abierto = null; pintarProspectos(); return; }
+  if((el = t.closest('[data-pr-vend]'))){ S.pr.vendedor = el.dataset.prVend; S.pr.filtro = 'abiertos'; pintarProspectos(); $('prLista').scrollIntoView({ block: 'start' }); return; }
+  if((el = t.closest('[data-prospecto]'))){
+    const card = el, id = Number(card.dataset.prospecto);
+    if((el = t.closest('[data-pr-contacto]'))){ S.pr.abierto = { id, tipo: el.dataset.prContacto }; pintarProspectos(); const n = document.querySelector('#prLista [data-pr-nota]'); if(n) n.focus(); return; }
+    if(t.closest('[data-pr-prox]')){ S.pr.abierto = { id, modo: 'proxima' }; pintarProspectos(); const n = document.querySelector('#prLista [data-pr-accion]'); if(n) n.focus(); return; }
+    if(t.closest('[data-pr-cancelar]')){ S.pr.abierto = null; pintarProspectos(); return; }
+    if(t.closest('[data-pr-confirmar]')){
+      const tipo = S.pr.abierto && S.pr.abierto.tipo;
+      if(tipo) accionProspecto(card, 'comercial_contacto_registrar', { p_cliente: id, p_tipo: tipo, p_nota: card.querySelector('[data-pr-nota]').value.trim() || null }, TIPOS_CONTACTO.find(x => x[0] === tipo)[2] + '. Ya suma a tu semana.')
+        .then(r => { if(r && r.semana){ const sem = r.semana; S.actividades = S.actividades.filter(a => !(a.vendedor_id === sem.vendedor_id && a.semana === sem.semana)).concat(sem); }
+                     const x = S.plan.find(c => c.cliente_id === id); if(r && x){ x.ultimo_contacto = r.ultimo_contacto; x.vence_pileta = r.vence_pileta; } });
+      return;
+    }
+    if(t.closest('[data-pr-guardar-prox]')){
+      const acc = card.querySelector('[data-pr-accion]').value.trim(), f = card.querySelector('[data-pr-fecha]').value;
+      if(!acc || !f){ card.querySelector('.mc-err').textContent = 'Poné qué vas a hacer y la fecha.'; return; }
+      accionProspecto(card, 'comercial_prospecto_proxima', { p_cliente: id, p_accion: acc, p_fecha: f }, 'Próximo paso guardado');
+      return;
+    }
+    if(t.closest('[data-pr-perder]')){
+      const m = card.querySelector('[data-pr-motivo]').value.trim();
+      if(!m){ card.querySelector('.mc-err').textContent = 'Contá por qué se perdió.'; return; }
+      accionProspecto(card, 'comercial_prospecto_etapa', { p_cliente: id, p_etapa: 'perdido', p_motivo: m }, 'Marcado como perdido');
+      return;
+    }
+    if(t.closest('[data-pr-reabrir]')){ accionProspecto(card, 'comercial_prospecto_etapa', { p_cliente: id, p_etapa: 'contactado' }, 'Vuelve a Contactado'); return; }
+    return;
+  }
   if(t.id === 'btnNuevoDato'){ S.nuevoDato = true; ir(S.tab); return; }
   if(t.id === 'ndCancelar'){ S.nuevoDato = false; ir(S.tab); return; }
   if((el = t.closest('[data-filtro-mc]'))){ S.mc.filtro = el.dataset.filtroMc; S.mc.mostrar = 30; S.mc.abierto = null; pintarMisClientes(); return; }
@@ -3029,6 +3365,14 @@ content().addEventListener('change', e => {
   const f = { fVendedor: 'vendedor', fEstado: 'estado', fPrioridad: 'prioridad', fSegmento: 'segmento', fOrden: 'orden' }[t.id];
   if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
   if(t.id === 'selMes'){ cambiarMes(t.value); return; }
+  if(t.id === 'opVend'){ S.op.vendedor = t.value; S.op.mostrar = 30; pintarOportunidades(); return; }
+  if(t.id === 'prVend'){ S.pr.vendedor = t.value; pintarProspectos(); return; }
+  if(t.matches('[data-pr-etapa]') && t.value){
+    const card = t.closest('[data-prospecto]'), id = Number(card.dataset.prospecto);
+    if(t.value === 'perdido'){ S.pr.abierto = { id, modo: 'perdido' }; pintarProspectos(); const n = document.querySelector('#prLista [data-pr-motivo]'); if(n) n.focus(); return; }
+    accionProspecto(card, 'comercial_prospecto_etapa', { p_cliente: id, p_etapa: t.value }, 'Pasó a ' + etapaNombre(t.value));
+    return;
+  }
   if(t.id === 'comVend'){ S.com.vendedor = t.value; S.com.mostrar = 60; pintarComodatos(); return; }
   if(t.id === 'selSemana'){ S.semana = t.value; ir('avance'); return; }
   if(t.id === 'ventasArchivo' && t.files[0]){ elegirVentas(t.files); return; }
@@ -3053,6 +3397,8 @@ content().addEventListener('submit', e => { if(e.target.id === 'ndForm'){ e.prev
 content().addEventListener('input', e => {
   const t = e.target;
   if(t.id === 'mcQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.mc.q = t.value; S.mc.mostrar = 30; S.mc.abierto = null; pintarMisClientes(); }, 200); return; }
+  if(t.id === 'opQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.op.q = t.value; S.op.mostrar = 30; pintarOportunidades(); const i = $('opQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); return; }
+  if(t.id === 'prQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.pr.q = t.value; pintarProspectos(); const i = $('prQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); return; }
   if(t.id === 'comQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.com.q = t.value; S.com.mostrar = 60; pintarComodatos(); }, 200); return; }
   if(t.matches('[data-cod-desc]')){ t.closest('tr').querySelector('[data-cod-guardar]').disabled = false; return; }
   if(t.closest('.com-det') && t.matches('[data-com-cant]')){ t.closest('tr').querySelector('[data-com-guardar-adm]').disabled = false; return; }
