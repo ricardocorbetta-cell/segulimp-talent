@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.8 (2026-11-05) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.9 (2026-11-06) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Seguimiento Comercial — Segulimp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -37,6 +37,17 @@
   .tabs button:hover{border-color:var(--brand); color:var(--brand-dark);}
   .tabs button.active{background:var(--brand); border-color:var(--brand); color:#fff;}
   .tabs .spacer{flex:1;}
+  .tabs .tab-g{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+  .tabs .tab-adm{padding-left:12px; border-left:1px solid var(--line);}
+  .tabs .tab-gl{flex:none; white-space:nowrap; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-right:2px;}
+  .tabs .tab-rec{margin-left:auto;}
+  @media (max-width:900px){ .tabs .tab-adm{padding-left:0; border-left:none; width:100%;} }
+  @media (max-width:700px){
+    .tabs .tab-g{flex-wrap:nowrap; overflow-x:auto; width:100%; padding-bottom:2px; scrollbar-width:none;}
+    .tabs .tab-g::-webkit-scrollbar{display:none;}
+    .tabs .tab-g button{flex:none; white-space:nowrap;}
+    .tabs .tab-rec{margin-left:0;}
+  }
 
   h2.sec{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; color:var(--brand-dark); text-transform:uppercase; margin:26px 0 4px;}
   p.sub{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5;}
@@ -180,8 +191,16 @@
   body.vend header .name{font-size:20px;}
   body.vend header .tag, body.vend #sessionNombre{display:none;}
   body.vend header .session{width:auto; margin-left:auto; flex-wrap:nowrap; justify-content:flex-end;}
-  body.vend .tabs{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; position:sticky; top:0; z-index:5; background:var(--paper); padding:6px 0; margin:0 0 8px;}
-  body.vend .tabs button{padding:10px 4px; min-height:44px; font-size:14px;}
+  body.vend .wrap{padding-bottom:calc(96px + env(safe-area-inset-bottom));}
+  body.vend .tabs{display:grid; grid-template-columns:repeat(5, 1fr); gap:0; position:fixed; left:0; right:0; bottom:0; z-index:20; margin:0; padding:4px max(6px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.97); border-top:1px solid var(--line); box-shadow:0 -4px 18px rgba(20,50,80,.08); backdrop-filter:blur(8px);}
+  body.vend .tabs.hidden{display:none;}
+  body.vend .tabs button{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:56px; padding:6px 2px; border:none; border-radius:12px; background:none; color:var(--ink-soft); font-size:11.5px; font-weight:600; letter-spacing:-.01em;}
+  body.vend .tabs button svg{width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  body.vend .tabs button.active{background:none; color:var(--brand-dark);}
+  body.vend .tabs button.active svg{stroke-width:2.3; color:var(--brand);}
+  body.vend .tabs button.active span{font-weight:700;}
+  body.vend .tabs button:focus-visible{outline:2px solid var(--brand); outline-offset:-2px;}
+  @media (min-width:600px){ body.vend .tabs{left:50%; right:auto; width:540px; transform:translateX(-50%); border:1px solid var(--line); border-bottom:none; border-radius:16px 16px 0 0;} }
   .mv-top{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:2px 8px; margin:0 0 12px;}
   .mv-hola{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; color:var(--brand-dark); margin:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .mv-mes{display:flex; align-items:center; font-size:13.5px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
@@ -319,9 +338,17 @@
   .mc-form-b .btn-ghost{min-height:46px;}
   .qc-t{background:var(--paper);} .qc-t .c{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);}
   .mc-com-f .d .chip{margin-right:4px;}
-  .mv-op-f{display:grid; grid-template-columns:1fr auto; gap:0 10px; padding:8px 0 0; font-size:14px;}
+  .mv-op-f{display:grid; grid-template-columns:1fr auto; gap:0 10px; width:100%; padding:9px 0; border:none; border-bottom:1px solid var(--line); background:none; text-align:left; font-family:'Inter',sans-serif; font-size:14px; color:var(--ink); cursor:pointer;}
+  .mv-op-f:hover b{color:var(--brand);}
+  .mv-op-f:focus-visible{outline:2px solid var(--brand); outline-offset:2px; border-radius:6px;}
   .mv-op-f b{font-weight:600; overflow-wrap:anywhere;} .mv-op-f strong{white-space:nowrap;}
   .mv-op-f span{grid-column:1 / -1; font-size:12.5px; color:var(--ink-soft);}
+  .vt-estado{display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; margin:16px 0 4px;}
+  .vt-estado > div{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:2px;}
+  .vt-estado span{font-size:12.5px; color:var(--ink-soft);}
+  .vt-estado b{font-size:20px; font-weight:700;} .vt-estado b.falta{color:var(--bad);}
+  .vt-estado em{font-style:normal; font-size:12.5px; color:var(--ink-soft);}
+  .mc-ir{width:100%; margin-top:10px; min-height:44px;}
   .pr-prox{margin-top:9px; padding:8px 11px; border-radius:10px; background:var(--paper); font-size:13px; line-height:1.4; overflow-wrap:anywhere;}
   .pr-prox.hoy{background:var(--mid-bg);} .pr-prox.venc, .pr-prox.sin{background:var(--bad-bg);}
   .pr-mov{display:flex; gap:8px; margin-top:8px;}
@@ -343,6 +370,7 @@
   .mv-alerta{display:block; width:100%; text-align:left; margin-top:10px; padding:11px 12px; min-height:44px; border-radius:11px; border:1px solid #EBD3A0; background:var(--mid-bg); color:#6B4A0E; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;}
   .mv-cli .mv-alerta:first-child{margin-top:0;}
   #toast{position:fixed; left:50%; bottom:22px; transform:translate(-50%, 20px); background:var(--ink); color:#fff; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:20; width:max-content; max-width:calc(100vw - 32px); text-align:center;}
+  body.vend #toast{bottom:calc(84px + env(safe-area-inset-bottom)); z-index:25;}
   #toast.ver{opacity:1; transform:translate(-50%, 0);}
   .mc-acc button:focus-visible, .mc-filtros button:focus-visible, .mv-alerta:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
 </style>
@@ -600,19 +628,26 @@ async function recargar(tab){
 }
 
 // ====== NAVEGACIÓN ======
+// Vendedor: barra fija abajo, como una app. Administración: pestañas en dos grupos (seguimiento y cargas).
+const ICONOS = {
+  avance: '<path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/>',
+  clientes: '<circle cx="9" cy="8" r="3.2"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5"/><path d="M16 4.6a3 3 0 0 1 0 6M18 14c1.8.6 2.8 2.3 3 5"/>',
+  oportunidades: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/>',
+  prospectos: '<path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4Z"/>',
+  pileta: '<path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5.5 5h13L21 13v6H3v-6l2.5-8Z"/>'
+};
 function pestanas(){
-  if(!S.veTodo) return [['avance', 'Mi avance'], ['clientes', 'Mis clientes'], ['oportunidades', 'Oportunidades'], ['prospectos', 'Prospectos'], ['pileta', 'Pileta']];
-  const t = [['avance', 'Avance de ventas']];
-  if(S.esAdmin){ t.push(['ventas', 'Cargar ventas']); t.push(['objetivos', 'Objetivos']); t.push(['vendedores', 'Vendedores']); }
+  if(!S.veTodo) return [['avance', 'Mi avance'], ['clientes', 'Clientes'], ['oportunidades', 'Ofrecer'], ['prospectos', 'Prospectos'], ['pileta', 'Pileta']];
+  const t = [['avance', 'Avance de ventas', 0]];
   if(S.plan.length){
-    t.push(['seguimiento', 'Cartera por vendedor']);
-    t.push(['cartera', 'Cartera de clientes']);
+    t.push(['seguimiento', 'Cartera por vendedor', 0]);
+    t.push(['cartera', 'Cartera de clientes', 0]);
   }
-  t.push(['oportunidades', 'Oportunidades']);
-  t.push(['prospectos', 'Prospectos']);
-  if(S.comodatos.length) t.push(['comodatos', 'Comodatos']);
-  t.push(['pileta', 'Pileta']);
-  if(S.esAdmin) t.push(['importar', 'Cargar cartera']);
+  t.push(['oportunidades', 'Oportunidades', 0]);
+  t.push(['prospectos', 'Prospectos', 0]);
+  t.push(['pileta', 'Pileta', 0]);
+  if(S.comodatos.length) t.push(['comodatos', 'Comodatos', 0]);
+  if(S.esAdmin){ t.push(['ventas', 'Cargar ventas', 1]); t.push(['importar', 'Cargar cartera', 1]); t.push(['objetivos', 'Objetivos', 1]); t.push(['vendedores', 'Vendedores', 1]); }
   return t;
 }
 function ir(tab){
@@ -620,9 +655,17 @@ function ir(tab){
   S.tab = tab;
   const el = $('tabs');
   el.classList.remove('hidden');
-  el.innerHTML = pestanas().map(([id, nombre]) =>
-    `<button type="button" data-tab="${id}" class="${id === tab ? 'active' : ''}">${nombre}</button>`).join('') +
-    (S.veTodo ? `<span class="spacer"></span><button type="button" data-tab="_recargar">↻ Actualizar</button>` : '');
+  const boton = ([id, nombre]) => `<button type="button" data-tab="${id}" class="${id === tab ? 'active' : ''}"${id === tab ? ' aria-current="page"' : ''}>${nombre}</button>`;
+  if(!S.veTodo){
+    el.setAttribute('role', 'navigation'); el.setAttribute('aria-label', 'Secciones');
+    el.innerHTML = pestanas().map(([id, nombre]) => `<button type="button" data-tab="${id}" class="${id === tab ? 'active' : ''}"${id === tab ? ' aria-current="page"' : ''}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[id] || ''}</svg><span>${nombre}</span></button>`).join('');
+  } else {
+    const t = pestanas(), g0 = t.filter(x => !x[2]), g1 = t.filter(x => x[2]);
+    el.innerHTML = `<div class="tab-g">${g0.map(boton).join('')}</div>`
+      + (g1.length ? `<div class="tab-g tab-adm"><span class="tab-gl">Cargas y ajustes</span>${g1.map(boton).join('')}</div>` : '')
+      + `<button type="button" class="tab-rec" data-tab="_recargar" title="Volver a leer los datos">↻ Actualizar</button>`;
+  }
   const aviso = S.aviso ? `<div class="msg-box ${S.aviso.tipo}">${S.aviso.html}</div>` : '';
   S.aviso = null;
   if(tab === 'avance') renderAvance(aviso);
@@ -1686,7 +1729,7 @@ function listaSemanas(id){
   return filas.map(({ s, r, v }) => {
     const h = sumaAct(r, 'real'), p = sumaPlan(r, id);
     return `<button type="button" class="mv-s ${s.lunes === S.semana ? 'viendo' : ''}" data-semana="${s.lunes}" aria-label="Ver la semana del ${diaMes(s.ini)} al ${diaMes(s.fin)}">
-      <span class="f">${diaMes(s.ini)} al ${diaMes(s.fin)}</span><span class="v">${v == null ? '—' : pesos(v)}</span>
+      <span class="f">${s.ini === s.fin ? diaMes(s.ini) : diaMes(s.ini) + ' al ' + diaMes(s.fin)}</span><span class="v">${v == null ? '—' : pesos(v)}</span>
       <span class="g">${r || p ? `${h}${p ? ' de ' + p : ''} ${h === 1 && !p ? 'gestión' : 'gestiones'}` : 'Sin gestiones cargadas'}</span><span class="e">${s.lunes === hoyLunes ? 'Esta semana' : ''}</span>
       <span class="b"><i style="width:${v ? Math.max(3, Math.round(v / tope * 100)) : 0}%"></i></span>
     </button>`; }).join('');
@@ -2025,6 +2068,7 @@ const FILTROS_MC = [
   ['todos', 'Todos', () => true],
   ['sincontacto', 'Sin contactar', r => sinContactar(r)],
   ['porvencer', 'Por vencer', r => { const d = diasHasta(r.vence_pileta); return d != null && d <= 30; }],
+  ['oportunidades', 'Para ofrecer', r => !!opDe(r.cliente_id)],
   ['compraron', 'Compraron este período', (r, comp) => comp.has(r.cliente_id)],
   ['comodato', 'Con equipos', r => S.comPorCli.has(r.cliente_id)]
 ];
@@ -2039,7 +2083,7 @@ function tarjetaCliente(r){
     ${r.contacto || r.telefono ? `<div class="mc-sub">${[r.contacto ? esc(r.contacto) : '', r.telefono ? telLink(r.telefono) : ''].filter(Boolean).join(', ')}</div>` : ''}
     ${r.nota_alta ? `<div class="mc-sub">${esc(r.nota_alta)}</div>` : ''}
     <div class="mc-datos"><span>Última compra <strong>${uc ? fechaCorta(uc) : 'sin compras'}</strong></span><span>Último contacto <strong>${r.ultimo_contacto ? fechaCorta(r.ultimo_contacto) : 'ninguno'}</strong></span></div>
-    <div class="mc-chips">${d == null ? '' : `<span class="chip ${d <= 7 ? 'alta' : (d <= 30 ? 'media' : '')}">${d <= 0 ? 'Hoy pasa a la pileta' : (d === 1 ? 'Mañana pasa a la pileta' : d + ' días para abordarlo')}</span>`}${r.es_prospecto ? '<span class="chip plano">Dato nuevo</span>' : ''}${r.asignado_origen === 'pileta' ? '<span class="chip plano">De la pileta</span>' : ''}${chipComodato(r.cliente_id)}</div>
+    <div class="mc-chips">${d == null ? '' : `<span class="chip ${d <= 7 ? 'alta' : (d <= 30 ? 'media' : '')}">${d <= 0 ? 'Hoy pasa a la pileta' : (d === 1 ? 'Mañana pasa a la pileta' : d + ' días para abordarlo')}</span>`}${r.es_prospecto ? '<span class="chip plano">Dato nuevo</span>' : ''}${r.asignado_origen === 'pileta' ? '<span class="chip plano">De la pileta</span>' : ''}${chipComodato(r.cliente_id)}${chipsOportunidad(r.cliente_id)}</div>
     ${bloqueComodatoCard(r.cliente_id)}
     ${bloqueQueCompra(r.cliente_id)}
     ${tipo ? `<div class="mc-form">
@@ -2058,9 +2102,12 @@ function pintarMisClientes(){
   const fin = '9999-12-31';
   const f = FILTROS_MC.find(x => x[0] === S.mc.filtro) || FILTROS_MC[0];
   const filas = mios.filter(r => f[2](r, comp) && (!q || norm(r.nombre + ' ' + (r.localidad || '') + ' ' + r.codigo).includes(q)))
-    .sort((a, b) => (a.vence_pileta || fin).localeCompare(b.vence_pileta || fin) || Number(b.ventas || 0) - Number(a.ventas || 0) || a.nombre.localeCompare(b.nombre));
-  $('mcFiltros').innerHTML = FILTROS_MC.map(([id, nombre, test]) =>
-    `<button type="button" data-filtro-mc="${id}" aria-pressed="${id === f[0]}">${nombre} ${num(mios.filter(r => test(r, comp)).length)}</button>`).join('');
+    .sort(f[0] === 'oportunidades' ? (a, b) => opDe(b.cliente_id).mes - opDe(a.cliente_id).mes
+      : (a, b) => (a.vence_pileta || fin).localeCompare(b.vence_pileta || fin) || (opDe(b.cliente_id)?.mes || 0) - (opDe(a.cliente_id)?.mes || 0) || Number(b.ventas || 0) - Number(a.ventas || 0) || a.nombre.localeCompare(b.nombre));
+  $('mcFiltros').innerHTML = FILTROS_MC.map(([id, nombre, test]) => {
+    const n = mios.filter(r => test(r, comp)).length;
+    return n || id === f[0] || id === 'todos' ? `<button type="button" data-filtro-mc="${id}" aria-pressed="${id === f[0]}">${nombre} ${num(n)}</button>` : '';
+  }).join('');
   caja.innerHTML = filas.length
     ? filas.slice(0, S.mc.mostrar).map(tarjetaCliente).join('') + (filas.length > S.mc.mostrar ? `<button type="button" class="btn-ghost mas" id="mcMas">Ver más (${num(filas.length - S.mc.mostrar)})</button>` : '')
     : `<div class="card"><p class="sub" style="margin:0">${mios.length ? 'No hay clientes con ese filtro.' : 'Todavía no tenés clientes. Tomá oportunidades de la pileta o cargá un dato nuevo.'}</p></div>`;
@@ -2091,6 +2138,7 @@ function renderMisClientes(aviso){
     <p style="text-align:center; margin:22px 0 0"><button type="button" class="link-btn" id="mvActualizar">↻ Actualizar datos</button></p>`;
   pintarMisClientes();
   if(S.nuevoDato) $('ndNombre').focus();
+  if(!S.op.filas) cargarPatrones().then(() => { if(S.tab === 'clientes') pintarMisClientes(); });
 }
 async function registrarContacto(card){
   const id = Number(card.dataset.cliente), ab = S.mc.abierto;
@@ -2174,7 +2222,7 @@ function pintarPileta(){
   const p = S.pil, r = p.resumen;
   const cupo = $('pilCupo');
   if(cupo) cupo.innerHTML = r && S.misVendedores.size
-    ? `<div class="mc-cupo"><b>${r.tomados}</b> de ${r.cupo} tomados sin trabajar${r.tomados >= r.cupo ? '. Registrá un contacto o una venta en alguno para poder tomar más.' : '. Cuando registrás un contacto o una venta, se libera el lugar.'}</div>` : '';
+    ? `<div class="mc-cupo"><b>${r.tomados ?? 0}</b> de ${r.cupo} tomados sin trabajar${r.tomados >= r.cupo ? '. Registrá un contacto o una venta en alguno para poder tomar más.' : '. Cuando registrás un contacto o una venta, se libera el lugar.'}</div>` : '';
   const tot = $('pilTotal');
   if(tot) tot.textContent = p.total == null ? '' : (p.q ? `${num(p.total)} ${p.total === 1 ? 'resultado' : 'resultados'}` : `${num(p.total)} ${p.total === 1 ? 'oportunidad' : 'oportunidades'}${r && r.datos_nuevos ? `, ${num(r.datos_nuevos)} ${r.datos_nuevos === 1 ? 'es dato nuevo' : 'son datos nuevos'}` : ''}`);
   caja.innerHTML = p.error ? `<div class="msg-box error">No se pudo cargar la pileta: ${esc(p.error)}</div>`
@@ -2629,7 +2677,17 @@ function renderVentas(aviso){
         </div>
       </div>`;
   }
-  const cargas = [...S.cargas].sort((a, b) => b.id - a.id).slice(0, 15);
+  const cargas = [...S.cargas].sort((a, b) => (b.hasta || '').localeCompare(a.hasta || '') || b.id - a.id);
+  // días sin ventas cargadas entre la primera y la última carga
+  const huecos = [];
+  { const ord = [...S.cargas].filter(c => c.desde && c.hasta).sort((a, b) => a.desde.localeCompare(b.desde)); let hasta = null;
+    for(const c of ord){ if(hasta && c.desde > sumarDias(hasta, 1)) huecos.push([sumarDias(hasta, 1), sumarDias(c.desde, -1)]); if(!hasta || c.hasta > hasta) hasta = c.hasta; } }
+  const ultima = cargas.length ? cargas[0].hasta : null;
+  const estado = ultima ? `<div class="vt-estado">
+      <div><span>Ventas cargadas hasta</span><b>${fechaCorta(ultima)}</b>${diasHasta(ultima) < -3 ? `<em>hace ${-diasHasta(ultima)} días</em>` : ''}</div>
+      <div><span>Detalle por artículo hasta</span><b id="vtArt">…</b></div>
+      <div><span>Archivos del último año</span><b>${num(S.cargas.length)}</b></div>
+    </div>${huecos.length ? `<div class="msg-box info">Hay días sin ventas cargadas: ${huecos.slice(0, 4).map(([a, b]) => a === b ? fechaCorta(a) : fechaCorta(a) + ' al ' + fechaCorta(b)).join('; ')}${huecos.length > 4 ? ` y ${huecos.length - 4} más` : ''}.</div>` : ''}` : '';
   content().innerHTML = aviso + `
     <h2 class="sec" style="margin-top:0">Cargar ventas del sistema</h2>
     <p class="sub">Subí todos los días el reporte de ventas tal como sale del sistema, sin tocarlo. También sirve una lista simple en Excel o CSV con una columna de vendedor y otra de importe (y, si las tiene, fecha y cliente).
@@ -2639,13 +2697,19 @@ function renderVentas(aviso){
       <input type="file" id="ventasArchivo" accept=".xlsx,.xlsm,.xls,.csv,.zip" multiple class="hidden">
     </div>
     ${previa}
-    <h2 class="sec">Últimas cargas</h2>
+    ${estado}
+    <h2 class="sec">Archivos del último año</h2>
     ${cargas.length ? `<div class="table-wrap"><table class="apilar">
       <thead><tr><th>Cargado</th><th>Archivo</th><th>Fechas que cubre</th><th class="num">Filas</th><th class="num">Total</th></tr></thead>
       <tbody>${cargas.map(c => `<tr><td data-label="Cargado">${fechaHora(c.creado_en)}</td><td data-label="Archivo">${esc(c.archivo || '—')}</td>
         <td data-label="Fechas que cubre">${c.desde === c.hasta ? fechaCorta(c.desde) : fechaCorta(c.desde) + ' al ' + fechaCorta(c.hasta)}</td>
         <td data-label="Filas" class="num">${num(c.filas)}</td><td data-label="Total" class="num">${pesos(c.total)}</td></tr>`).join('')}</tbody></table></div>`
       : `<div class="card"><p class="sub" style="margin:0">Todavía no se cargó ningún archivo de ventas.</p></div>`}`;
+  if(ultima) sb.from('comercial_ventas_articulo').select('fecha').order('fecha', { ascending: false }).limit(1).then(({ data }) => {
+    const b = $('vtArt'); if(!b) return;
+    b.textContent = data && data.length ? fechaCorta(data[0].fecha) : 'sin datos';
+    if(!(data && data.length) || data[0].fecha < ultima){ b.classList.add('falta'); b.insertAdjacentHTML('afterend', '<em>Volvé a soltar los reportes para completarlo</em>'); }
+  }, () => {});
 }
 
 async function elegirVentas(sel){
@@ -3010,8 +3074,8 @@ function sinArticulos(){
 }
 function renderOportunidades(aviso){
   content().innerHTML = aviso + `
-    <div class="mv-top"><h1 class="mv-hola">Oportunidades</h1></div>
-    <p class="sub">Salen de lo que compra cada cliente, artículo por artículo. <b>Le toca reponer</b>: según cada cuánto lo compra, ya le corresponde. <b>Dejó de comprar</b>: lo compraba seguido y pasó bastante más tiempo del habitual. El importe es lo que suele gastar por mes en esos artículos.</p>
+    <div class="mv-top"><h1 class="mv-hola">${S.veTodo ? 'Oportunidades' : 'Qué ofrecer'}</h1></div>
+    ${!S.veTodo ? `<p class="sub">Según lo que compra cada cliente: a quién <b>le toca reponer</b> y quién <b>dejó de llevar</b> algo que compraba seguido. El importe es lo que suele gastar por mes en esos artículos.</p>` : `<p class="sub">Salen de lo que compra cada cliente, artículo por artículo. <b>Le toca reponer</b>: según cada cuánto lo compra, ya le corresponde. <b>Dejó de comprar</b>: lo compraba seguido y pasó bastante más tiempo del habitual. El importe es lo que suele gastar por mes en esos artículos.</p>`}
     <div id="opCaja"><p class="sub">Cargando…</p></div>`;
   cargarPatrones().then(pintarOportunidades);
 }
@@ -3053,8 +3117,28 @@ function pintarOportunidades(){
       ${S.veTodo ? `<div class="mc-sub">${esc(c.vendedor || 'Sin vendedor')}</div>` : ''}
       <div class="mc-com-l">${c.items.slice(0, c.ver ? 99 : 6).map(f => lineaPatron(f)).join('')}</div>
       ${c.items.length > 6 ? `<div class="mc-sub" style="margin-top:6px">y ${c.items.length - 6} artículos más</div>` : ''}
+      ${!S.veTodo ? `<button type="button" class="btn-ghost mc-ir" data-ir-cliente="${c.id}" data-nombre="${esc(c.nombre)}">Ir al cliente para registrar el contacto</button>` : ''}
     </article>`).join('') || '<div class="card"><p class="sub" style="margin:0">No hay oportunidades con ese filtro.</p></div>'}</div>
     ${clientes.length > o.mostrar ? `<button type="button" class="btn-ghost mas" id="opMas">Ver más (${num(clientes.length - o.mostrar)})</button>` : ''}`;
+}
+
+// Abre Mis clientes en ese cliente, con el panel de qué compra ya desplegado
+function verCliente(id, nombre){
+  const r = misClientes().find(x => x.cliente_id === id);
+  if(!r){ toast('Ese cliente no está en tu cartera (puede estar en la pileta).'); return; }
+  S.mc.q = r.nombre; S.mc.filtro = 'todos'; S.mc.mostrar = 30; S.mc.abierto = null; S.mc.qc = id; S.mc.auto = true;
+  cargarQueCompra(id);
+  ir('clientes'); window.scrollTo(0, 0);
+}
+function opDe(id){
+  if(!S.op.filas || S.op.error) return null;
+  if(S.op.porCli !== S.op.filas){ const m = new Map(); for(const f of S.op.filas){ const o = m.get(f.cliente_id) || { reponer: 0, dejo: 0, mes: 0 }; o[f.tipo]++; o.mes += Number(f.neto_mes || 0); m.set(f.cliente_id, o); } S.op.mapa = m; S.op.porCli = S.op.filas; }
+  return S.op.mapa.get(id) || null;
+}
+function chipsOportunidad(id){
+  const o = opDe(id);
+  if(!o) return '';
+  return (o.reponer ? `<span class="chip media">${o.reponer === 1 ? '1 para reponer' : o.reponer + ' para reponer'}</span>` : '') + (o.dejo ? `<span class="chip alta">Dejó ${o.dejo === 1 ? '1 artículo' : o.dejo + ' artículos'}</span>` : '');
 }
 
 // En "Mi avance": los clientes donde hay más para hacer esta semana, y los prospectos con un paso para hoy
@@ -3070,9 +3154,9 @@ async function pintarParaSemana(){
   caja.classList.remove('hidden');
   caja.innerHTML = `${cli.length ? `<h2 class="mv-h" style="font-size:20px; margin:0">Para esta semana</h2>
       <div class="mv-cli-n" style="margin-bottom:2px">Clientes que según lo que compran necesitan algo ahora</div>
-      ${cli.slice(0, 4).map(c => `<div class="mv-op-f"><b>${esc(c.nombre)}</b><strong>${plata(c.mes)}/mes</strong><span>${[c.reponer ? `${c.reponer} para reponer` : '', c.dejo ? `${c.dejo} que dejó de llevar` : ''].filter(Boolean).join(', ')}</span></div>`).join('')}
+      ${cli.slice(0, 4).map(c => `<button type="button" class="mv-op-f" data-ir-cliente="${c.id}" data-nombre="${esc(c.nombre)}"><b>${esc(c.nombre)}</b><strong>${plata(c.mes)}/mes</strong><span>${[c.reponer ? `${c.reponer} para reponer` : '', c.dejo ? `${c.dejo} que dejó de llevar` : ''].filter(Boolean).join(', ')}</span></button>`).join('')}
       <button type="button" class="mv-alerta" style="background:var(--paper); border-color:var(--line); color:var(--brand-dark)" data-tab="oportunidades">Ver ${cli.length === 1 ? 'el cliente' : `los ${num(cli.length)} clientes`} con oportunidades</button>` : ''}
-    ${pasos ? `<button type="button" class="mv-alerta" data-tab="prospectos">${pasos === 1 ? '1 prospecto tiene' : pasos + ' prospectos tienen'} un paso para hoy o sin definir.</button>` : ''}`;
+    ${pasos ? `<button type="button" class="mv-alerta" data-tab="prospectos" data-pr="hoy">${pasos === 1 ? '1 prospecto tiene' : pasos + ' prospectos tienen'} un paso para hoy o sin definir.</button>` : ''}`;
 }
 
 // En cada tarjeta de Mis clientes: qué compra, qué le toca y qué ofrecerle
@@ -3224,13 +3308,15 @@ async function accionProspecto(card, fn, params, okTexto){
 $('tabs').addEventListener('click', e => {
   const b = e.target.closest('[data-tab]');
   if(!b) return;
-  if(b.dataset.tab === '_recargar') recargar(S.tab); else { S.verVendedor = null; ir(b.dataset.tab); }
+  if(S.mc.auto){ S.mc.auto = false; S.mc.q = ''; S.mc.qc = null; }   // la búsqueda que puso "ir al cliente" no queda pegada
+  if(b.dataset.tab === '_recargar') recargar(S.tab); else { S.verVendedor = null; ir(b.dataset.tab); window.scrollTo(0, 0); }
 });
 
 content().addEventListener('click', e => {
   const t = e.target;
   let el;
-  if((el = t.closest('[data-tab]'))){ if(el.dataset.filtro){ S.mc.filtro = el.dataset.filtro; S.mc.q = ''; } ir(el.dataset.tab); window.scrollTo(0, 0); return; }
+  if((el = t.closest('[data-ir-cliente]'))){ verCliente(Number(el.dataset.irCliente), el.dataset.nombre); return; }
+  if((el = t.closest('[data-tab]'))){ if(el.dataset.filtro){ S.mc.filtro = el.dataset.filtro; S.mc.q = ''; } if(el.dataset.pr){ S.pr.filtro = el.dataset.pr; S.pr.q = ''; } ir(el.dataset.tab); window.scrollTo(0, 0); return; }
   if((el = t.closest('[data-com-ver]'))){ const id = Number(el.dataset.comVer); S.mc.com = S.mc.com === id ? null : id; S.mc.ret = null; S.mc.entregas = null; pintarMisClientes(); return; }
   if((el = t.closest('#mcLista [data-com-entregas]'))){ const id = Number(el.dataset.comEntregas); S.mc.entregas = S.mc.entregas === id ? null : id; S.mc.ret = null; pintarMisClientes(); return; }
   if((el = t.closest('#mcLista [data-com-retiro]'))){ S.mc.ret = Number(el.dataset.comRetiro); pintarMisClientes(); const i = document.querySelector('#mcLista [data-com-cant]'); if(i) i.focus(); return; }
