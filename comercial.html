@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.9 (2026-11-06) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.9.1 (2026-11-06) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -505,17 +505,23 @@ function chipPrioridad(p){
 }
 
 // ====== DATOS ======
+// Trae una tabla entera de a 1000 filas. Si la primera página viene llena, pide las siguientes de a 4 en paralelo.
 async function traerTodo(tabla, columnas, orden, filtro){
-  const filas = [], paso = 1000;
-  for(let desde = 0; ; desde += paso){
-    let q = sb.from(tabla).select(columnas).order(orden, { ascending: true }).range(desde, desde + paso - 1);
+  const paso = 1000;
+  const pagina = async n => {
+    let q = sb.from(tabla).select(columnas).order(orden, { ascending: true }).range(n * paso, n * paso + paso - 1);
     if(filtro) q = filtro(q);
     const { data, error } = await q;
     if(error) throw error;
-    filas.push(...data);
-    if(data.length < paso) break;
+    return data || [];
+  };
+  const filas = await pagina(0);
+  if(filas.length < paso) return filas;
+  for(let n = 1; ; n += 4){
+    const tanda = await Promise.all([n, n + 1, n + 2, n + 3].map(pagina));
+    for(const t of tanda) filas.push(...t);
+    if(tanda.some(t => t.length < paso)) return filas;
   }
-  return filas;
 }
 
 // Deja asentado que el usuario abrió la aplicación (un registro por día; la base cuenta las veces).
@@ -530,30 +536,32 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && S.p
 async function cargarDatos(){
   registrarIngreso();
   const desde = new Date(Date.now() - 30 * 864e5).toISOString();
-  const [plan, vendedores, snapshots, log] = await Promise.all([
+  // Todo se pide a la vez: antes iban uno detrás de otro y cada pedido sumaba su viaje hasta la base.
+  const opcional = (pr, vacio = []) => pr.catch(() => vacio);
+  const cfgP = opcional(traerTodo('comercial_config', 'clave, valor', 'clave'));
+  // el período depende del día de inicio (config): arranca apenas llega la config, sin esperar al resto
+  const periodoP = cfgP.then(cfg => {
+    S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
+    if(!S.periodo) S.periodo = periodoDe(hoyISO());
+    return cargarPeriodo();
+  });
+  const [plan, vendedores, snapshots, log, usuarios, cargas, alias, escalas, metas, ingUlt] = await Promise.all([
     traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
     traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email, es_vendedor', 'id'),
     traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
-    traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde))
+    traerTodo('comercial_gestion_log', 'id, cliente_id, vendedor_id, estado_anterior, estado_nuevo, comentario, usuario_nombre, creado_en', 'id', q => q.gte('creado_en', desde)),
+    S.esAdmin ? sb.rpc('comercial_usuarios').then(r => r.error ? [] : (r.data || []), () => []) : [],
+    traerTodo('comercial_ventas_cargas', 'id, archivo, desde, hasta, filas, total, creado_en', 'id', q => q.gte('hasta', sumarDias(hoyISO(), -400))),
+    S.veTodo ? traerTodo('comercial_vendedor_alias', 'alias, vendedor_id', 'alias') : [],
+    opcional(traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo')),
+    opcional(traerTodo('comercial_metas', 'vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras', 'vendedor_id')),
+    S.veTodo ? opcional(traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id')) : [],
+    traerComodatos()
   ]);
   S.plan = plan.map(actualizarCompra); S.vendedores = vendedores; S.snapshots = snapshots; S.log = log;
   S.misVendedores = new Set(vendedores.filter(v => v.user_id === S.perfil.user_id && v.activo).map(v => v.id));
-  if(S.esAdmin){
-    const { data, error } = await sb.rpc('comercial_usuarios');
-    S.usuarios = error ? [] : (data || []);
-  }
-  S.cargas = await traerTodo('comercial_ventas_cargas', 'id, archivo, desde, hasta, filas, total, creado_en', 'id', q => q.gte('hasta', sumarDias(hoyISO(), -400)));
-  S.alias = S.veTodo ? await traerTodo('comercial_vendedor_alias', 'alias, vendedor_id', 'alias') : [];
-  let cfg = [];
-  try { cfg = await traerTodo('comercial_config', 'clave, valor', 'clave'); } catch(_){}
-  S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor]));
-  try { S.escalas = await traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo'); } catch(_){ S.escalas = []; }
-  try { S.metas = await traerTodo('comercial_metas', 'vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras', 'vendedor_id'); } catch(_){ S.metas = []; }
-  await cargarComodatos();
-  S.ingUlt = [];
-  if(S.veTodo){ try { S.ingUlt = await traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id'); } catch(_){} }
-  if(!S.periodo) S.periodo = periodoDe(hoyISO());
-  await cargarPeriodo();
+  S.usuarios = usuarios; S.cargas = cargas; S.alias = alias; S.escalas = escalas; S.metas = metas; S.ingUlt = ingUlt;
+  await Promise.all([periodoP, completarComodatos()]);
 }
 
 // ====== ACCESO ======
@@ -1545,16 +1553,16 @@ function selectorMes(){
 
 async function cargarPeriodo(){
   const { desde, hasta, clave } = mesInfo(S.periodo);
-  const [objetivos, ventas, actividades] = await Promise.all([
+  const [objetivos, ventas, actividades, ingresos, ventasCli] = await Promise.all([
     traerTodo('comercial_objetivos', 'vendedor_id, periodo, monto', 'vendedor_id', q => q.eq('periodo', clave)),
     traerTodo('comercial_ventas_dia', 'fecha, vendedor_clave, vendedor_id, importe, operaciones', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)),
-    traerTodo('comercial_actividades', '*', 'semana', q => q.gte('semana', lunesDe(desde)).lte('semana', hasta))
+    traerTodo('comercial_actividades', '*', 'semana', q => q.gte('semana', lunesDe(desde)).lte('semana', hasta)),
+    S.veTodo ? traerTodo('comercial_ingresos', 'user_id, fecha, veces', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)).catch(() => []) : [],
+    // a quién le vendió cada vendedor en el período (la vista del vendedor trae solo lo suyo)
+    S.veTodo ? [] : traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta))
   ]);
   S.objetivos = objetivos; S.ventas = ventas; S.actividades = actividades;
-  // a quién le vendió cada vendedor en el período (la vista del vendedor trae solo lo suyo)
-  S.ingresos = [];
-  if(S.veTodo){ try { S.ingresos = await traerTodo('comercial_ingresos', 'user_id, fecha, veces', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)); } catch(_){} }
-  S.ventasCli = S.veTodo ? [] : await traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta));
+  S.ingresos = ingresos; S.ventasCli = ventasCli;
 }
 async function cambiarMes(periodo){
   if(!/^\d{4}-\d{2}$/.test(periodo)) return;
@@ -2785,21 +2793,26 @@ async function cargarVentas(){
 
 // ====== COMODATOS ======
 // Equipos entregados en comodato (base de comodatos). Se cuentan como instalados salvo los informados como retirados.
-async function cargarComodatos(){
+async function cargarComodatos(){ await traerComodatos(); await completarComodatos(); }
+async function traerComodatos(){
   S.comodatos = []; S.comCli = []; S.comExtra = [];
   try {
-    S.comodatos = await traerTodo('comodatos_estado', 'id, cliente_id, cliente_planilla, codigo, linea, descripcion, cantidad, retirados, ubicados, fecha, nota, origen, retiro_nota', 'id');
-    S.comCli = await traerTodo('comodatos_clientes', 'cliente_id, equipos, retirados, codigos, primera_entrega, ultima_entrega, ventas_12m, ventas_3m, ultima_compra', 'cliente_id');
+    [S.comodatos, S.comCli] = await Promise.all([
+      traerTodo('comodatos_estado', 'id, cliente_id, cliente_planilla, codigo, linea, descripcion, cantidad, retirados, ubicados, fecha, nota, origen, retiro_nota', 'id'),
+      traerTodo('comodatos_clientes', 'cliente_id, equipos, retirados, codigos, primera_entrega, ultima_entrega, ventas_12m, ventas_3m, ultima_compra', 'cliente_id')]);
   } catch(_){ S.comodatos = []; S.comCli = []; }
   indexarComodatos();
-  if(S.veTodo && S.comodatos.length){
-    const enPlan = new Set(S.plan.map(r => r.cliente_id));
-    const faltan = [...new Set(S.comodatos.map(c => c.cliente_id).filter(id => id && !enPlan.has(id)))];
-    for(let i = 0; i < faltan.length; i += 150){
-      const { data } = await sb.from('comercial_clientes').select('id, codigo, nombre, localidad, vendedor_id, listado').in('id', faltan.slice(i, i + 150));
-      S.comExtra.push(...(data || []));
-    }
-  }
+}
+// clientes con equipos que no están en la cartera (solo administración): se piden todos los lotes a la vez
+async function completarComodatos(){
+  S.comExtra = [];
+  if(!S.veTodo || !S.comodatos.length) return;
+  const enPlan = new Set(S.plan.map(r => r.cliente_id));
+  const faltan = [...new Set(S.comodatos.map(c => c.cliente_id).filter(id => id && !enPlan.has(id)))];
+  const lotes = [];
+  for(let i = 0; i < faltan.length; i += 150) lotes.push(faltan.slice(i, i + 150));
+  const res = await Promise.all(lotes.map(l => sb.from('comercial_clientes').select('id, codigo, nombre, localidad, vendedor_id, listado').in('id', l).then(r => r.data || [], () => [])));
+  for(const d of res) S.comExtra.push(...d);
 }
 function indexarComodatos(){
   S.comPorCli = new Map();
