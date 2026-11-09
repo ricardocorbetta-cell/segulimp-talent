@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.10 (2026-11-09) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.10.1 (2026-11-09) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -405,6 +405,7 @@
   .e-dejo button, .esp-ley .e-dejo i{background:#F1B8B1; color:#7E231C;}
   .e-ofrecer button, .esp-ley .e-ofrecer i{background:#DCEBF6; color:var(--brand-dark); border:1.5px dashed var(--brand);}
   .e-antes button, .esp-ley .e-antes i{background:#EEF2F5; color:#8C97A0;}
+  .e-sin_datos button, .esp-ley .e-sin_datos i{background:#fff; color:#8C97A0; border:1.5px dotted #B7C2CB;}
   .esp-c button:focus-visible{outline:2px solid var(--brand); outline-offset:1px;}
   @media (max-width:560px){ .esp .esp-cli{min-width:108px; max-width:118px; font-size:11.5px; padding:5px 7px;} .esp-c button{width:54px; font-size:10px;} .esp thead th span{width:54px;} .op-vistas button{font-size:12.5px; padding:6px 8px;} }
   .esp-pie{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
@@ -607,7 +608,7 @@ async function cargarDatos(){
     if(!S.periodo) S.periodo = periodoDe(hoyISO());
     return cargarPeriodo();
   });
-  const [plan, vendedores, snapshots, log, usuarios, cargas, alias, escalas, metas, ingUlt] = await Promise.all([
+  const [plan, vendedores, snapshots, log, usuarios, cargas, alias, escalas, metas, ingUlt, , datosHasta] = await Promise.all([
     traerTodo('comercial_plan_vivo', '*', 'cliente_id'),
     traerTodo('comercial_vendedores', 'id, nombre, nombre_erp, user_id, activo, email, es_vendedor', 'id'),
     traerTodo('comercial_snapshots', 'id, fecha, fuente, filas, completo, creado_en', 'id'),
@@ -618,8 +619,11 @@ async function cargarDatos(){
     opcional(traerTodo('comercial_escalas', 'periodo, b_desde, c_desde, d_desde, b_pct, c_pct, d_pct', 'periodo')),
     opcional(traerTodo('comercial_metas', 'vendedor_id, visitas, llamadas, whatsapp, presupuestos, otras', 'vendedor_id')),
     S.veTodo ? opcional(traerTodo('comercial_ingresos_ultimo', 'user_id, fecha, ultima, dias', 'user_id')) : [],
-    traerComodatos()
+    traerComodatos(),
+    // hasta qué fecha hay ventas y hasta cuál detalle por artículo (si difieren, se avisa)
+    sb.rpc('comercial_datos_hasta').then(r => r.data || {}, () => ({}))
   ]);
+  S.datosHasta = datosHasta || {};
   S.plan = plan.map(actualizarCompra); S.vendedores = vendedores; S.snapshots = snapshots; S.log = log;
   S.misVendedores = new Set(vendedores.filter(v => v.user_id === S.perfil.user_id && v.activo).map(v => v.id));
   S.usuarios = usuarios; S.cargas = cargas; S.alias = alias; S.escalas = escalas; S.metas = metas; S.ingUlt = ingUlt;
@@ -3172,7 +3176,7 @@ function pintarOportunidades(){
   document.querySelectorAll('[data-op-vista]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.opVista === o.vista)));
   $('opIntro')?.classList.toggle('hidden', o.vista !== 'articulos');
   if(o.vista === 'rfm') return pintarRfm(caja);
-  if(o.vista === 'rubros') return pintarEspacios(caja);
+  if(o.vista === 'rubros'){ pintarEspacios(caja); if(articulosAtrasados()) caja.insertAdjacentHTML('afterbegin', avisoArticulos()); return; }
   if(!o.filas){ caja.innerHTML = '<p class="sub">Cargando…</p>'; cargarPatrones().then(pintarOportunidades); return; }
   if(o.error){ caja.innerHTML = `<div class="msg-box error">No se pudieron leer las oportunidades: ${esc(o.error)}</div>`; return; }
   if(!o.filas.length){ caja.innerHTML = sinArticulos(); return; }
@@ -3196,7 +3200,7 @@ function pintarOportunidades(){
         <td class="num" data-label="Clientes">${num(x.cli.size)}</td><td class="num" data-label="Le toca reponer">${num(x.reponer)}</td><td class="num" data-label="Dejó de comprar">${num(x.dejo)}</td><td class="num" data-label="En juego por mes">${pesos(x.mes)}</td></tr>`).join('')}</tbody></table></div>`;
   }
   const vends = S.veTodo ? [...new Map(o.filas.map(f => [String(f.vendedor_id ?? '_'), f.vendedor || 'Sin vendedor'])).entries()].sort((a, b) => a[1].localeCompare(b[1])) : [];
-  caja.innerHTML = `
+  caja.innerHTML = `${avisoArticulos()}
     <p class="sub" style="margin-top:-4px">Ventas por artículo cargadas hasta el ${fechaCorta(o.filas[0].datos_al)}.</p>
     ${resumen}
     ${S.veTodo ? `<div class="filtros" style="margin-bottom:10px"><select id="opVend" aria-label="Vendedor"><option value="">Todos los vendedores</option>${vends.map(([id, n]) => `<option value="${esc(id)}" ${id === o.vendedor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>` : ''}
@@ -3231,8 +3235,16 @@ const RFM_CELDAS = {
 const ESTADOS_ESP = {
   compra: ['Lo compra', 'Lo compra seguido y está al día'], reponer: ['Le toca', 'Según cada cuánto lo compra, ya le toca'],
   dejo: ['Lo dejó', 'Lo compraba seguido y dejó'], ofrecer: ['Ofrecer', 'No lo compra, pero sí la mayoría de los clientes parecidos'],
-  ocasional: ['A veces', 'Lo compró hace poco, sin regularidad'], antes: ['Hace mucho', 'Lo compró hace más de un año o muy de vez en cuando']
+  ocasional: ['A veces', 'Lo compró hace poco, sin regularidad'], antes: ['Hace mucho', 'Lo compró hace más de un año o muy de vez en cuando'],
+  sin_datos: ['Sin dato', 'Compró después de la fecha hasta la que hay detalle por artículo: falta cargar esos reportes']
 };
+// El detalle por artículo puede quedar atrás de las ventas (reportes subidos antes de que se guardara por artículo)
+function articulosAtrasados(){ const d = S.datosHasta || {}; return d.ventas && d.articulos && d.articulos < d.ventas ? d : null; }
+function avisoArticulos(){
+  const d = articulosAtrasados();
+  if(!d) return '';
+  return `<div class="msg-box info">El detalle por artículo llega hasta el <b>${fechaCorta(d.articulos)}</b> y las ventas, hasta el <b>${fechaCorta(d.ventas)}</b>. Los clientes que compraron después no se marcan como "le toca" ni "lo dejó" hasta que estén esos datos.${S.esAdmin ? ` Para completarlo, volvé a soltar en <button type="button" class="link-btn" data-tab="ventas">Cargar ventas</button> los reportes del ${fechaCorta(sumarDias(d.articulos, 1))} en adelante.` : ''}</div>`;
+}
 const RUBRO_CORTO = {
   'PAPEL - TOALLAS DE MANO': 'Toallas de mano', 'LAVANDERIA INDUSTRIAL': 'Lavandería', 'DESENGRASANTES Y DETERGENTES INDUST. ALIMENTICIA': 'Ind. alimenticia',
   'PAPEL HIGIENICO': 'Papel higiénico', 'JABONES PARA MANOS INSTITUCIONAL': 'Jabón de manos', 'BOLSAS DE RESIDUOS': 'Bolsas',
@@ -3356,7 +3368,7 @@ function pintarEspacios(caja){
   };
   caja.innerHTML = `${sel}
     <p class="sub" style="margin-top:0">Una fila por cliente y una columna por rubro. Se ve de un vistazo qué rubros lleva cada uno y dónde hay lugar para vender más: <b>Ofrecer</b> es un rubro que no compra pero sí la mayoría de los clientes que compran lo mismo que él.</p>
-    <div class="esp-ley">${['compra', 'reponer', 'dejo', 'ofrecer', 'ocasional', 'antes'].map(k => `<span class="e-${k}"><i></i>${ESTADOS_ESP[k][0]}</span>`).join('')}</div>
+    <div class="esp-ley">${['compra', 'reponer', 'dejo', 'ofrecer', 'ocasional', 'antes'].concat(d.filas.some(x => x.estado === 'sin_datos') ? ['sin_datos'] : []).map(k => `<span class="e-${k}"><i></i>${ESTADOS_ESP[k][0]}</span>`).join('')}</div>
     <input type="search" class="mv-buscar" id="espQ" placeholder="Buscar cliente" value="${esc(o.espQ)}" aria-label="Buscar cliente">
     <div class="mc-filtros">${filtros.map(([id, n, t]) => `<button type="button" data-esp-filtro="${id}" aria-pressed="${id === f[0]}">${n} ${num(todos.filter(t).length)}</button>`).join('')}</div>
     <div class="esp-wrap"><table class="esp">
@@ -3426,8 +3438,10 @@ function bloqueQueCompra(id){
     else if(d.error) cuerpo = `<div class="mc-com-f"><span class="d">No se pudo leer: ${esc(d.error)}</span></div>`;
     else if(!d.productos.length) cuerpo = '<div class="mc-com-f"><span class="d">Todavía no hay detalle de los artículos que compra.</span></div>';
     else {
+      const at = articulosAtrasados(), cli = S.plan.find(x => x.cliente_id === id), ult = cli ? ultimaCompra(cli) : null;
+      if(at && ult && ult > at.articulos) cuerpo += `<div class="mc-com-f"><span class="d">Compró por última vez el ${fechaCorta(ult)}, pero el detalle por artículo llega hasta el ${fechaCorta(at.articulos)}: lo de abajo no incluye esas compras.</span></div>`;
       const sec = (t, html) => html ? `<div class="mc-com-f qc-t"><span class="c">${t}</span></div>${html}` : '';
-      cuerpo = sec('Le toca reponer', d.patrones.filter(f => f.tipo === 'reponer').map(f => lineaPatron(f, false)).join(''))
+      cuerpo += sec('Le toca reponer', d.patrones.filter(f => f.tipo === 'reponer').map(f => lineaPatron(f, false)).join(''))
         + sec('Dejó de comprar', d.patrones.filter(f => f.tipo === 'dejo').map(f => lineaPatron(f, false)).join(''))
         + sec('Ofrecele', d.sugerencias.map(s => `<div class="mc-com-f"><span class="c">${esc(s.articulo)}</span><span class="n">${Math.round(Number(s.porcentaje))}%</span>
             <span class="d">Lo llevan ${num(s.clientes)} de ${num(s.parecidos)} clientes que compran lo mismo que este${s.rubro ? ` (${esc(s.rubro)})` : ''}.</span></div>`).join(''))
