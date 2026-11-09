@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.9.1 (2026-11-06) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.10 (2026-11-09) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -332,7 +332,7 @@
   .mc-acc button{min-height:44px; padding:6px 2px; border-radius:11px; border:1px solid var(--line); background:#fff; font-family:'Inter',sans-serif; font-weight:600; font-size:13px; color:var(--brand-dark); cursor:pointer; touch-action:manipulation;}
   .mc-acc button:hover{border-color:var(--brand);}
   .mc-form{margin-top:12px;}
-  .mc-form input, .nd input{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:15px;}
+  .mc-form input, .nd input, .nd select, .mc-form select{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:15px;}
   .mc-form-b{display:flex; gap:8px; margin-top:8px;}
   .mc-form-b .btn-primary{flex:1; min-height:46px; font-size:14.5px;}
   .mc-form-b .btn-ghost{min-height:46px;}
@@ -348,12 +348,72 @@
   .vt-estado span{font-size:12.5px; color:var(--ink-soft);}
   .vt-estado b{font-size:20px; font-weight:700;} .vt-estado b.falta{color:var(--bad);}
   .vt-estado em{font-style:normal; font-size:12.5px; color:var(--ink-soft);}
+  .fb-form{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px;}
+  .fb-tipos{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .fb-tipos button{min-height:40px; padding:6px 14px; border-radius:999px; border:1px solid var(--line); background:var(--paper); font-family:'Inter',sans-serif; font-size:13.5px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+  .fb-tipos button[aria-checked="true"]{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .fb-form textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-family:'Inter',sans-serif; font-size:14.5px; resize:vertical; color:var(--ink);}
+  .fb-env{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px;}
+  .fb-barra{display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .fb-barra select{min-height:38px; padding:4px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; font-family:'Inter',sans-serif;}
+  .fb-lista{display:grid; gap:10px;}
+  .fb-fila{display:flex; gap:12px; align-items:flex-start;}
+  .fb-voto{display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:52px; min-height:56px; border-radius:12px; border:1px solid var(--line); background:var(--paper); color:var(--ink-soft); cursor:pointer; font-family:'Inter',sans-serif;}
+  .fb-voto svg{width:20px; height:20px; fill:currentColor;}
+  .fb-voto b{font-size:15px;}
+  .fb-voto[aria-pressed="true"]{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .fb-cuerpo{flex:1; min-width:0;}
+  .fb-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;}
+  .fb-texto{margin:0 0 6px; font-size:14.5px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere;}
+  .fb-resp{margin-top:8px; padding:8px 11px; border-radius:10px; background:var(--paper); font-size:13.5px; overflow-wrap:anywhere;}
+  .chip.fb-e-nuevo{background:var(--low-bg);} .chip.fb-e-revision{background:var(--mid-bg);} .chip.fb-e-hecho{background:var(--good-bg);} .chip.fb-e-descartado{background:var(--low-bg); color:var(--ink-soft);}
+  .op-vistas{display:flex; gap:4px; padding:4px; margin:0 0 14px; background:var(--paper-2); border-radius:12px; overflow-x:auto;}
+  .op-vistas button{flex:1; white-space:nowrap; min-height:40px; padding:6px 12px; border:none; border-radius:9px; background:none; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+  .op-vistas button[aria-selected="true"]{background:var(--card); color:var(--brand-dark); box-shadow:0 1px 3px rgba(20,50,80,.14);}
+  .rfm{display:grid; grid-template-columns:minmax(78px, .7fr) repeat(3, minmax(0, 1fr)); gap:6px; margin:6px 0 18px;}
+  .rfm-h{display:flex; flex-direction:column; justify-content:flex-end; padding:2px 4px 4px; font-size:13px;}
+  .rfm-h b{font-weight:700;} .rfm-h span{font-size:11.5px; color:var(--ink-soft); line-height:1.25;}
+  .rfm-hf{justify-content:center;}
+  .rfm-c{display:flex; flex-direction:column; align-items:flex-start; gap:1px; min-height:92px; padding:10px 11px; border-radius:12px; border:2px solid transparent; text-align:left; font-family:'Inter',sans-serif; color:var(--ink); cursor:pointer;}
+  .rfm-c:disabled{opacity:.45; cursor:default;}
+  .rfm-c.t-ok{background:var(--good-bg);} .rfm-c.t-mid{background:var(--mid-bg);} .rfm-c.t-bad{background:var(--bad-bg);} .rfm-c.t-low{background:var(--low-bg);}
+  .rfm-c.sel{border-color:var(--brand-dark); box-shadow:0 2px 10px rgba(20,50,80,.18);}
+  .rfm-c:focus-visible{outline:2px solid var(--brand); outline-offset:2px;}
+  .rfm-a{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;}
+  .t-ok .rfm-a{color:var(--good);} .t-mid .rfm-a{color:#94660F;} .t-bad .rfm-a{color:var(--bad);} .t-low .rfm-a{color:var(--ink-soft);}
+  .rfm-n{font-size:26px; font-weight:700; line-height:1.15;}
+  .rfm-m{font-size:12.5px; color:var(--ink-soft);}
+  .rfm-lista{scroll-margin-top:12px;}
+  @media (max-width:560px){ .rfm{grid-template-columns:62px repeat(3, minmax(0, 1fr)); gap:4px;} .rfm-c{min-height:84px; padding:8px 7px;} .rfm-n{font-size:21px;} .rfm-a{font-size:10.5px;} .rfm-m{font-size:11px;} .rfm-h span{display:none;} }
+  .esp-ley{display:flex; flex-wrap:wrap; gap:6px 14px; margin:0 0 10px; font-size:12.5px; color:var(--ink-soft);}
+  .esp-ley span{display:inline-flex; align-items:center; gap:6px;}
+  .esp-ley i{display:inline-block; width:16px; height:16px; border-radius:4px;}
+  .esp-wrap{overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:12px; background:var(--card);}
+  .esp{border-collapse:separate; border-spacing:0; font-size:12px;}
+  .esp thead th{position:sticky; top:0; z-index:2; background:var(--card); padding:8px 3px; border-bottom:1px solid var(--line); font-weight:600; color:var(--ink-soft); vertical-align:bottom;}
+  .esp thead th{white-space:normal; text-transform:none; letter-spacing:0; font-size:11px;}
+  .esp thead th span{display:block; width:64px; line-height:1.2; text-align:center; overflow-wrap:break-word; hyphens:auto;}
+  .esp .esp-cli{position:sticky; left:0; z-index:1; background:var(--card); text-align:left; min-width:170px; max-width:220px; padding:6px 10px; border-right:1px solid var(--line); font-weight:600; font-size:12.5px; color:var(--ink);}
+  .esp thead .esp-cli{z-index:3;}
+  .esp .esp-cli small{display:block; font-weight:400; color:var(--ink-soft); font-size:11.5px;}
+  .esp tbody tr + tr > *{border-top:1px solid #EDF3F7;}
+  .esp td{padding:3px; text-align:center;}
+  .esp-c button{width:64px; height:30px; border-radius:7px; border:1px solid transparent; font-family:'Inter',sans-serif; font-size:11px; font-weight:600; cursor:pointer; padding:0 2px;}
+  .e-compra button, .esp-ley .e-compra i{background:#BFE3CB; color:#21563A;}
+  .e-ocasional button, .esp-ley .e-ocasional i{background:#E4F2E8; color:#3F6F52;}
+  .e-reponer button, .esp-ley .e-reponer i{background:#F6D795; color:#6B4A0E;}
+  .e-dejo button, .esp-ley .e-dejo i{background:#F1B8B1; color:#7E231C;}
+  .e-ofrecer button, .esp-ley .e-ofrecer i{background:#DCEBF6; color:var(--brand-dark); border:1.5px dashed var(--brand);}
+  .e-antes button, .esp-ley .e-antes i{background:#EEF2F5; color:#8C97A0;}
+  .esp-c button:focus-visible{outline:2px solid var(--brand); outline-offset:1px;}
+  @media (max-width:560px){ .esp .esp-cli{min-width:108px; max-width:118px; font-size:11.5px; padding:5px 7px;} .esp-c button{width:54px; font-size:10px;} .esp thead th span{width:54px;} .op-vistas button{font-size:12.5px; padding:6px 8px;} }
+  .esp-pie{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
   .mc-ir{width:100%; margin-top:10px; min-height:44px;}
   .pr-prox{margin-top:9px; padding:8px 11px; border-radius:10px; background:var(--paper); font-size:13px; line-height:1.4; overflow-wrap:anywhere;}
   .pr-prox.hoy{background:var(--mid-bg);} .pr-prox.venc, .pr-prox.sin{background:var(--bad-bg);}
   .pr-mov{display:flex; gap:8px; margin-top:8px;}
   .pr-mov .btn-ghost{flex:1; min-height:42px;}
-  .pr-mov select{flex:1; min-height:42px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink);}
+  .pr-mov{flex-wrap:wrap;} .pr-mov select{flex:1; min-width:140px; min-height:42px; padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--ink);}
   .mc-err{font-size:13px; color:var(--bad); margin-top:8px; line-height:1.4;}
   .mc-err:empty{display:none;}
   .mc-pie{display:flex; justify-content:flex-end; margin-top:10px;}
@@ -385,6 +445,7 @@
     </div>
     <div class="session hidden" id="session">
       <span id="sessionNombre"></span>
+      <button class="link-btn" type="button" data-tab="feedback" title="Contanos qué no anda o qué mejorarías">Feedback</button>
       <a class="link-btn" href="hub.html">← Volver al Hub</a>
       <button class="link-btn" id="btnSalir" type="button">Salir</button>
     </div>
@@ -425,9 +486,10 @@ const S = {
   mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null, com: null, ret: null, entregas: null, qc: null },
   pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
   nuevoDato: false,
-  op: { filas: null, error: null, cargando: null, vendedor: '', tipo: '', q: '', mostrar: 30 },
+  op: { filas: null, error: null, cargando: null, vendedor: '', tipo: '', q: '', mostrar: 30, vista: 'rfm', celda: null, rfm: null, rfmErr: null, esp: new Map(), espFiltro: 'todos', espQ: '', espMostrar: 40, espTodos: false },
   pr: { filas: null, embudo: null, error: null, filtro: 'abiertos', vendedor: '', q: '', abierto: null },
   qc: new Map(),
+  fb: { filas: null, error: null, tipo: null, borrador: '', desde: null, filtro: 'abiertos', orden: 'votos', editar: null },
   cfg: {}
 };
 
@@ -625,7 +687,7 @@ async function iniciar(session){
 async function recargar(tab){
   await guardarPendiente();
   content().innerHTML = `<p class="sub">Cargando datos…</p>`;
-  S.op.filas = null; S.pr.filas = null; S.qc.clear();
+  S.op.filas = null; S.op.rfm = null; S.op.esp.clear(); S.pr.filas = null; S.qc.clear();
   try{
     await cargarDatos();
   } catch(e){
@@ -655,11 +717,13 @@ function pestanas(){
   t.push(['prospectos', 'Prospectos', 0]);
   t.push(['pileta', 'Pileta', 0]);
   if(S.comodatos.length) t.push(['comodatos', 'Comodatos', 0]);
+  t.push(['feedback', 'Feedback', 0]);
   if(S.esAdmin){ t.push(['ventas', 'Cargar ventas', 1]); t.push(['importar', 'Cargar cartera', 1]); t.push(['objetivos', 'Objetivos', 1]); t.push(['vendedores', 'Vendedores', 1]); }
   return t;
 }
 function ir(tab){
-  if(!pestanas().some(p => p[0] === tab)) tab = pestanas()[0][0];
+  if(tab === 'feedback' && S.tab !== 'feedback') S.fb.desde = S.tab;   // de qué pantalla viene el comentario
+  if(tab !== 'feedback' && !pestanas().some(p => p[0] === tab)) tab = pestanas()[0][0];
   S.tab = tab;
   const el = $('tabs');
   el.classList.remove('hidden');
@@ -688,6 +752,7 @@ function ir(tab){
   else if(tab === 'comodatos') renderComodatos(aviso);
   else if(tab === 'oportunidades') renderOportunidades(aviso);
   else if(tab === 'prospectos') renderProspectos(aviso);
+  else if(tab === 'feedback') renderFeedback(aviso);
 }
 function sinDatos(aviso){
   content().innerHTML = aviso + `<div class="card"><p class="sub" style="margin:0">
@@ -2129,6 +2194,7 @@ function formNuevoDato(){
     <input type="tel" id="ndTelefono" maxlength="60" placeholder="Teléfono" aria-label="Teléfono">
     <input type="text" id="ndRubro" maxlength="120" placeholder="Rubro" aria-label="Rubro">
     <input type="text" id="ndNota" maxlength="500" placeholder="Nota: de dónde salió, qué necesita" aria-label="Nota">
+    ${S.esAdmin && !S.misVendedores.size ? `<select id="ndVend" aria-label="Asignar a"><option value="">Dejarlo en la pileta</option>${S.vendedores.filter(v => v.activo && v.es_vendedor).sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}">Asignarlo a ${esc(v.nombre)}</option>`).join('')}</select>` : ''}
     <div class="mc-form-b"><button type="submit" class="btn-primary" id="ndGuardar">Guardar dato</button><button type="button" class="btn-ghost" id="ndCancelar">Cancelar</button></div>
     <div class="mc-err" id="ndError"></div>
   </form>`;
@@ -2185,10 +2251,16 @@ async function guardarNuevoDato(){
   try { res = await sb.rpc('comercial_prospecto_crear', { p_nombre: v('ndNombre'), p_localidad: v('ndLocalidad'), p_contacto: v('ndContacto'), p_telefono: v('ndTelefono'), p_rubro: v('ndRubro'), p_nota: v('ndNota') }); }
   catch(e){ res = { error: e }; }
   if(res.error || !res.data){ btn.disabled = false; err.textContent = res.error ? (res.error.message || String(res.error)) : 'No se pudo guardar.'; return; }
+  const asignar = $('ndVend') ? $('ndVend').value : '';
+  let asignado = null;
+  if(asignar && res.data.en_pileta){
+    const { data: a, error: ea } = await sb.from('comercial_clientes').update({ vendedor_id: Number(asignar), asignado_manual: true }).eq('id', res.data.cliente_id).select('id');
+    if(!ea && a && a.length) asignado = S.vendedores.find(x => x.id === Number(asignar));
+  }
   S.nuevoDato = false;
   if(!res.data.en_pileta){ S.mc.q = v('ndNombre'); S.mc.filtro = 'todos'; }   // que lo vea apenas lo carga
   S.pr.filtro = 'nuevo'; S.pr.q = ''; S.pr.vendedor = '';
-  S.aviso = { tipo: 'ok', html: res.data.en_pileta ? 'Dato nuevo cargado en la pileta: lo puede tomar cualquier vendedor.' : 'Dato nuevo cargado. Queda en tu cartera: tenés 3 meses para abordarlo.' };
+  S.aviso = { tipo: 'ok', html: asignado ? `Dato nuevo cargado y asignado a <strong>${esc(asignado.nombre)}</strong>.` : (res.data.en_pileta ? 'Dato nuevo cargado en la pileta: lo puede tomar cualquier vendedor.' : 'Dato nuevo cargado. Queda en tu cartera: tenés 3 meses para abordarlo.') };
   S.pil.total = null;
   await recargar(S.tab);
 }
@@ -3088,14 +3160,20 @@ function sinArticulos(){
 function renderOportunidades(aviso){
   content().innerHTML = aviso + `
     <div class="mv-top"><h1 class="mv-hola">${S.veTodo ? 'Oportunidades' : 'Qué ofrecer'}</h1></div>
-    ${!S.veTodo ? `<p class="sub">Según lo que compra cada cliente: a quién <b>le toca reponer</b> y quién <b>dejó de llevar</b> algo que compraba seguido. El importe es lo que suele gastar por mes en esos artículos.</p>` : `<p class="sub">Salen de lo que compra cada cliente, artículo por artículo. <b>Le toca reponer</b>: según cada cuánto lo compra, ya le corresponde. <b>Dejó de comprar</b>: lo compraba seguido y pasó bastante más tiempo del habitual. El importe es lo que suele gastar por mes en esos artículos.</p>`}
+    ${vistasOportunidades()}
+    <div id="opIntro"${S.op.vista === 'articulos' ? '' : ' class="hidden"'}>${!S.veTodo ? `<p class="sub">Según lo que compra cada cliente: a quién <b>le toca reponer</b> y quién <b>dejó de llevar</b> algo que compraba seguido. El importe es lo que suele gastar por mes en esos artículos.</p>` : `<p class="sub">Salen de lo que compra cada cliente, artículo por artículo. <b>Le toca reponer</b>: según cada cuánto lo compra, ya le corresponde. <b>Dejó de comprar</b>: lo compraba seguido y pasó bastante más tiempo del habitual. El importe es lo que suele gastar por mes en esos artículos.</p>`}</div>
     <div id="opCaja"><p class="sub">Cargando…</p></div>`;
-  cargarPatrones().then(pintarOportunidades);
+  if(S.op.vista === 'articulos') cargarPatrones().then(pintarOportunidades); else pintarOportunidades();
 }
 function pintarOportunidades(){
   const caja = $('opCaja');
   if(!caja || S.tab !== 'oportunidades') return;
   const o = S.op;
+  document.querySelectorAll('[data-op-vista]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.opVista === o.vista)));
+  $('opIntro')?.classList.toggle('hidden', o.vista !== 'articulos');
+  if(o.vista === 'rfm') return pintarRfm(caja);
+  if(o.vista === 'rubros') return pintarEspacios(caja);
+  if(!o.filas){ caja.innerHTML = '<p class="sub">Cargando…</p>'; cargarPatrones().then(pintarOportunidades); return; }
   if(o.error){ caja.innerHTML = `<div class="msg-box error">No se pudieron leer las oportunidades: ${esc(o.error)}</div>`; return; }
   if(!o.filas.length){ caja.innerHTML = sinArticulos(); return; }
   const q = norm(o.q);
@@ -3133,6 +3211,160 @@ function pintarOportunidades(){
       ${!S.veTodo ? `<button type="button" class="btn-ghost mc-ir" data-ir-cliente="${c.id}" data-nombre="${esc(c.nombre)}">Ir al cliente para registrar el contacto</button>` : ''}
     </article>`).join('') || '<div class="card"><p class="sub" style="margin:0">No hay oportunidades con ese filtro.</p></div>'}</div>
     ${clientes.length > o.mostrar ? `<button type="button" class="btn-ghost mas" id="opMas">Ver más (${num(clientes.length - o.mostrar)})</button>` : ''}`;
+}
+
+// ====== MATRICES DE OPORTUNIDADES ======
+// RFM: a quién ir (recencia × frecuencia, con lo facturado en el año). Mapa de espacios en blanco: qué ofrecerle (cliente × rubro).
+const RFM_FILAS = [[1, 'Activo', 'compró hace 45 días o menos'], [2, 'Enfriándose', 'entre 46 y 120 días'], [3, 'Perdido', 'más de 120 días']];
+const RFM_COLS = [[1, 'Frecuente', '8 meses o más del año'], [2, 'Ocasional', '3 a 7 meses'], [3, 'Esporádico', '0 a 2 meses']];
+const RFM_CELDAS = {
+  11: ['Cuidar', 'ok', 'Compran casi todos los meses y están al día. Son la base: que nunca les falte nada.'],
+  12: ['Hacer crecer', 'ok', 'Compran a veces y están activos. Ofrecerles más rubros para que compren todos los meses.'],
+  13: ['Fidelizar', 'low', 'Compraron hace poco pero casi nunca. Hacer seguimiento para que vuelvan.'],
+  21: ['Llamar ya', 'bad', 'Compraban todos los meses y hace más de un mes y medio que no piden. Es lo más urgente.'],
+  22: ['Reactivar', 'mid', 'Compraban a veces y se están enfriando. Un llamado o una visita a tiempo los recupera.'],
+  23: ['Contacto liviano', 'low', 'Compran poco y se están enfriando. Un WhatsApp alcanza.'],
+  31: ['No perderlos', 'bad', 'Compraban todos los meses y hace más de 4 meses que no compran. Averiguar qué pasó.'],
+  32: ['Recuperar', 'mid', 'Compraban a veces y dejaron hace más de 4 meses. Vale una visita con una propuesta.'],
+  33: ['Pileta', 'low', 'Compraron poco y hace mucho. Campaña masiva o pileta, sin dedicarles visitas.']
+};
+const ESTADOS_ESP = {
+  compra: ['Lo compra', 'Lo compra seguido y está al día'], reponer: ['Le toca', 'Según cada cuánto lo compra, ya le toca'],
+  dejo: ['Lo dejó', 'Lo compraba seguido y dejó'], ofrecer: ['Ofrecer', 'No lo compra, pero sí la mayoría de los clientes parecidos'],
+  ocasional: ['A veces', 'Lo compró hace poco, sin regularidad'], antes: ['Hace mucho', 'Lo compró hace más de un año o muy de vez en cuando']
+};
+const RUBRO_CORTO = {
+  'PAPEL - TOALLAS DE MANO': 'Toallas de mano', 'LAVANDERIA INDUSTRIAL': 'Lavandería', 'DESENGRASANTES Y DETERGENTES INDUST. ALIMENTICIA': 'Ind. alimenticia',
+  'PAPEL HIGIENICO': 'Papel higiénico', 'JABONES PARA MANOS INSTITUCIONAL': 'Jabón de manos', 'BOLSAS DE RESIDUOS': 'Bolsas',
+  'DESINFECTANTES - DESENGRAS. Y LIMPIADORES INDUST.': 'Desinfectantes', 'CERAS, LIMPIADORES y SELLADORES DE PISO USO PROF.': 'Ceras y pisos',
+  'CLOROS-LAVANDINAS': 'Lavandina', 'ALCOHOL - SANITIZANTES': 'Alcohol', 'PAPEL - BOBINAS INDUSTRIALES': 'Bobinas', 'GUANTES': 'Guantes',
+  'TEXTIL - TRAPOS - REJILLAS - REPASADORES': 'Trapos', 'CUIDADO DE COCINA Y DEL HOGAR': 'Cocina', 'PAÑOS DE LIMPIEZA PROFESIONAL': 'Paños',
+  'DESODORANTE DE AMBIENTE': 'Desodorante', 'VARIOS - EQUIPAMIENTO Y ACCESORIOS': 'Equipamiento', 'CUIDADO DE MUEBLES': 'Muebles',
+  'MOPAS Y LAMPAZOS': 'Mopas', 'BALDES - CESTOS Y CONTENEDORES': 'Baldes y cestos', 'CUIDADO DE CABELLO': 'Cabello',
+  'INSECTICIDAS Y REPELENTES': 'Insecticidas', 'PAPEL - ROLLO COCINA Y SERVILLETAS': 'Rollo cocina', 'CUIDADO DE ROPA': 'Ropa',
+  'CUIDADO DE BAÑO': 'Baño', 'SECADORES DE PISOS-VIDRIOS Y PASA-CERAS': 'Secadores', 'CABOS Y EXTENSIBLES': 'Cabos',
+  'ESPONJAS': 'Esponjas', 'CEPILLOS COMUNES,ESCOBAS, ESCOBILLONES Y PLUMEROS': 'Escobas', 'DISPENSERS': 'Dispensers',
+  'CUIDADO DE PISOS': 'Pisos hogar', 'CUIDADO DE LA PIEL': 'Piel', 'DESINFECCION HOSPITALARIA': 'Hospitalaria', 'DESCARTABLES': 'Descartables',
+  'CARROS DE LIMPIEZA PROFESIONAL': 'Carros', 'CEPILLOS INDUSTRIA ALIMENTICIA Y USO PROFESIONAL': 'Cepillos prof.', 'MAQUINAS Y HERRAMIENTAS DE LIMPIEZA': 'Máquinas',
+  'CUIDADO DE AUTOMOVILES': 'Automóviles', 'PALAS SANITARIAS Y DE RESIDUOS': 'Palas'
+};
+const rubroCorto = r => RUBRO_CORTO[r] || (r.charAt(0) + r.slice(1).toLowerCase()).split(/ [-,] |, /)[0].slice(0, 16);
+
+async function cargarRfm(){
+  const o = S.op;
+  if(o.rfm) return;
+  try { const { data, error } = await sb.rpc('comercial_rfm', { p_vendedor: null }); if(error) throw error; o.rfm = data || []; o.rfmErr = null; }
+  catch(e){ o.rfmErr = e.message || String(e); o.rfm = []; }
+}
+async function cargarEspacios(vend){
+  const o = S.op, k = vend || 'mio';
+  if(o.esp.has(k)) return;
+  o.esp.set(k, { cargando: true });
+  try { const { data, error } = await sb.rpc('comercial_espacios', { p_vendedor: vend ? Number(vend) : null, p_cliente: null }); if(error) throw error; o.esp.set(k, { filas: data || [] }); }
+  catch(e){ o.esp.set(k, { error: e.message || String(e) }); }
+}
+function vistasOportunidades(){
+  return `<div class="op-vistas" role="tablist">${[['rfm', 'A quién ir'], ['rubros', 'Qué ofrecer por rubro'], ['articulos', 'Por artículo']].map(([id, n]) =>
+    `<button type="button" role="tab" data-op-vista="${id}" aria-selected="${S.op.vista === id}">${n}</button>`).join('')}</div>`;
+}
+function selectorVendedorOp(opciones, conTodos){
+  if(!S.veTodo) return '';
+  return `<div class="filtros" style="margin-bottom:10px"><select id="opVend" aria-label="Vendedor">${conTodos ? '<option value="">Todos los vendedores</option>' : ''}${opciones.map(([id, n]) => `<option value="${esc(id)}" ${String(id) === S.op.vendedor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>`;
+}
+function vendedoresConClientes(){
+  return S.vendedores.filter(v => v.activo && v.es_vendedor).map(v => [String(v.id), v.nombre]).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+function pintarRfm(caja){
+  const o = S.op;
+  if(!o.rfm){ caja.innerHTML = '<p class="sub">Cargando…</p>'; cargarRfm().then(pintarOportunidades); return; }
+  if(o.rfmErr){ caja.innerHTML = `<div class="msg-box error">No se pudo armar la matriz: ${esc(o.rfmErr)}</div>`; return; }
+  const filas = o.rfm.filter(x => !o.vendedor || String(x.vendedor_id ?? '_') === o.vendedor);
+  if(!filas.length){ caja.innerHTML = '<div class="msg-box info">Todavía no hay ventas cargadas para armar la matriz.</div>'; return; }
+  const g = {}; let total = 0;
+  for(const x of filas){ const k = x.r * 10 + x.f; g[k] = g[k] || { n: 0, m: 0 }; g[k].n++; g[k].m += Number(x.monto); total += Number(x.monto); }
+  const sel = o.celda;
+  const vends = [...new Map(o.rfm.map(x => [String(x.vendedor_id ?? '_'), x.vendedor || 'Sin vendedor (pileta)'])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const celda = (r, f) => {
+    const k = r * 10 + f, d = g[k] || { n: 0, m: 0 }, [nombre, tono] = RFM_CELDAS[k];
+    return `<button type="button" class="rfm-c t-${tono}${sel === k ? ' sel' : ''}" data-rfm="${k}" ${d.n ? '' : 'disabled'} aria-pressed="${sel === k}">
+      <span class="rfm-a">${nombre}</span><span class="rfm-n">${num(d.n)}</span><span class="rfm-m">${plata(d.m)}${total ? ` · ${Math.round(100 * d.m / total)}%` : ''}</span></button>`;
+  };
+  let lista = '';
+  if(sel){
+    const [nombre, , texto] = RFM_CELDAS[sel];
+    const cl = filas.filter(x => x.r * 10 + x.f === sel);
+    lista = `<section class="rfm-lista" id="rfmLista"><h2 class="mv-h" style="font-size:20px; margin:0 0 4px">${nombre}: ${num(cl.length)} ${cl.length === 1 ? 'cliente' : 'clientes'}</h2>
+      <p class="sub" style="margin:0 0 10px">${texto}</p>
+      <div class="mc-grid">${cl.slice(0, o.mostrar).map(x => `<article class="mc">
+        <div class="mc-top"><h3>${esc(x.cliente)}</h3><span class="mc-v">${plata(x.monto)}</span></div>
+        ${S.veTodo ? `<div class="mc-sub">${esc(x.vendedor || 'Sin vendedor (pileta)')}</div>` : ''}
+        <div class="mc-datos"><span>Última compra <strong>${fechaCorta(x.ultima)}</strong> (${haceDias(x.dias)})</span><span>Compró en <strong>${x.meses} de 12</strong> meses</span></div>
+        ${!S.veTodo && S.misVendedores.has(x.vendedor_id) ? `<button type="button" class="btn-ghost mc-ir" data-ir-cliente="${x.cliente_id}" data-nombre="${esc(x.cliente)}">Ir al cliente</button>` : ''}
+      </article>`).join('')}</div>
+      ${cl.length > o.mostrar ? `<button type="button" class="btn-ghost mas" id="opMas">Ver más (${num(cl.length - o.mostrar)})</button>` : ''}</section>`;
+  }
+  caja.innerHTML = `${selectorVendedorOp(vends, true)}
+    <p class="sub" style="margin-top:0">Cada cliente cae en un casillero según <b>hace cuánto compró</b> (filas) y <b>cuántos meses del último año compró</b> (columnas). El número es la cantidad de clientes y el importe, lo que facturaron en el año. Tocá un casillero para ver quiénes son. Ventas al ${fechaCorta(filas[0].datos_al)}.</p>
+    <div class="rfm" role="group" aria-label="Matriz de clientes">
+      <div class="rfm-h"></div>${RFM_COLS.map(([, n, d]) => `<div class="rfm-h"><b>${n}</b><span>${d}</span></div>`).join('')}
+      ${RFM_FILAS.map(([r, n, d]) => `<div class="rfm-h rfm-hf"><b>${n}</b><span>${d}</span></div>${RFM_COLS.map(([f]) => celda(r, f)).join('')}`).join('')}
+    </div>
+    ${lista}`;
+}
+
+function pintarEspacios(caja){
+  const o = S.op;
+  let vend = '';
+  if(S.veTodo){
+    const vs = vendedoresConClientes();
+    if(!o.vendedor || !vs.some(v => v[0] === o.vendedor)) o.vendedor = vs.length ? vs[0][0] : '';
+    vend = o.vendedor;
+    if(!vend){ caja.innerHTML = '<div class="msg-box info">No hay vendedores activos.</div>'; return; }
+  }
+  const sel = selectorVendedorOp(S.veTodo ? vendedoresConClientes() : [], false);
+  const d = o.esp.get(vend || 'mio');
+  if(!d || d.cargando){ caja.innerHTML = sel + '<p class="sub">Armando el mapa…</p>'; if(!d) cargarEspacios(vend).then(pintarOportunidades); return; }
+  if(d.error){ caja.innerHTML = sel + `<div class="msg-box error">No se pudo armar el mapa: ${esc(d.error)}</div>`; return; }
+  if(!d.filas.length){ caja.innerHTML = sel + sinArticulos(); return; }
+  // clientes y rubros
+  const cli = new Map(), rub = new Map();
+  for(const x of d.filas){
+    const c = cli.get(x.cliente_id) || { id: x.cliente_id, celdas: new Map(), monto: 0, ofrecer: 0, dejo: 0, reponer: 0 };
+    c.celdas.set(x.rubro, x); c.monto += Number(x.neto_12m || 0); if(c[x.estado] !== undefined) c[x.estado]++;
+    cli.set(x.cliente_id, c);
+    rub.set(x.rubro, (rub.get(x.rubro) || 0) + Number(x.neto_12m || 0) + (x.estado === 'ofrecer' ? 1 : 0));
+  }
+  const nombres = new Map((o.rfm || []).map(x => [x.cliente_id, x.cliente]));
+  for(const r of S.plan) if(!nombres.has(r.cliente_id)) nombres.set(r.cliente_id, r.nombre);
+  let rubros = [...rub.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+  const totalRubros = rubros.length;
+  if(!o.espTodos) rubros = rubros.slice(0, 12);
+  const q = norm(o.espQ);
+  const filtros = [['todos', 'Todos', () => true], ['ofrecer', 'Con algo para ofrecer', c => c.ofrecer], ['dejo', 'Dejaron un rubro', c => c.dejo], ['reponer', 'Les toca reponer', c => c.reponer]];
+  const f = filtros.find(x => x[0] === o.espFiltro) || filtros[0];
+  const todos = [...cli.values()].map(c => ({ ...c, nombre: nombres.get(c.id) || 'Cliente ' + c.id }));
+  const lista = todos.filter(c => f[2](c) && (!q || norm(c.nombre).includes(q))).sort((a, b) => b.monto - a.monto);
+  const celda = (c, r) => {
+    const x = c.celdas.get(r);
+    if(!x) return '<td class="esp-v"></td>';
+    const [et, det] = ESTADOS_ESP[x.estado] || [x.estado, ''];
+    const info = x.estado === 'ofrecer' ? `Lo compran ${x.porcentaje}% de los ${x.vecinos} clientes más parecidos`
+      : `${num(x.compras)} ${x.compras === 1 ? 'compra' : 'compras'} en 2 años${x.intervalo ? ', ' + cadaCuanto(x.intervalo) : ''}; última ${fechaCorta(x.ultima)} (${haceDias(x.dias)})${Number(x.neto_12m) ? '; ' + plata(x.neto_12m) + ' en el año' : ''}`;
+    const t = `${c.nombre} · ${r}: ${det}. ${info}.`;
+    return `<td class="esp-c e-${x.estado}"><button type="button" data-esp-info="${esc(t)}" aria-label="${esc(r + ': ' + et)}" title="${esc(t)}"><span>${et}</span></button></td>`;
+  };
+  caja.innerHTML = `${sel}
+    <p class="sub" style="margin-top:0">Una fila por cliente y una columna por rubro. Se ve de un vistazo qué rubros lleva cada uno y dónde hay lugar para vender más: <b>Ofrecer</b> es un rubro que no compra pero sí la mayoría de los clientes que compran lo mismo que él.</p>
+    <div class="esp-ley">${['compra', 'reponer', 'dejo', 'ofrecer', 'ocasional', 'antes'].map(k => `<span class="e-${k}"><i></i>${ESTADOS_ESP[k][0]}</span>`).join('')}</div>
+    <input type="search" class="mv-buscar" id="espQ" placeholder="Buscar cliente" value="${esc(o.espQ)}" aria-label="Buscar cliente">
+    <div class="mc-filtros">${filtros.map(([id, n, t]) => `<button type="button" data-esp-filtro="${id}" aria-pressed="${id === f[0]}">${n} ${num(todos.filter(t).length)}</button>`).join('')}</div>
+    <div class="esp-wrap"><table class="esp">
+      <thead><tr><th class="esp-cli">Cliente</th>${rubros.map(r => `<th title="${esc(r)}"><span>${esc(rubroCorto(r))}</span></th>`).join('')}</tr></thead>
+      <tbody>${lista.slice(0, o.espMostrar).map(c => `<tr><th class="esp-cli" scope="row">${!S.veTodo ? `<button type="button" class="link-btn" data-ir-cliente="${c.id}" data-nombre="${esc(c.nombre)}">${esc(c.nombre)}</button>` : esc(c.nombre)}<small>${plata(c.monto)} en el año</small></th>${rubros.map(r => celda(c, r)).join('')}</tr>`).join('')
+        || `<tr><td colspan="${rubros.length + 1}" class="sub">No hay clientes con ese filtro.</td></tr>`}</tbody></table></div>
+    <div class="esp-pie">${lista.length > o.espMostrar ? `<button type="button" class="btn-ghost" id="espMas">Ver más clientes (${num(lista.length - o.espMostrar)})</button>` : ''}
+      ${totalRubros > 12 ? `<button type="button" class="btn-ghost" id="espRubros">${o.espTodos ? 'Ver solo los 12 rubros principales' : `Ver los ${totalRubros} rubros`}</button>` : ''}</div>`;
 }
 
 // Abre Mis clientes en ese cliente, con el panel de qué compra ya desplegado
@@ -3223,8 +3455,9 @@ async function cargarProspectos(){
 }
 function renderProspectos(aviso){
   content().innerHTML = aviso + `
-    <div class="mv-top"><h1 class="mv-hola">Prospectos</h1>${S.misVendedores.size && !S.nuevoDato ? `<button type="button" class="btn-primary" id="btnNuevoDato" style="min-height:44px">+ Dato nuevo</button>` : ''}</div>
+    <div class="mv-top"><h1 class="mv-hola">Prospectos</h1>${(S.misVendedores.size || S.esAdmin) && !S.nuevoDato ? `<button type="button" class="btn-primary" id="btnNuevoDato" style="min-height:44px">+ Dato nuevo</button>` : ''}</div>
     ${S.nuevoDato ? formNuevoDato() : ''}
+    ${S.esAdmin ? `<p class="sub"><b>Cómo se cargan:</b> de a uno con "+ Dato nuevo" (podés asignarlo a un vendedor o dejarlo en la pileta), o una lista entera desde un Excel en la <button type="button" class="link-btn" data-tab="pileta">Pileta</button>. Los vendedores los cargan desde Prospectos o Mis clientes.</p>` : ''}
     <p class="sub">Cada dato nuevo pasa por Nuevo, Contactado, Visitado y Presupuesto hasta que se gana o se pierde. Avanza solo cuando registrás una llamada, visita o presupuesto, y pasa a Ganado cuando aparece su primera compra.</p>
     <div id="prCaja"><p class="sub">Cargando…</p></div>`;
   if(S.nuevoDato) $('ndNombre').focus();
@@ -3289,6 +3522,7 @@ function tarjetaProspecto(p){
         <div class="mc-form-b"><button type="button" class="btn-primary" data-pr-perder>Marcar como perdido</button><button type="button" class="btn-ghost" data-pr-cancelar>Cancelar</button></div></div>`;
     else acciones = `<div class="mc-acc">${TIPOS_CONTACTO.map(([k, n]) => `<button type="button" data-pr-contacto="${k}">${n}</button>`).join('')}</div>
       <div class="pr-mov"><button type="button" class="btn-ghost" data-pr-prox>${p.proxima_fecha ? 'Cambiar próximo paso' : 'Definir próximo paso'}</button>
+        ${S.esAdmin ? `<select data-pr-asignar aria-label="Vendedor asignado"><option value="">${p.vendedor_id ? 'Pasarlo a la pileta' : 'En la pileta'}</option>${S.vendedores.filter(v => v.activo && v.es_vendedor).sort((a, b) => a.nombre.localeCompare(b.nombre)).map(v => `<option value="${v.id}" ${v.id === p.vendedor_id ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}</select>` : ''}
         <select data-pr-etapa aria-label="Mover a otra etapa"><option value="">Mover a…</option>${ETAPAS.filter(e => e[0] !== p.etapa).map(([id, n]) => `<option value="${id}">${n}</option>`).join('')}</select></div>`;
   } else if(puedeEditar(p) && p.etapa === 'perdido') acciones = `<div class="mc-pie"><button type="button" class="link-btn" data-pr-reabrir>Volver a trabajarlo</button></div>`;
   return `<article class="mc" data-prospecto="${p.cliente_id}">
@@ -3315,6 +3549,86 @@ async function accionProspecto(card, fn, params, okTexto){
   pintarProspectos();
   toast(okTexto);
   return res.data;
+}
+
+// ====== TABLERO DE FEEDBACK ======
+// Errores, mejoras, ideas y consultas de quienes usan la herramienta. Todos ven todo y votan; administración responde y cambia el estado.
+const FB_TIPOS = [['error', 'Algo no anda', 'alta'], ['mejora', 'Mejora', 'media'], ['idea', 'Idea nueva', ''], ['consulta', 'Consulta', 'plano']];
+const FB_ESTADOS = [['nuevo', 'Nuevo'], ['revision', 'En revisión'], ['hecho', 'Hecho'], ['descartado', 'Descartado']];
+const NOMBRE_PANTALLA = { avance: 'Avance', clientes: 'Mis clientes', oportunidades: 'Oportunidades', prospectos: 'Prospectos', pileta: 'Pileta', seguimiento: 'Cartera por vendedor', cartera: 'Cartera de clientes', ventas: 'Cargar ventas', importar: 'Cargar cartera', objetivos: 'Objetivos', vendedores: 'Vendedores', comodatos: 'Comodatos' };
+async function cargarFeedback(){
+  const fb = S.fb;
+  try { const { data, error } = await sb.rpc('hub_feedback_lista', { p_app: 'comercial' }); if(error) throw error; fb.filas = data || []; fb.error = null; }
+  catch(e){ fb.error = e.message || String(e); fb.filas = fb.filas || []; }
+}
+function renderFeedback(aviso){
+  const fb = S.fb;
+  content().innerHTML = aviso + `
+    <div class="mv-top"><h1 class="mv-hola">Feedback</h1></div>
+    <p class="sub">Contanos qué no anda, qué mejorarías o qué te gustaría que tenga la herramienta. Todos ven los comentarios y pueden sumar su voto: lo más votado se hace primero.</p>
+    <form class="fb-form" id="fbForm">
+      <div class="fb-tipos" role="radiogroup" aria-label="Tipo de comentario">${FB_TIPOS.map(([id, n]) => `<button type="button" role="radio" data-fb-tipo="${id}" aria-checked="${fb.tipo === id}">${n}</button>`).join('')}</div>
+      <textarea id="fbTexto" maxlength="2000" rows="3" placeholder="${fb.tipo === 'error' ? 'Qué estabas haciendo y qué pasó' : 'Escribilo con tus palabras'}" aria-label="Comentario">${esc(fb.borrador || '')}</textarea>
+      <div class="fb-env"><span class="sub" style="margin:0">Pantalla: ${esc(NOMBRE_PANTALLA[fb.desde] || 'General')}</span><button type="submit" class="btn-primary" id="fbEnviar">Enviar</button></div>
+      <div class="mc-err" id="fbError"></div>
+    </form>
+    <div id="fbCaja"><p class="sub">Cargando…</p></div>`;
+  cargarFeedback().then(pintarFeedback);
+}
+function pintarFeedback(){
+  const caja = $('fbCaja'), fb = S.fb;
+  if(!caja || S.tab !== 'feedback') return;
+  if(fb.error && !fb.filas.length){ caja.innerHTML = `<div class="msg-box error">No se pudo leer el tablero: ${esc(fb.error)}</div>`; return; }
+  const filtros = [['abiertos', 'Abiertos', x => x.estado === 'nuevo' || x.estado === 'revision'], ['hecho', 'Hechos', x => x.estado === 'hecho'], ['descartado', 'Descartados', x => x.estado === 'descartado'], ['mios', 'Los míos', x => x.mio]];
+  const f = filtros.find(x => x[0] === fb.filtro) || filtros[0];
+  const lista = fb.filas.filter(f[2]).sort(fb.orden === 'recientes' ? (a, b) => b.creado_en.localeCompare(a.creado_en) : (a, b) => b.votos - a.votos || b.creado_en.localeCompare(a.creado_en));
+  const tarjeta = x => {
+    const tipo = FB_TIPOS.find(t => t[0] === x.tipo) || [x.tipo, x.tipo, ''];
+    const est = FB_ESTADOS.find(t => t[0] === x.estado) || [x.estado, x.estado];
+    const editando = fb.editar === x.id;
+    return `<article class="mc fb" data-fb="${x.id}">
+      <div class="fb-fila">
+        <button type="button" class="fb-voto" data-fb-votar aria-pressed="${x.vote}" aria-label="${x.vote ? 'Sacar mi voto' : 'Votar'} (${x.votos} ${x.votos === 1 ? 'voto' : 'votos'})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 5 13h4.5v6h5v-6H19z"/></svg><b>${num(x.votos)}</b></button>
+        <div class="fb-cuerpo">
+          <div class="fb-chips"><span class="chip ${tipo[2]}">${tipo[1]}</span><span class="chip fb-e-${x.estado}">${est[1]}</span></div>
+          <p class="fb-texto">${esc(x.texto)}</p>
+          <div class="mc-sub">${esc(x.autor_nombre || 'Alguien')} · ${fechaCorta(x.creado_en.slice(0, 10))}${x.pantalla ? ' · ' + esc(NOMBRE_PANTALLA[x.pantalla] || x.pantalla) : ''}</div>
+          ${x.respuesta ? `<div class="fb-resp"><b>Respuesta:</b> ${esc(x.respuesta)}</div>` : ''}
+          ${S.esAdmin ? (editando ? `<div class="mc-form"><select data-fb-estado aria-label="Estado">${FB_ESTADOS.map(([id, n]) => `<option value="${id}" ${id === x.estado ? 'selected' : ''}>${n}</option>`).join('')}</select>
+              <input type="text" data-fb-resp maxlength="2000" placeholder="Respuesta para quien lo escribió (opcional)" value="${esc(x.respuesta || '')}" aria-label="Respuesta" style="margin-top:8px">
+              <div class="mc-form-b"><button type="button" class="btn-primary" data-fb-guardar>Guardar</button><button type="button" class="btn-ghost" data-fb-cancelar>Cancelar</button></div></div>`
+            : `<div class="mc-pie"><button type="button" class="link-btn" data-fb-editar>Responder o cambiar estado</button>${`<button type="button" class="link-btn" data-fb-borrar>Borrar</button>`}</div>`)
+            : (x.mio && x.estado === 'nuevo' ? `<div class="mc-pie"><button type="button" class="link-btn" data-fb-borrar>Borrar</button></div>` : '')}
+          <div class="mc-err"></div>
+        </div>
+      </div>
+    </article>`;
+  };
+  caja.innerHTML = `
+    <div class="fb-barra"><div class="mc-filtros" style="margin:0">${filtros.map(([id, n, t]) => `<button type="button" data-fb-filtro="${id}" aria-pressed="${id === f[0]}">${n} ${num(fb.filas.filter(t).length)}</button>`).join('')}</div>
+      <select id="fbOrden" aria-label="Orden"><option value="votos" ${fb.orden !== 'recientes' ? 'selected' : ''}>Más votados</option><option value="recientes" ${fb.orden === 'recientes' ? 'selected' : ''}>Más recientes</option></select></div>
+    <div class="fb-lista">${lista.map(tarjeta).join('') || `<div class="card"><p class="sub" style="margin:0">${fb.filas.length ? 'No hay comentarios con ese filtro.' : 'Todavía no hay comentarios. ¡Sé el primero!'}</p></div>`}</div>`;
+}
+async function accionFeedback(card, fn, params, okTexto){
+  const err = card.querySelector('.mc-err');
+  card.querySelectorAll('button, select, input').forEach(b => b.disabled = true);
+  let res; try { res = await sb.rpc(fn, params); } catch(e){ res = { error: e }; }
+  if(res.error){ card.querySelectorAll('button, select, input').forEach(b => b.disabled = false); err.textContent = 'No se pudo: ' + (res.error.message || res.error); return null; }
+  S.fb.editar = null;
+  await cargarFeedback(); pintarFeedback();
+  if(okTexto) toast(okTexto);
+  return res.data;
+}
+async function enviarFeedback(){
+  const fb = S.fb, texto = $('fbTexto').value.trim(), err = $('fbError');
+  if(!fb.tipo){ err.textContent = 'Elegí qué tipo de comentario es.'; return; }
+  if(texto.length < 3){ err.textContent = 'Escribí qué pasó o qué te gustaría.'; $('fbTexto').focus(); return; }
+  $('fbEnviar').disabled = true; err.textContent = '';
+  let res; try { res = await sb.rpc('hub_feedback_crear', { p_app: 'comercial', p_tipo: fb.tipo, p_texto: texto, p_pantalla: fb.desde || null }); } catch(e){ res = { error: e }; }
+  if(res.error){ $('fbEnviar').disabled = false; err.textContent = 'No se pudo enviar: ' + (res.error.message || res.error); return; }
+  fb.borrador = ''; fb.tipo = null; fb.filtro = 'mios';
+  renderFeedback('');
+  toast('¡Gracias! Quedó en el tablero.');
 }
 
 // ====== EVENTOS ======
@@ -3352,6 +3666,23 @@ content().addEventListener('click', e => {
   if(t.closest('.com-det')) return;
   if((el = t.closest('[data-com-cli]'))){ const id = Number(el.dataset.comCli); S.com.abierto = S.com.abierto === id ? null : id; pintarComodatos(); return; }
   if((el = t.closest('[data-qc]'))){ const id = Number(el.dataset.qc); S.mc.qc = S.mc.qc === id ? null : id; if(S.mc.qc) cargarQueCompra(id); pintarMisClientes(); return; }
+  if((el = t.closest('[data-fb-tipo]'))){ S.fb.tipo = el.dataset.fbTipo; S.fb.borrador = $('fbTexto').value; document.querySelectorAll('[data-fb-tipo]').forEach(b => b.setAttribute('aria-checked', String(b === el))); $('fbTexto').placeholder = S.fb.tipo === 'error' ? 'Qué estabas haciendo y qué pasó' : 'Escribilo con tus palabras'; $('fbTexto').focus(); return; }
+  if((el = t.closest('[data-fb-filtro]'))){ S.fb.filtro = el.dataset.fbFiltro; pintarFeedback(); return; }
+  if((el = t.closest('[data-fb]'))){
+    const card = el, id = Number(card.dataset.fb);
+    if(t.closest('[data-fb-votar]')){ accionFeedback(card, 'hub_feedback_votar', { p_id: id }); return; }
+    if(t.closest('[data-fb-editar]')){ S.fb.editar = id; pintarFeedback(); return; }
+    if(t.closest('[data-fb-cancelar]')){ S.fb.editar = null; pintarFeedback(); return; }
+    if(t.closest('[data-fb-guardar]')){ accionFeedback(card, 'hub_feedback_estado', { p_id: id, p_estado: card.querySelector('[data-fb-estado]').value, p_respuesta: card.querySelector('[data-fb-resp]').value.trim() || null }, 'Guardado'); return; }
+    if(t.closest('[data-fb-borrar]')){ if(confirm('¿Borrar este comentario?')) accionFeedback(card, 'hub_feedback_borrar', { p_id: id }, 'Borrado'); return; }
+    return;
+  }
+  if((el = t.closest('[data-op-vista]'))){ S.op.vista = el.dataset.opVista; S.op.mostrar = 30; pintarOportunidades(); return; }
+  if((el = t.closest('[data-rfm]'))){ const k = Number(el.dataset.rfm); S.op.celda = S.op.celda === k ? null : k; S.op.mostrar = 30; pintarOportunidades(); if(S.op.celda) $('rfmLista')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if((el = t.closest('[data-esp-filtro]'))){ S.op.espFiltro = el.dataset.espFiltro; S.op.espMostrar = 40; pintarOportunidades(); return; }
+  if((el = t.closest('[data-esp-info]'))){ toast(el.dataset.espInfo); return; }
+  if(t.id === 'espMas'){ S.op.espMostrar += 40; pintarOportunidades(); return; }
+  if(t.id === 'espRubros'){ S.op.espTodos = !S.op.espTodos; pintarOportunidades(); return; }
   if((el = t.closest('[data-op-tipo]'))){ S.op.tipo = el.dataset.opTipo; S.op.mostrar = 30; pintarOportunidades(); return; }
   if((el = t.closest('[data-op-vend]'))){ S.op.vendedor = el.dataset.opVend; S.op.mostrar = 30; pintarOportunidades(); return; }
   if(t.id === 'opMas'){ S.op.mostrar += 30; pintarOportunidades(); return; }
@@ -3464,8 +3795,19 @@ content().addEventListener('change', e => {
   const f = { fVendedor: 'vendedor', fEstado: 'estado', fPrioridad: 'prioridad', fSegmento: 'segmento', fOrden: 'orden' }[t.id];
   if(f){ S.filtros[f] = t.value; S.mostrar = POR_PAGINA; pintarLista(); return; }
   if(t.id === 'selMes'){ cambiarMes(t.value); return; }
-  if(t.id === 'opVend'){ S.op.vendedor = t.value; S.op.mostrar = 30; pintarOportunidades(); return; }
+  if(t.id === 'fbOrden'){ S.fb.orden = t.value; pintarFeedback(); return; }
+  if(t.id === 'opVend'){ S.op.vendedor = t.value; S.op.mostrar = 30; S.op.espMostrar = 40; pintarOportunidades(); return; }
   if(t.id === 'prVend'){ S.pr.vendedor = t.value; pintarProspectos(); return; }
+  if(t.matches('[data-pr-asignar]')){
+    const card = t.closest('[data-prospecto]'), id = Number(card.dataset.prospecto), nuevo = t.value ? Number(t.value) : null;
+    t.disabled = true;
+    sb.from('comercial_clientes').update({ vendedor_id: nuevo, asignado_manual: !!nuevo }).eq('id', id).select('id').then(async ({ data, error }) => {
+      if(error || !data || !data.length){ t.disabled = false; card.querySelector('.mc-err').textContent = 'No se pudo asignar: ' + (error ? error.message : 'sin permiso'); return; }
+      await cargarProspectos(); pintarProspectos();
+      toast(nuevo ? 'Asignado a ' + (S.vendedores.find(v => v.id === nuevo)?.nombre || 'el vendedor') : 'Pasó a la pileta');
+    });
+    return;
+  }
   if(t.matches('[data-pr-etapa]') && t.value){
     const card = t.closest('[data-prospecto]'), id = Number(card.dataset.prospecto);
     if(t.value === 'perdido'){ S.pr.abierto = { id, modo: 'perdido' }; pintarProspectos(); const n = document.querySelector('#prLista [data-pr-motivo]'); if(n) n.focus(); return; }
@@ -3492,11 +3834,16 @@ content().addEventListener('change', e => {
 });
 
 let esperaBusqueda = null;
-content().addEventListener('submit', e => { if(e.target.id === 'ndForm'){ e.preventDefault(); guardarNuevoDato(); } });
+content().addEventListener('submit', e => {
+  if(e.target.id === 'ndForm'){ e.preventDefault(); guardarNuevoDato(); }
+  if(e.target.id === 'fbForm'){ e.preventDefault(); enviarFeedback(); }
+});
+$('session').addEventListener('click', e => { if(e.target.closest('[data-tab="feedback"]')){ ir('feedback'); window.scrollTo(0, 0); } });
 content().addEventListener('input', e => {
   const t = e.target;
   if(t.id === 'mcQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.mc.q = t.value; S.mc.mostrar = 30; S.mc.abierto = null; pintarMisClientes(); }, 200); return; }
   if(t.id === 'opQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.op.q = t.value; S.op.mostrar = 30; pintarOportunidades(); const i = $('opQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); return; }
+  if(t.id === 'espQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.op.espQ = t.value; S.op.espMostrar = 40; pintarOportunidades(); const i = $('espQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); return; }
   if(t.id === 'prQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.pr.q = t.value; pintarProspectos(); const i = $('prQ'); if(i){ i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); return; }
   if(t.id === 'comQ'){ clearTimeout(esperaBusqueda); esperaBusqueda = setTimeout(() => { S.com.q = t.value; S.com.mostrar = 60; pintarComodatos(); }, 200); return; }
   if(t.matches('[data-cod-desc]')){ t.closest('tr').querySelector('[data-cod-guardar]').disabled = false; return; }
