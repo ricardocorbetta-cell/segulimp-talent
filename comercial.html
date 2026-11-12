@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.10.1 (2026-11-09) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.10.2 (2026-11-12) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1480,7 +1480,20 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', '
 function isoLocal(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function sumarDias(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoLocal(d); }
 function lunesDe(iso){ const d = new Date(iso + 'T12:00:00'); return sumarDias(iso, -((d.getDay() + 6) % 7)); }
-function esHabil(iso){ const w = new Date(iso + 'T12:00:00').getDay(); return w >= 1 && w <= 5; }
+// Feriados en los que Segulimp no factura (salen de los días sin ventas de 2024 a 2026; los puentes turísticos se trabajan).
+// Se pueden sumar más desde la base: comercial_config 'feriados' = '2027-01-01,2027-02-08,…'
+const FERIADOS = new Set([
+  '2024-01-01', '2024-02-12', '2024-02-13', '2024-03-29', '2024-04-02', '2024-05-01', '2024-06-17', '2024-06-20', '2024-06-21', '2024-07-09', '2024-10-11', '2024-11-18', '2024-12-25',
+  '2025-01-01', '2025-03-03', '2025-03-04', '2025-03-24', '2025-04-02', '2025-04-18', '2025-06-16', '2025-06-20', '2025-10-10', '2025-11-24', '2025-12-08', '2025-12-25',
+  '2026-01-01', '2026-02-16', '2026-02-17', '2026-03-24', '2026-04-02', '2026-04-03', '2026-05-01', '2026-05-25', '2026-06-15', '2026-07-09', '2026-08-17', '2026-10-12', '2026-11-23', '2026-12-08', '2026-12-25'
+]);
+function esFeriado(iso){ return FERIADOS.has(iso) || String(S.cfg.feriados || '').split(/[\s,;]+/).includes(iso); }
+function esHabil(iso){ const w = new Date(iso + 'T12:00:00').getDay(); return w >= 1 && w <= 5 && !esFeriado(iso); }
+// Primer día hábil que todavía se puede vender: hoy, salvo que ya sea tarde (desde las 18 h cuenta desde mañana)
+function ultimoHabil(hasta){ let d = hasta; for(let i = 0; i < 15 && !esHabil(d); i++) d = sumarDias(d, -1); return d; }
+const DIAS_SEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function diaCorto(iso){ return DIAS_SEM[new Date(iso + 'T12:00:00').getDay()] + ' ' + diaMes(iso); }
+function primerDiaQueQueda(){ const h = hoyISO(); return new Date().getHours() >= 18 ? sumarDias(h, 1) : h; }
 function habilesEntre(desde, hasta){ let n = 0; for(let d = desde; d <= hasta; d = sumarDias(d, 1)) if(esHabil(d)) n++; return n; }
 // Período de venta. Si arranca el 1, es el mes calendario. Si arranca otro día (en Segulimp, el 16),
 // va de ese día al día anterior del mes siguiente y su clave AAAA-MM es el mes en el que termina.
@@ -1525,7 +1538,11 @@ function avanceDe(ids){
   const corte = fechaCorte();
   const total = habilesEntre(desde, hasta);
   const pasados = corte ? habilesEntre(desde, corte) : 0;
-  const restantes = total - pasados;
+  // los días que quedan se cuentan desde hoy (no desde la última venta cargada): los días ya pasados sin reporte no vuelven
+  let inicio = primerDiaQueQueda();
+  if(corte && sumarDias(corte, 1) > inicio) inicio = sumarDias(corte, 1);
+  if(inicio < desde) inicio = desde;
+  const restantes = inicio <= hasta ? habilesEntre(inicio, hasta) : 0;
   const proyeccion = pasados > 0 ? ventas / pasados * total : null;
   const falta = Math.max(objetivo - ventas, 0);
   return { ventas, objetivo, corte, total, pasados, restantes, proyeccion, falta,
@@ -1746,7 +1763,7 @@ function renderDetalleVendedor(aviso, id){
         ${a.objetivo ? medidor(a.pct, a.ritmo) : ''}
         <div class="note">${a.objetivo && a.corte ? `Ritmo esperado a la fecha: ${Math.round(a.ritmo)}%. ${dif >= 0 ? 'Vas ' + pesos(dif) + ' arriba del ritmo.' : 'Vas ' + pesos(-dif) + ' abajo del ritmo.'}` : 'La marca muestra el ritmo esperado a la fecha.'}</div></div>
       <div class="tile"><div class="label">Proyección al cierre</div><div class="value">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="note">${a.proyeccion != null && a.objetivo ? Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo, al ritmo actual' : 'Al ritmo actual'}</div></div>
-      <div class="tile"><div class="label">Para llegar al objetivo</div><div class="value">${a.objetivo ? (a.falta === 0 ? 'Cumplido' : (a.porDia == null ? '—' : plata(a.porDia))) : '—'}</div><div class="note">${a.objetivo && a.falta > 0 ? `por día hábil · faltan ${pesos(a.falta)} y ${a.restantes} ${a.restantes === 1 ? 'día' : 'días'}` : (a.objetivo ? 'Objetivo alcanzado' : '')}</div></div>
+      <div class="tile"><div class="label">Para llegar al objetivo</div><div class="value">${a.objetivo ? (a.falta === 0 ? 'Cumplido' : (a.porDia == null ? '—' : plata(a.porDia))) : '—'}</div><div class="note">${a.objetivo && a.falta > 0 ? `por día hábil · faltan ${pesos(a.falta)} y ${a.restantes} ${a.restantes === 1 ? 'día hábil' : 'días hábiles'} (hasta el ${diaCorto(ultimoHabil(mesInfo(S.periodo).hasta))})` : (a.objetivo ? 'Objetivo alcanzado' : '')}</div></div>
       ${cat ? `<div class="tile" id="tileCategoria"><div class="label">Categoría de comisión</div><div class="value">${cat.cat} · ${cat.pct ? pctTxt(cat.pct) : 'no comisiona'}</div><div class="note">${cat.sig ? `Faltan ${pesos(cat.sig.falta)} para la ${cat.sig.cat} (${pctTxt(cat.sig.pct)})` : 'La más alta'}</div></div>` : ''}
       ${g ? `<div class="tile" id="tileIngreso"><div class="label">Último ingreso a la aplicación</div><div class="value chico">${g.sinUsuario ? 'Sin usuario' : g.txt}</div><div class="note">${g.sinUsuario ? 'Todavía no tiene usuario para entrar' : (g.dias ? `Entró ${g.entro} de ${g.dias} ${g.dias === 1 ? 'día hábil' : 'días hábiles'} del período` : '') + (S.cfg.ingresos_inicio ? `${g.dias ? ' · ' : ''}Se registra desde el ${diaMes(S.cfg.ingresos_inicio)}` : '')}</div></div>` : ''}
     </div>
@@ -1796,7 +1813,7 @@ function fraseAvance(a){
   if(S.periodo < mesHoy || a.restantes === 0) return [`Cerraste en el ${Math.round(a.pct)}% del objetivo.`, `Faltaron ${pesos(a.falta)}.`];
   const dif = a.ventas - a.esperado;
   if(dif >= 0) return [`Venís ${pesos(dif)} arriba del ritmo.`, `${a.proyeccion != null ? `Si seguís así cerrás en ${pesos(a.proyeccion)}. ` : ''}Te faltan ${pesos(a.falta)} para el objetivo.`];
-  return [`Con ${pesos(a.porDia)} por día llegás.`, `Te faltan ${pesos(a.falta)} y quedan ${a.restantes} ${a.restantes === 1 ? 'día hábil' : 'días hábiles'}.`];
+  return [`Con ${pesos(a.porDia)} por día llegás.`, `Te faltan ${pesos(a.falta)} y ${a.restantes === 1 ? 'queda 1 día hábil' : 'quedan ' + a.restantes + ' días hábiles'}, hasta el ${diaCorto(ultimoHabil(mesInfo(S.periodo).hasta))}.`];
 }
 function listaSemanas(id){
   const semanas = semanasDelMes(S.periodo), corte = fechaCorte(), hoyLunes = lunesDe(hoyISO());
@@ -1844,7 +1861,7 @@ function renderMiAvance(aviso, id){
       <p class="mv-frase">${frase}${detalle ? `<span>${detalle}</span>` : ''}</p>
     </section>
     ${a.objetivo && a.corte && enCurso && a.falta > 0 && a.porDia != null ? `<div class="mv-duo">
-      <div class="mv-dato"><div class="lbl">Necesitás por día hábil</div><div class="val">${plata(a.porDia)}</div><div class="nota">${a.restantes === 1 ? 'queda 1 día' : 'quedan ' + a.restantes + ' días'}</div></div>
+      <div class="mv-dato"><div class="lbl">Necesitás por día hábil</div><div class="val">${plata(a.porDia)}</div><div class="nota">${a.restantes === 1 ? 'queda 1 día' : 'quedan ' + a.restantes + ' días'} · el último es el ${diaCorto(ultimoHabil(mesInfo(S.periodo).hasta))}</div></div>
       <div class="mv-dato"><div class="lbl">Si seguís así cerrás en</div><div class="val">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="nota">${a.proyeccion == null ? '' : Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo'}</div></div>
     </div>` : ''}
     ${bloqueCategoria(a)}
