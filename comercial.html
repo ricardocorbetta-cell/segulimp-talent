@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.10.2 (2026-11-12) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.11 (2026-11-16) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -430,6 +430,19 @@
   .mv-cli-f span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .mv-alerta{display:block; width:100%; text-align:left; margin-top:10px; padding:11px 12px; min-height:44px; border-radius:11px; border:1px solid #EBD3A0; background:var(--mid-bg); color:#6B4A0E; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer;}
   .mv-cli .mv-alerta:first-child{margin-top:0;}
+  .mv-alt{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:10px;}
+  .mv-alt-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px;}
+  .mv-alt .lbl{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  .mv-alt .n{font-size:22px; font-weight:700; color:var(--ink);}
+  .mv-alt .n small{font-size:14px; font-weight:500; color:var(--ink-soft);}
+  .mv-alt-b{height:8px; border-radius:6px; background:var(--paper-2); overflow:hidden; margin-top:8px;}
+  .mv-alt-b i{display:block; height:100%; background:var(--brand); border-radius:6px;}
+  .mv-alt .d{font-size:13.5px; line-height:1.45; color:var(--ink-soft); margin:8px 0 0;}
+  .mv-alt-f{display:flex; justify-content:space-between; gap:10px; font-size:13.5px; padding:8px 0 0; border-top:1px solid var(--line); margin-top:8px;}
+  .mv-alt-f span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .mv-alt-f em{font-style:normal; font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+  .mv-alt-f em.si{color:#1E7A46; font-weight:600;}
+  .mv-alt-f em.no{color:#A33A2B; font-weight:600;}
   #toast{position:fixed; left:50%; bottom:22px; transform:translate(-50%, 20px); background:var(--ink); color:#fff; padding:12px 18px; border-radius:12px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:20; width:max-content; max-width:calc(100vw - 32px); text-align:center;}
   body.vend #toast{bottom:calc(84px + env(safe-area-inset-bottom)); z-index:25;}
   #toast.ver{opacity:1; transform:translate(-50%, 0);}
@@ -1591,6 +1604,47 @@ function categoriaDe(ventas, periodo){
   return { cat: tramos[i][0], pct: tramos[i][2], i, sig, tramo: Math.max(0, Math.min(1, tramo)) };
 }
 function catCorta(c){ return c ? `Cat. ${c.cat} · ${c.pct ? pctTxt(c.pct) : 'no comisiona'}` : ''; }
+// ====== ALTAS (clientes nuevos) ======
+// Alta = primera compra del cliente o vuelve después de más de un año sin comprar. Cuenta para quien le vendió.
+// El objetivo cargado para un período vale también para los siguientes, hasta que se cargue otro.
+function objAltasDe(id){
+  const { clave } = mesInfo(S.periodo);
+  let o = null;
+  for(const x of S.objAltas || []) if(x.vendedor_id === id && x.periodo <= clave && (!o || x.periodo > o.periodo)) o = x;
+  return o ? Number(o.altas) : null;
+}
+function altasDe(id){ return (S.altas || []).filter(a => a.vendedor_id === id); }
+function estadoAlta(a){
+  if(a.volvio) return ['si', 'volvió a comprar'];
+  const dias = a.datos_al ? Math.round((new Date(a.datos_al + 'T12:00:00') - new Date(a.fecha + 'T12:00:00')) / 864e5) : 0;
+  return dias < 60 ? ['', 'falta que repita'] : ['no', 'no volvió'];
+}
+function recuperablesDe(id){
+  const hace = sumarDias(hoyISO(), -365), dos = sumarDias(hoyISO(), -730);
+  return S.plan.filter(r => { const u = r.vendedor_id === id && !r.en_pileta && ultimaCompra(r); return u && u < hace && u >= dos; }).length;
+}
+function bloqueAltas(id, propio){
+  const lista = altasDe(id), obj = objAltasDe(id);
+  if(!lista.length && obj == null) return '';
+  const n = lista.length, cerrado = S.periodo < periodoDe(hoyISO());
+  const repiten = lista.filter(a => a.volvio).length, nuevos = lista.filter(a => a.tipo === 'nuevo').length;
+  const rec = recuperablesDe(id);
+  const vos = propio ? ['Llevás', 'Te faltan', 'tu cartera', 'Si vuelven a comprar, te cuentan como alta.'] : ['Lleva', 'Le faltan', 'su cartera', 'Si vuelven a comprar, cuentan como alta.'];
+  let d = obj == null ? 'Todavía no hay objetivo de clientes nuevos cargado.'
+    : n >= obj ? (cerrado ? 'Objetivo de clientes nuevos cumplido.' : 'Objetivo cumplido. Cada alta de más suma.')
+    : (cerrado ? `Faltaron ${obj - n} para el objetivo.` : `${vos[1]} <b>${obj - n}</b> para el objetivo del período.`);
+  if(!cerrado && rec) d += ` En ${vos[2]} hay ${rec} ${rec === 1 ? 'cliente' : 'clientes'} que no compran hace entre uno y dos años. ${vos[3]}`;
+  return `<section class="mv-alt" id="bloqueAltas" data-vendedor="${id}">
+    <div class="mv-alt-top"><span class="lbl">Clientes nuevos del período</span>
+      <span class="n">${n}${obj != null ? ` <small>de ${obj}</small>` : ''}</span></div>
+    ${obj ? `<div class="mv-alt-b"><i style="width:${Math.min(100, Math.round(n / obj * 100))}%"></i></div>` : ''}
+    <p class="d">${d}</p>
+    ${n ? `<p class="d">${n - nuevos ? `${nuevos} ${nuevos === 1 ? 'es nuevo' : 'son nuevos'} y ${n - nuevos} ${n - nuevos === 1 ? 'volvió' : 'volvieron'} después de más de un año. ` : ''}${repiten ? `${repiten} ya ${repiten === 1 ? 'repitió la compra' : 'repitieron la compra'}.` : 'Ninguno repitió la compra todavía.'} Un cliente nuevo que no repite se pierde: volvé a contactarlo.</p>` : ''}
+    ${lista.slice(0, 12).map(a => { const [c, t] = estadoAlta(a); return `<div class="mv-alt-f"><span>${esc(a.cliente || 'Cliente')}<em> · ${diaMes(a.fecha)}${a.tipo === 'recuperado' ? ' · volvió tras +1 año' : ''}</em></span><em class="${c}">${t}</em></div>`; }).join('')}
+    ${n > 12 ? `<p class="d">Y ${n - 12} más.</p>` : ''}
+  </section>`;
+}
+
 function bloqueCategoria(a){
   const c = categoriaDe(a.ventas, S.periodo);
   if(!c) return '';
@@ -1639,15 +1693,19 @@ function selectorMes(){
 
 async function cargarPeriodo(){
   const { desde, hasta, clave } = mesInfo(S.periodo);
-  const [objetivos, ventas, actividades, ingresos, ventasCli] = await Promise.all([
+  const [objetivos, ventas, actividades, ingresos, ventasCli, altas, objAltas] = await Promise.all([
     traerTodo('comercial_objetivos', 'vendedor_id, periodo, monto', 'vendedor_id', q => q.eq('periodo', clave)),
     traerTodo('comercial_ventas_dia', 'fecha, vendedor_clave, vendedor_id, importe, operaciones', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)),
     traerTodo('comercial_actividades', '*', 'semana', q => q.gte('semana', lunesDe(desde)).lte('semana', hasta)),
     S.veTodo ? traerTodo('comercial_ingresos', 'user_id, fecha, veces', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)).catch(() => []) : [],
     // a quién le vendió cada vendedor en el período (la vista del vendedor trae solo lo suyo)
-    S.veTodo ? [] : traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta))
+    S.veTodo ? [] : traerTodo('comercial_ventas_cliente', 'fecha, cliente_clave, cliente_id, cliente_nombre, vendedor_id, importe', 'fecha', q => q.gte('fecha', desde).lte('fecha', hasta)),
+    // clientes nuevos (altas) del período y objetivo de altas
+    sb.rpc('comercial_altas', { p_desde: desde, p_hasta: hasta }).then(r => r.error ? [] : (r.data || []), () => []),
+    traerTodo('comercial_objetivos_altas', 'vendedor_id, periodo, altas', 'vendedor_id', q => q.lte('periodo', clave)).catch(() => [])
   ]);
   S.objetivos = objetivos; S.ventas = ventas; S.actividades = actividades;
+  S.altas = altas; S.objAltas = objAltas;
   S.ingresos = ingresos; S.ventasCli = ventasCli;
 }
 async function cambiarMes(periodo){
@@ -1703,7 +1761,7 @@ function renderAvance(aviso){
     </div>
     <p class="sub">Hacé clic en un vendedor para ver su detalle y su plan semanal. La marca en la barra es el ritmo esperado a la fecha.</p>
     <div class="table-wrap"><table class="apilar resumen">
-      <thead><tr><th>Vendedor</th><th>Último ingreso</th><th class="num">Objetivo</th><th class="num">Ventas</th><th>Avance</th><th class="num">Falta</th><th class="num">Proyección</th><th class="num">Actividades de esta semana<br>hechas / planificadas</th></tr></thead>
+      <thead><tr><th>Vendedor</th><th>Último ingreso</th><th class="num">Objetivo</th><th class="num">Ventas</th><th>Avance</th><th class="num">Falta</th><th class="num">Proyección</th><th class="num">Clientes nuevos<br>hechos / objetivo</th><th class="num">Actividades de esta semana<br>hechas / planificadas</th></tr></thead>
       <tbody>
         ${filas.map(({ v, a, act }) => `
           <tr class="clickable" data-detalle="${v.id}">
@@ -1714,9 +1772,10 @@ function renderAvance(aviso){
             <td data-label="Avance">${a.objetivo ? medidor(a.pct, a.ritmo) : '<span class="muted">—</span>'}</td>
             <td data-label="Falta" class="num">${a.objetivo ? pesos(a.falta) : '—'}</td>
             <td data-label="Proyección" class="num">${a.proyeccion == null ? '—' : pesos(a.proyeccion)}</td>
+            <td data-label="Clientes nuevos" class="num">${altasDe(v.id).length}${objAltasDe(v.id) != null ? ' / ' + objAltasDe(v.id) : ''}</td>
             <td data-label="Actividades de esta semana" class="num">${act || sumaPlan(null, v.id) ? sumaAct(act, 'real') + ' / ' + sumaPlan(act, v.id) : '<span class="muted">Sin plan</span>'}</td>
           </tr>`).join('')}
-        <tr class="total"><td data-label=""><strong>Total vendedores</strong></td><td></td><td data-label="Objetivo" class="num">${pesos(totV.objetivo)}</td><td data-label="Ventas" class="num">${pesos(totV.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+        <tr class="total"><td data-label=""><strong>Total vendedores</strong></td><td></td><td data-label="Objetivo" class="num">${pesos(totV.objetivo)}</td><td data-label="Ventas" class="num">${pesos(totV.ventas)}</td><td></td><td class="num"></td><td class="num"></td><td data-label="Clientes nuevos" class="num">${activos.reduce((t, v) => t + altasDe(v.id).length, 0)}</td><td class="num"></td></tr>
       </tbody>
     </table></div>
     ${otras.length ? `
@@ -1767,6 +1826,7 @@ function renderDetalleVendedor(aviso, id){
       ${cat ? `<div class="tile" id="tileCategoria"><div class="label">Categoría de comisión</div><div class="value">${cat.cat} · ${cat.pct ? pctTxt(cat.pct) : 'no comisiona'}</div><div class="note">${cat.sig ? `Faltan ${pesos(cat.sig.falta)} para la ${cat.sig.cat} (${pctTxt(cat.sig.pct)})` : 'La más alta'}</div></div>` : ''}
       ${g ? `<div class="tile" id="tileIngreso"><div class="label">Último ingreso a la aplicación</div><div class="value chico">${g.sinUsuario ? 'Sin usuario' : g.txt}</div><div class="note">${g.sinUsuario ? 'Todavía no tiene usuario para entrar' : (g.dias ? `Entró ${g.entro} de ${g.dias} ${g.dias === 1 ? 'día hábil' : 'días hábiles'} del período` : '') + (S.cfg.ingresos_inicio ? `${g.dias ? ' · ' : ''}Se registra desde el ${diaMes(S.cfg.ingresos_inicio)}` : '')}</div></div>` : ''}
     </div>
+    ${bloqueAltas(id, false)}
 
     <h2 class="sec">Plan de la semana</h2>
     <p class="sub">Cuántas gestiones comerciales ${S.veTodo ? 'planifica' : 'vas a hacer'} en la semana y cuántas ${S.veTodo ? 'hizo' : 'llevás hechas'}. Se compara abajo con las ventas de cada semana.${ACTIVIDADES.some(([k]) => metaAct(id, k) != null) ? ' Las que tienen objetivo semanal fijado (pestaña Objetivos) no se cambian acá.' : ''}</p>
@@ -1865,6 +1925,7 @@ function renderMiAvance(aviso, id){
       <div class="mv-dato"><div class="lbl">Si seguís así cerrás en</div><div class="val">${a.proyeccion == null ? '—' : plata(a.proyeccion)}</div><div class="nota">${a.proyeccion == null ? '' : Math.round(a.proyeccion / a.objetivo * 100) + '% del objetivo'}</div></div>
     </div>` : ''}
     ${bloqueCategoria(a)}
+    ${bloqueAltas(id, true)}
     ${bloqueClientes()}
     ${bloqueParaSemana()}
 
@@ -2000,6 +2061,7 @@ function renderObjetivos(aviso){
       <span class="muted" id="objEstado"></span>
     </div>
     ${bloqueMetas()}
+    ${bloqueObjAltas()}
     ${bloqueEscala()}`;
 }
 function bloqueMetas(){
@@ -2042,6 +2104,45 @@ async function guardarMetas(){
   const ids = new Set(res.data.map(x => x.vendedor_id));
   S.metas = (S.metas || []).filter(x => !ids.has(x.vendedor_id)).concat(res.data);
   S.aviso = { tipo: 'ok', html: 'Objetivos de gestión guardados.' };
+  ir('objetivos');
+}
+function bloqueObjAltas(){
+  const lista = S.vendedores.filter(esVend).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  if(!lista.length) return '';
+  const mes = mesInfo(S.periodo);
+  return `
+    <h2 class="sec">Objetivo de clientes nuevos · ${mes.nombre}</h2>
+    <p class="sub">Cuántas altas tiene que hacer cada vendedor en el período. Alta es la primera compra de un cliente, o la de un cliente que vuelve después de más de un año sin comprar; cuenta para el que le vendió. Lo que cargues vale desde este período en adelante, hasta que lo cambies.</p>
+    <div class="table-wrap" id="objAltas"><table class="apilar">
+      <thead><tr><th>Vendedor</th><th>Clientes nuevos por período</th><th class="num">Hechos en el período</th></tr></thead>
+      <tbody>${lista.map(v => { const o = objAltasDe(v.id); return `
+        <tr><td data-label="Vendedor"><strong>${esc(v.nombre)}</strong></td>
+          <td data-label="Clientes nuevos por período"><input type="number" min="0" max="999" step="1" inputmode="numeric" class="monto" style="max-width:90px" data-obj-altas="${v.id}" value="${o ?? ''}" placeholder="—" aria-label="Clientes nuevos por período de ${esc(v.nombre)}"></td>
+          <td data-label="Hechos en el período" class="num">${altasDe(v.id).length}</td></tr>`; }).join('')}
+      </tbody></table></div>
+    <div class="form">
+      <button class="btn-primary" id="btnGuardarObjAltas">Guardar objetivo de clientes nuevos</button>
+      <span class="muted" id="objAltasEstado"></span>
+    </div>`;
+}
+async function guardarObjAltas(){
+  const est = $('objAltasEstado'), clave = mesInfo(S.periodo).clave, filas = [], quitar = [];
+  for(const inp of $('objAltas').querySelectorAll('[data-obj-altas]')){
+    const id = Number(inp.dataset.objAltas), txt = inp.value.trim(), actual = objAltasDe(id);
+    if(txt === ''){ if((S.objAltas || []).some(x => x.vendedor_id === id && x.periodo === clave)) quitar.push(id); continue; }
+    const n = Number(txt);
+    if(!Number.isInteger(n) || n < 0 || n > 999){ est.textContent = 'Revisá las cantidades: números enteros de 0 a 999.'; inp.focus(); return; }
+    if(n !== actual) filas.push({ vendedor_id: id, periodo: clave, altas: n });
+  }
+  if(!filas.length && !quitar.length){ est.textContent = 'No hay cambios para guardar.'; return; }
+  $('btnGuardarObjAltas').disabled = true;
+  let error = null;
+  try{
+    if(filas.length) ({ error } = await sb.from('comercial_objetivos_altas').upsert(filas, { onConflict: 'vendedor_id,periodo' }).select('vendedor_id'));
+    for(const id of quitar){ if(error) break; ({ error } = await sb.from('comercial_objetivos_altas').delete().eq('vendedor_id', id).eq('periodo', clave)); }
+  } catch(e){ error = e; }
+  S.aviso = error ? { tipo: 'error', html: 'No se pudo guardar el objetivo de clientes nuevos: ' + esc(error.message || error) } : { tipo: 'ok', html: 'Objetivo de clientes nuevos guardado.' };
+  try{ await cargarPeriodo(); } catch(_){}
   ir('objetivos');
 }
 function bloqueEscala(){
@@ -3789,6 +3890,7 @@ content().addEventListener('click', e => {
   if(t.id === 'btnCopiarObjetivos'){ copiarObjetivos(); return; }
   if(t.id === 'btnGuardarEscala'){ guardarEscala(); return; }
   if(t.id === 'btnGuardarMetas'){ guardarMetas(); return; }
+  if(t.id === 'btnGuardarObjAltas'){ guardarObjAltas(); return; }
   if(t.id === 'btnCargarVentas'){ cargarVentas(); return; }
   if(t.id === 'btnCancelarVentas'){ S.impVentas = null; renderVentas(''); return; }
   if(t.closest('#dropVentas') && t.id !== 'ventasArchivo' && !(S.impVentas && S.impVentas.leyendo)){ $('ventasArchivo').click(); return; }
