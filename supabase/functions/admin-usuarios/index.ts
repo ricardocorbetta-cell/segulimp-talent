@@ -1,7 +1,7 @@
 // Alta, cambios y baja de usuarios del HUB. Solo la puede usar un perfil activo con rol administrador.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ROLES = ["administrador", "rrhh", "comercial", "mantenimiento", "consulta"];
+const ROLES = ["administrador", "rrhh", "comercial", "mantenimiento", "consulta", "logistica", "reparto"];
 const BLOQUEO = "876000h"; // ~100 años: usuario desactivado
 
 const cors = {
