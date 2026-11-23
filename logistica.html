@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Logística y Reparto · Segulimp Hub · v1.0.1 (2026-11-23) -->
+<!-- Logística y Reparto · Segulimp Hub · v1.0.2 (2026-11-23) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -862,6 +862,7 @@ async function renderCargar(a){
     <div class="fila entre"><h1 class="titulo">${b.origen === 'pdf' ? 'Hoja de ruta leída' : 'Hoja de ruta a mano'}</h1>
       <button class="btn-ghost" id="btnDescartar">Descartar</button></div>
     ${b.cola && b.cola.length ? `<div class="msg-box info">Después de esta quedan ${b.cola.length} ${b.cola.length === 1 ? 'hoja' : 'hojas'} más para revisar.</div>` : ''}
+    ${b.fechaHoja && b.fechaHoja < hoyISO() ? `<div class="msg-box aviso">La hoja dice ${fechaLarga(b.fechaHoja)}, que ya pasó: la puse para hoy. Si es para otro día, cambiá la fecha.</div>` : ''}
     ${b.archivo ? `<p class="sub">${esc(b.archivo)}${b.empleado ? ' · Empleado: ' + esc(b.empleado) : ''}${b.transporte ? ' · Transporte: ' + esc(b.transporte) : ''}${b.patente ? ' · Patente: ' + esc(b.patente) : ''}</p>` : ''}
     <div class="card"><div class="campos">
       <div class="campo"><label for="bFecha">Fecha de reparto</label><input type="date" id="bFecha" value="${b.fecha}"></div>
@@ -972,7 +973,7 @@ async function leerArchivos(archivos){
 function abrirBorrador(h, cola){
   const rep = repPorNombre(h.empleado), veh = h.patente ? S.vehs.find(v => norm(v.patente) === norm(h.patente)) : null;
   S.borrador = { origen: h.filas ? 'pdf' : 'manual', archivo: h.archivo || null, empleado: h.empleado || '', transporte: h.transporte || '', patente: h.patente || '',
-    fecha: h.fecha || hoyISO(), repartidor_id: rep ? rep.id : (h.empleado ? 'nuevo' : ''), vehiculo_id: veh ? veh.id : (rep && rep.vehiculo_id) || '',
+    fecha: h.fecha && h.fecha >= hoyISO() ? h.fecha : hoyISO(), fechaHoja: h.fecha || null, repartidor_id: rep ? rep.id : (h.empleado ? 'nuevo' : ''), vehiculo_id: veh ? veh.id : (rep && rep.vehiculo_id) || '',
     observaciones: '', filas: (h.filas || []).map(f => ({ ...f })), cola: cola || [] };
   revisarExistente().then(() => { if(S.tab === 'cargar') renderCargar(''); });
   S.tab = 'cargar'; pintarTabs(); renderCargar('');
@@ -1035,16 +1036,20 @@ async function guardarBorrador(){
     let hoja = (await q(sb.from('log_hojas').select('*').eq('fecha', b.fecha).eq('repartidor_id', repId).neq('estado', 'rendida').limit(1)))[0];
     if(!hoja) hoja = await q(sb.from('log_hojas').insert({ fecha: b.fecha, repartidor_id: repId, vehiculo_id: b.vehiculo_id ? Number(b.vehiculo_id) : null, origen: b.origen, archivo: b.archivo, observaciones: b.observaciones || null }).select().single());
     else if(b.observaciones || b.archivo) await q(sb.from('log_hojas').update({ observaciones: [hoja.observaciones, b.observaciones].filter(Boolean).join(' · ') || null, archivo: [hoja.archivo, b.archivo].filter(Boolean).join(', ') || null, vehiculo_id: hoja.vehiculo_id || (b.vehiculo_id ? Number(b.vehiculo_id) : null) }).eq('id', hoja.id));
-    const previas = await q(sb.from('log_entregas').select('orden').eq('hoja_id', hoja.id));
+    const previas = await q(sb.from('log_entregas').select('orden, nro, cliente_nombre, estado').eq('hoja_id', hoja.id));
     const base = previas.reduce((m, x) => Math.max(m, x.orden), 0);
-    await q(sb.from('log_entregas').insert(filas.map((f, i) => ({ hoja_id: hoja.id, orden: base + i + 1, nro: f.nro || null, cliente_id: f.cliente_id, cliente_nombre: f.cliente_nombre.trim(),
+    // si la misma hoja se sube dos veces, no se duplican las entregas que ya están
+    const ya = new Set(previas.filter(x => x.estado !== 'cancelada').map(x => (x.nro || '') + '|' + norm(x.cliente_nombre)));
+    const repetidas = filas.filter(f => ya.has((f.nro || '') + '|' + norm(f.cliente_nombre))).length;
+    const nuevas = filas.filter(f => !ya.has((f.nro || '') + '|' + norm(f.cliente_nombre)));
+    if(nuevas.length) await q(sb.from('log_entregas').insert(nuevas.map((f, i) => ({ hoja_id: hoja.id, orden: base + i + 1, nro: f.nro || null, cliente_id: f.cliente_id, cliente_nombre: f.cliente_nombre.trim(),
       domicilio: f.domicilio.trim(), localidad: f.localidad || null, lat: f.lat, lng: f.lng, cant_op: f.cant_op, unidad_negocio: f.unidad_negocio || null, notas: f.notas || null,
       telefono: f.telefono || null, franja: f.franja || null }))));
     const es = await q(sb.from('log_entregas').select('*').eq('hoja_id', hoja.id).order('orden'));
     const r = await reordenarHoja(hoja, es);
     const sigue = b.cola && b.cola.length ? b.cola : null;
     S.borrador = null; S.hojaExistente = null;
-    aviso('ok', `Hoja guardada: ${filas.length} ${filas.length === 1 ? 'entrega' : 'entregas'}${r.km ? `, ${num(r.km)} km de recorrido` : ''}.${r.aprox ? ' El servicio de rutas no respondió: el orden es por cercanía, podés volver a ordenarla después.' : ''}${sigue ? ` Quedan ${sigue.length} para revisar.` : ''}`);
+    aviso('ok', `Hoja guardada: ${nuevas.length} ${nuevas.length === 1 ? 'entrega' : 'entregas'}${repetidas ? ` (${repetidas} ya estaban en la hoja y no se repitieron)` : ''}${r.km ? `, ${num(r.km)} km de recorrido` : ''}.${r.aprox ? ' El servicio de rutas no respondió: el orden es por cercanía, podés volver a ordenarla después.' : ''}${sigue ? ` Quedan ${sigue.length} para revisar.` : ''}`);
     if(sigue){ const [p, ...resto] = sigue; abrirBorrador(p, resto); return; }
     abrirHoja(hoja.id);
   } catch(e){ btn.disabled = false; est.innerHTML = `<span style="color:var(--bad)">No se pudo guardar: ${errorDe(e)}</span>`; }
@@ -1355,7 +1360,9 @@ async function cargarRep(){
   if(!S.miRep){ content().innerHTML = `<div class="msg-box info">Tu usuario no está vinculado a un repartidor.</div>`; return; }
   content().innerHTML = `<p class="sub">Cargando tu recorrido…</p>`;
   try{
-    const hojas = await q(sb.from('log_hojas').select('*').eq('repartidor_id', S.miRep.id).gte('fecha', sumarDias(hoyISO(), -3)).lte('fecha', sumarDias(hoyISO(), 3)).neq('estado', 'rendida').order('fecha'));
+    // las hojas sin terminar se ven siempre; las terminadas, solo las de estos días
+    const hojas = (await q(sb.from('log_hojas').select('*').eq('repartidor_id', S.miRep.id).neq('estado', 'rendida').lte('fecha', sumarDias(hoyISO(), 3)).order('fecha')))
+      .filter(h => ['armada', 'en_reparto'].includes(h.estado) || h.fecha >= sumarDias(hoyISO(), -3));
     const entregas = hojas.length ? await q(sb.from('log_entregas').select('*').in('hoja_id', hojas.map(h => h.id)).order('orden')) : [];
     // lo que todavía está en la cola del teléfono manda sobre lo que vino del servidor
     const cola = await colaTodo();
@@ -1367,7 +1374,7 @@ async function cargarRep(){
     if(c){ S.hojas = c.hojas; S.entregas = c.entregas; aviso('aviso', 'Sin conexión: estás viendo lo último que se cargó. Lo que marques se manda cuando vuelva la señal.'); }
     else { content().innerHTML = `<div class="msg-box error">No se pudo cargar tu recorrido: ${errorDe(e)}</div>`; return; }
   }
-  const hoy = S.hojas.filter(h => h.fecha === hoyISO() && h.estado !== 'terminada');
+  const hoy = S.hojas.filter(h => h.fecha <= hoyISO() && ['armada', 'en_reparto'].includes(h.estado));
   if(!S.rep.hojaId || !S.hojas.some(h => h.id === S.rep.hojaId)) S.rep.hojaId = hoy.length === 1 ? hoy[0].id : null;
   renderRep();
 }
