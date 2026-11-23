@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<!-- Logística y Reparto · Segulimp Hub · v1.0 (2026-11-23) -->
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#163C58">
+<title>Logística y Reparto — Segulimp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --ink:#182A38; --ink-soft:#4C6070;
+    --paper:#EAF2F7; --paper-2:#D3E3EC; --card:#FFFFFF;
+    --brand:#245B84; --brand-dark:#163C58; --brand-light:#7EC1E0;
+    --line:#C7D8E2;
+    --good:#3F8F5D; --good-bg:#E6F4EB;
+    --mid:#D89B2E; --mid-bg:#FBF1DD;
+    --low:#8C97A0; --low-bg:#EEF2F5;
+    --bad:#B3372F; --bad-bg:#FBE9E7;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px; margin:0 auto; padding:24px 20px 60px;}
+  header{display:flex; align-items:center; gap:14px; margin-bottom:20px; border-bottom:3px solid var(--brand); padding-bottom:16px;}
+  header img{height:52px; width:52px; border-radius:50%; flex:none;}
+  header .name{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:28px; color:var(--brand-dark); text-transform:uppercase; line-height:1;}
+  header .tag{font-size:13.5px; color:var(--ink-soft); margin-top:4px;}
+  header .session{margin-left:auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end; font-size:13px; color:var(--ink-soft);}
+  header .session #sessionNombre{font-weight:600; color:var(--ink);}
+  .link-btn{background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--brand); cursor:pointer; text-decoration:none;}
+  .link-btn:hover{color:var(--brand-dark); text-decoration:underline;}
+  .hidden{display:none !important;}
+
+  .tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px;}
+  .tabs button{padding:9px 16px; border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer; white-space:nowrap;}
+  .tabs button:hover{border-color:var(--brand); color:var(--brand-dark);}
+  .tabs button.active{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .tabs .n{display:inline-block; min-width:20px; padding:0 6px; margin-left:6px; border-radius:10px; background:var(--bad); color:#fff; font-size:11.5px; line-height:18px; text-align:center;}
+  @media (max-width:700px){ .tabs{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;} .tabs::-webkit-scrollbar{display:none;} }
+
+  h1.titulo{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; color:var(--brand-dark); text-transform:uppercase; margin:0;}
+  h2.sec{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:22px; color:var(--brand-dark); text-transform:uppercase; margin:26px 0 4px;}
+  p.sub{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5;}
+  .muted{color:var(--ink-soft); font-size:12.5px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px;}
+  .fila{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .fila.entre{justify-content:space-between;}
+  .grow{flex:1; min-width:0;}
+
+  .tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:8px;}
+  .tile{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px;}
+  .tile .label{font-size:12.5px; color:var(--ink-soft); font-weight:500;}
+  .tile .value{font-size:26px; font-weight:600; line-height:1.15; margin-top:6px;}
+  .tile .note{font-size:12px; color:var(--ink-soft); margin-top:4px;}
+
+  .meter{display:flex; align-items:center; gap:8px; min-width:120px;}
+  .meter .track{flex:1; height:8px; border-radius:4px; background:var(--paper-2); overflow:hidden; display:flex;}
+  .meter .fill{height:100%; background:var(--good);}
+  .meter .fill.no{background:var(--bad);}
+  .meter .pct{font-variant-numeric:tabular-nums; font-size:12.5px; font-weight:600; min-width:44px; text-align:right;}
+
+  .table-wrap{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; padding:10px 12px; background:var(--paper); color:var(--ink-soft); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--line); white-space:nowrap;}
+  tbody td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tr.clickable{cursor:pointer;} tr.clickable:hover td{background:#F5F9FC;}
+  td input, td select{width:100%; min-width:0; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font:inherit; font-size:13px; background:#fff;}
+  td input.corto{width:64px;}
+  @media (max-width:760px){
+    table.apilar thead{display:none;}
+    table.apilar, table.apilar tbody, table.apilar tr, table.apilar td{display:block; width:100%;}
+    table.apilar tr{padding:10px 12px; border-bottom:1px solid var(--line);}
+    table.apilar td{border:none; padding:3px 0; text-align:left !important;}
+    table.apilar td[data-label]::before{content:attr(data-label); display:block; font-size:11px; font-weight:600; text-transform:uppercase; color:var(--ink-soft);}
+  }
+
+  .chip{display:inline-flex; align-items:center; gap:6px; padding:2px 9px; border-radius:10px; background:var(--low-bg); color:var(--ink); font-size:11.5px; font-weight:600; white-space:nowrap;}
+  .chip::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--low);}
+  .chip.ok{background:var(--good-bg);} .chip.ok::before{background:var(--good);}
+  .chip.media{background:var(--mid-bg);} .chip.media::before{background:var(--mid);}
+  .chip.alta{background:var(--bad-bg);} .chip.alta::before{background:var(--bad);}
+  .chip.azul{background:#E3EFF8;} .chip.azul::before{background:var(--brand);}
+  .chip.plano::before{display:none;}
+
+  .btn-primary{padding:10px 16px; border:none; border-radius:8px; background:var(--brand); color:#fff; font-family:'Inter',sans-serif; font-weight:600; font-size:13.5px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;}
+  .btn-primary:hover{background:var(--brand-dark);}
+  .btn-primary:disabled{opacity:.45; cursor:default; background:var(--brand);}
+  .btn-ghost{padding:9px 14px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:6px;}
+  .btn-ghost:hover{border-color:var(--brand); color:var(--brand-dark);}
+  .btn-ghost:disabled{opacity:.45; cursor:default;}
+  .btn-ghost.small, .btn-primary.small{padding:6px 10px; font-size:12px;}
+  .btn-ghost.peligro{color:var(--bad);}
+  .btn-wa{background:#1F9D55; color:#fff; border:none;}
+  .btn-wa:hover{background:#17803F; color:#fff;}
+  .msg-box{padding:12px 16px; border-radius:10px; font-size:13.5px; line-height:1.6; margin-bottom:16px;}
+  .msg-box.ok{background:var(--good-bg); color:#24573A; border:1px solid #BFE3CC;}
+  .msg-box.error{background:var(--bad-bg); color:#8A2C24; border:1px solid #F2C6C0;}
+  .msg-box.info{background:#EAF3FA; color:var(--brand-dark); border:1px solid var(--line);}
+  .msg-box.aviso{background:var(--mid-bg); color:#6E4A0C; border:1px solid #EED6A6;}
+
+  .form-card{max-width:400px; margin:30px auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px;}
+  .form-card h2{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; color:var(--brand-dark); text-transform:uppercase; margin:0 0 6px;}
+  .form-card label, .campo label{display:block; font-size:12.5px; font-weight:600; margin:12px 0 5px;}
+  .form-card input, .campo input, .campo select, .campo textarea{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; background:#fff;}
+  .form-card .btn-primary{width:100%; margin-top:20px;}
+  .msg-error{color:var(--bad); font-size:13px; margin-top:10px; min-height:1em;}
+  .campos{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:0 14px;}
+
+  .drop{border:2px dashed var(--line); border-radius:12px; padding:26px; text-align:center; background:#fff; cursor:pointer; color:var(--ink-soft);}
+  .drop:hover, .drop.sobre{border-color:var(--brand); background:#F3F8FC; color:var(--brand-dark);}
+  .drop b{color:var(--brand-dark);}
+
+  .mapa{height:420px; border-radius:12px; border:1px solid var(--line); background:var(--paper-2); z-index:0;}
+  .mapa.chico{height:300px;}
+  .pin{width:28px; height:28px; border-radius:50%; background:var(--brand); color:#fff; font:700 12px/28px Inter,sans-serif; text-align:center; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  .pin.entregada{background:var(--good);} .pin.no_entregada{background:var(--bad);} .pin.sin{background:var(--mid);}
+  .pin.reprogramada, .pin.cancelada{background:var(--low);}
+  .pin.dep{background:var(--brand-dark); border-radius:6px;}
+  .pin.camion{background:#0E2436; font-size:15px; line-height:26px;}
+
+  .hojas{display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:12px;}
+  .hoja{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; cursor:pointer; text-align:left; font:inherit; color:inherit;}
+  .hoja:hover{border-color:var(--brand);}
+  .hoja h3{margin:0; font-size:16px;}
+  .hoja .d{font-size:12.5px; color:var(--ink-soft); margin:4px 0 10px;}
+
+  /* ===== Repartidor (celular) ===== */
+  body.rep .wrap{padding:12px 12px 120px; max-width:640px;}
+  body.rep header{margin-bottom:12px; padding-bottom:10px;}
+  body.rep header img{height:36px; width:36px;}
+  body.rep header .name{font-size:22px;}
+  body.rep header .tag{display:none;}
+  .parada{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;}
+  .parada.actual{border:2px solid var(--brand); box-shadow:0 2px 10px rgba(22,60,88,.12);}
+  .parada.hecha{opacity:.72;}
+  .parada .top{display:flex; gap:10px; align-items:flex-start;}
+  .parada .nro{flex:none; width:30px; height:30px; border-radius:50%; background:var(--brand); color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center;}
+  .parada.hecha .nro{background:var(--good);} .parada.fallo .nro{background:var(--bad);}
+  .parada h3{margin:0; font-size:16px; line-height:1.3;}
+  .parada .dir{font-size:14px; color:var(--ink); margin-top:2px;}
+  .parada .meta{font-size:12.5px; color:var(--ink-soft); margin-top:3px;}
+  .acciones{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;}
+  .acciones .btn-primary, .acciones .btn-ghost{min-height:46px; font-size:14px;}
+  .acciones .ancho{grid-column:1 / -1;}
+  .barra-rep{position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 14px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:10px; align-items:center; z-index:500;}
+  .barra-rep .info{flex:1; font-size:13px; color:var(--ink-soft);}
+  .barra-rep .info b{color:var(--ink); font-size:15px;}
+  .cola{font-size:12px; font-weight:600; color:#6E4A0C; background:var(--mid-bg); border-radius:8px; padding:4px 8px;}
+
+  .hoja-modal{position:fixed; inset:0; background:rgba(14,36,54,.45); z-index:1000; display:flex; align-items:flex-end; justify-content:center;}
+  .hoja-modal .panel{background:var(--card); width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:16px 16px 0 0; padding:18px 18px calc(18px + env(safe-area-inset-bottom));}
+  @media (min-width:700px){ .hoja-modal{align-items:center;} .hoja-modal .panel{border-radius:16px;} }
+  .hoja-modal h3{margin:0 0 4px; font-size:18px;}
+  .opciones{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0;}
+  .opciones button{padding:10px 14px; min-height:44px; border-radius:22px; border:1px solid var(--line); background:#fff; font:600 13.5px Inter,sans-serif; color:var(--ink-soft); cursor:pointer;}
+  .opciones button[aria-pressed="true"]{background:var(--brand-dark); border-color:var(--brand-dark); color:#fff;}
+  .foto-prev{max-width:100%; max-height:220px; border-radius:10px; border:1px solid var(--line); display:block; margin-top:8px;}
+  .foto-btn{display:flex; align-items:center; justify-content:center; gap:8px; min-height:56px; border:2px dashed var(--brand); border-radius:12px; color:var(--brand-dark); font-weight:600; background:#F3F8FC; cursor:pointer;}
+
+  /* Seguimiento público */
+  .seg{max-width:460px; margin:20px auto; text-align:center;}
+  .seg .estado{font-family:'Barlow Condensed',sans-serif; font-size:30px; font-weight:700; color:var(--brand-dark); text-transform:uppercase; margin:10px 0 4px;}
+
+  @media print{
+    body{background:#fff;} header, .tabs, .no-print, .barra-rep{display:none !important;}
+    .wrap{padding:0; max-width:none;} .table-wrap{border:none;} .mapa{display:none;}
+    .solo-print{display:block !important;}
+  }
+  .solo-print{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img id="logo" alt="Segulimp" class="hidden">
+    <div>
+      <div class="name">Logística y Reparto</div>
+      <div class="tag">Hojas de ruta, entregas y rendición · Segulimp Hub</div>
+    </div>
+    <div class="session hidden" id="session">
+      <span id="sessionNombre"></span>
+      <a class="link-btn" href="hub.html">← Volver al Hub</a>
+      <button class="link-btn" id="btnSalir" type="button">Salir</button>
+    </div>
+  </header>
+  <nav class="tabs hidden" id="tabs"></nav>
+  <div id="content"><p class="sub">Cargando…</p></div>
+</div>
+<div id="modal"></div>
+<script>
+(function(){
+'use strict';
+const SUPABASE_URL = "https://xiamarozmaqixwfiwshp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpYW1hcm96bWFxaXh3Zml3c2hwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTcwNjMsImV4cCI6MjEwMzQ5MzA2M30.dIWX6AQbJEM6lgJ2AsdIPW9h1lOhc9ivaTkqjZqTumw";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const OSRM = 'https://router.project-osrm.org';
+const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+// Localidades del Alto Valle y la zona: provincia, para buscar bien la dirección
+const LOCALIDADES = {
+  'NEUQUEN': 'Neuquén', 'PLOTTIER': 'Neuquén', 'CENTENARIO': 'Neuquén', 'SENILLOSA': 'Neuquén', 'VISTA ALEGRE': 'Neuquén', 'VISTA ALEGRE NORTE': 'Neuquén', 'VISTA ALEGRE SUR': 'Neuquén',
+  'SAN PATRICIO DEL CHANAR': 'Neuquén', 'EL CHANAR': 'Neuquén', 'ANELO': 'Neuquén', 'RINCON DE LOS SAUCES': 'Neuquén', 'CUTRAL CO': 'Neuquén', 'PLAZA HUINCUL': 'Neuquén',
+  'ZAPALA': 'Neuquén', 'CHOS MALAL': 'Neuquén', 'PICUN LEUFU': 'Neuquén', 'PIEDRA DEL AGUILA': 'Neuquén', 'VILLA EL CHOCON': 'Neuquén', 'ALUMINE': 'Neuquén', 'JUNIN DE LOS ANDES': 'Neuquén',
+  'SAN MARTIN DE LOS ANDES': 'Neuquén', 'VILLA LA ANGOSTURA': 'Neuquén', 'LAS LAJAS': 'Neuquén', 'VILLA PEHUENIA': 'Neuquén',
+  'CIPOLLETTI': 'Río Negro', 'CINCO SALTOS': 'Río Negro', 'FERNANDEZ ORO': 'Río Negro', 'ALLEN': 'Río Negro', 'GENERAL ROCA': 'Río Negro', 'VILLA REGINA': 'Río Negro',
+  'CERVANTES': 'Río Negro', 'INGENIERO HUERGO': 'Río Negro', 'MAINQUE': 'Río Negro', 'CATRIEL': 'Río Negro', 'CAMPO GRANDE': 'Río Negro', 'CONTRALMIRANTE CORDERO': 'Río Negro',
+  'BARDA DEL MEDIO': 'Río Negro', 'SARGENTO VIDAL': 'Río Negro', 'CHICHINALES': 'Río Negro', 'GODOY': 'Río Negro', 'CHOELE CHOEL': 'Río Negro', 'BARILOCHE': 'Río Negro'
+};
+const MOTIVOS = ['Cerrado / no había nadie', 'Rechazó el pedido', 'Falta mercadería', 'Dirección incorrecta', 'No llegamos (queda para otro día)', 'Otro'];
+const FORMAS = [['', 'No cobra'], ['efectivo', 'Efectivo'], ['cheque', 'Cheque'], ['transferencia', 'Transferencia']];
+const ESTADOS = { pendiente: ['Pendiente', 'azul'], entregada: ['Entregada', 'ok'], no_entregada: ['No entregada', 'alta'], reprogramada: ['Reprogramada', 'plano'], cancelada: ['Cancelada', 'plano'] };
+const ESTADOS_HOJA = { armada: ['Armada', 'azul'], en_reparto: ['En reparto', 'media'], terminada: ['Terminada', 'ok'], rendida: ['Rendida', 'plano'] };
+
+const S = {
+  perfil: null, gestiona: false, veTodo: false, miRep: null, modo: 'gestion',
+  cfg: {}, reps: [], vehs: [], tab: 'dia', fecha: hoyISO(),
+  hojas: [], entregas: [], hojaId: null, aviso: null,
+  clientes: null, borrador: null, pendientes: null, usuariosRep: null,
+  rep: { hojaId: null, verMapa: false }, cola: [], fotos: new Map()
+};
+
+// ===== utilidades =====
+function $(id){ return document.getElementById(id); }
+const content = () => $('content');
+function esc(v){ return String(v ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
+function hoyISO(){ const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function sumarDias(iso, n){ const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function fechaLarga(iso){ const d = new Date(iso + 'T12:00:00'); return `${DIAS[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`; }
+function hora(ts){ if(!ts) return ''; const d = new Date(ts); return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+function pesos(n){ return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
+function num(n){ return Number(n || 0).toLocaleString('es-AR'); }
+function norm(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function chip(par){ return `<span class="chip ${par[1]}">${esc(par[0])}</span>`; }
+function nombreRep(id){ const r = S.reps.find(x => x.id === id); return r ? r.nombre : '—'; }
+function nombreVeh(id){ const v = S.vehs.find(x => x.id === id); return v ? v.nombre + (v.patente ? ' · ' + v.patente : '') : ''; }
+function aviso(tipo, html){ S.aviso = { tipo, html }; }
+function sacarAviso(){ const a = S.aviso; S.aviso = null; return a ? `<div class="msg-box ${a.tipo}">${a.html}</div>` : ''; }
+function errorDe(e){ return esc(e && (e.message || e.error_description || e.error) || String(e)); }
+async function q(p){ const r = await p; if(r.error) throw r.error; return r.data; }
+async function traerTodo(tabla, cols, orden, filtro){
+  const out = [];
+  for(let desde = 0; ; desde += 1000){
+    let consulta = sb.from(tabla).select(cols).order(orden).range(desde, desde + 999);
+    if(filtro) consulta = filtro(consulta);
+    const filas = await q(consulta);
+    out.push(...filas);
+    if(filas.length < 1000) return out;
+  }
+}
+
+// Localidad: "Localidad: CINCO S" (cortada en la hoja) → CINCO SALTOS
+function completarLocalidad(txt){
+  const n = norm(txt);
+  if(!n) return '';
+  if(LOCALIDADES[n]) return n;
+  const c = Object.keys(LOCALIDADES).filter(k => k.startsWith(n));
+  return c.length ? c.sort((a, b) => a.length - b.length)[0] : n;
+}
+function locLinda(l){ const n = norm(l); if(!n) return 'Neuquén'; return n.toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase()).replace('Neuquen', 'Neuquén'); }
+
+// ===== WhatsApp =====
+// Celulares de la zona: 299 / 298 con o sin 15 → 549 + área + número
+function waNumero(tel){
+  let d = String(tel || '').replace(/\D/g, '');
+  if(!d) return '';
+  d = d.replace(/^00/, '');
+  if(d.startsWith('54')) d = d.slice(2);
+  if(d.startsWith('9') && d.length === 11) d = d.slice(1);
+  d = d.replace(/^0/, '');
+  if(d.length === 12 && d.slice(3, 5) === '15') d = d.slice(0, 3) + d.slice(5);
+  else if(d.length === 12 && d.slice(4, 6) === '15') d = d.slice(0, 4) + d.slice(6);
+  if(d.length === 9 && d.startsWith('15')) d = '299' + d.slice(2);
+  if(d.length === 7) d = '299' + d;
+  return d.length === 10 ? '549' + d : '';
+}
+function linkSeguimiento(e){ return location.origin + location.pathname + '?seguimiento=' + e.token; }
+function waLink(tel, texto){ const n = waNumero(tel); return n ? `https://wa.me/${n}?text=${encodeURIComponent(texto)}` : ''; }
+function msgAviso(e, h){
+  const emp = S.cfg.empresa || 'Segulimp';
+  return `Hola! Te escribimos de ${emp}. ${h.fecha === hoyISO() ? 'Hoy' : 'El ' + fechaLarga(h.fecha)} te llevamos tu pedido${e.eta ? ', calculamos llegar cerca de las ' + hora(e.eta) : ''}. Lo reparte ${nombreRep(h.repartidor_id).split(/[ ,]/)[0]}.\nPodés ver cuándo llega acá: ${linkSeguimiento(e)}`;
+}
+function msgLlegando(e, h){
+  return `Hola! Soy ${nombreRep(h.repartidor_id).split(/[ ,]/)[0]} de ${S.cfg.empresa || 'Segulimp'}. Estoy llegando con tu pedido en unos minutos.`;
+}
+
+// ===== Mapas =====
+const mapas = {};
+function crearMapa(id, opciones = {}){
+  if(mapas[id]){ try{ mapas[id].remove(); } catch(_){} delete mapas[id]; }
+  const el = $(id);
+  if(!el || !window.L) return null;
+  const m = L.map(el, { zoomControl: true, attributionControl: true, ...opciones });
+  L.tileLayer(TILES, { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(m);
+  m.setView([Number(S.cfg.deposito_lat) || -38.9516, Number(S.cfg.deposito_lng) || -68.0591], 12);
+  mapas[id] = m;
+  return m;
+}
+function iconoPin(txt, clase){ return L.divIcon({ className: '', html: `<div class="pin ${clase || ''}">${esc(txt)}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] }); }
+function deposito(){ return { lat: Number(S.cfg.deposito_lat) || -38.9516, lng: Number(S.cfg.deposito_lng) || -68.0591 }; }
+function pintarPuntos(m, puntos, { ruta = null, depo = true, camion = null } = {}){
+  if(!m) return;
+  const capas = [];
+  if(depo){ const d = deposito(); capas.push(L.marker([d.lat, d.lng], { icon: iconoPin('S', 'dep'), title: S.cfg.deposito_nombre || 'Depósito' })); }
+  for(const p of puntos){
+    if(p.lat == null || p.lng == null) continue;
+    const mk = L.marker([p.lat, p.lng], { icon: iconoPin(p.etiqueta, p.clase), draggable: !!p.arrastrar, title: p.titulo || '' });
+    if(p.popup) mk.bindPopup(p.popup);
+    if(p.arrastrar) mk.on('dragend', ev => p.arrastrar(ev.target.getLatLng()));
+    capas.push(mk);
+  }
+  if(camion) capas.push(L.marker([camion.lat, camion.lng], { icon: iconoPin('🚚', 'camion'), title: camion.titulo || 'Repartidor' }).bindPopup(esc(camion.titulo || '')));
+  if(ruta && ruta.coordinates) capas.push(L.geoJSON(ruta, { style: { color: '#245B84', weight: 4, opacity: .75 } }));
+  const g = L.featureGroup(capas).addTo(m);
+  if(capas.length > 1) m.fitBounds(g.getBounds().pad(0.12), { animate: false });
+  else if(capas.length === 1 && capas[0].getLatLng) m.setView(capas[0].getLatLng(), 14, { animate: false });
+  setTimeout(() => { if(Object.values(mapas).includes(m) && document.body.contains(m.getContainer())) m.invalidateSize(); }, 60);
+  return g;
+}
+
+// ===== Ubicar direcciones (lo ya ubicado queda guardado; lo demás se busca en OpenStreetMap) =====
+function claveDir(dom, loc){
+  return (String(dom || '') + '|' + (String(loc || '').trim() || 'neuquen')).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[º°]/g, ' ').replace(/[^a-z0-9|]+/g, ' ');
+}
+function limpiarDomicilio(dom){
+  return String(dom || '')
+    .replace(/Localidad:.*$/i, '').replace(/\b(Piso|Dpto|Depto|Of|Oficina|Local)\s*:?\s*\S+/gi, '')
+    .replace(/\bN[º°o]\.?\s*/gi, ' ').replace(/\bAV(DA)?\.?\s/gi, 'Avenida ').replace(/\bPTE\.?\s/gi, 'Presidente ')
+    .replace(/\bGRAL\.?\s/gi, 'General ').replace(/\bDR\.?\s/gi, 'Doctor ').replace(/\s+/g, ' ').trim();
+}
+const esperar = ms => new Promise(r => setTimeout(r, ms));
+let ultimaBusqueda = 0;
+async function buscarDireccion(dom, loc){
+  const l = norm(loc) || 'NEUQUEN', prov = LOCALIDADES[l] || 'Neuquén';
+  const base = limpiarDomicilio(dom);
+  const intentos = [`${base}, ${locLinda(l)}, ${prov}, Argentina`];
+  const sinNumero = base.replace(/\s+\d+[A-Z]?$/i, '');
+  if(/\d/.test(base) && base.match(/^(.*?)\s+(\d+)/)) intentos.push({ street: base, city: locLinda(l), state: prov });
+  for(const it of intentos){
+    const pausa = 1100 - (Date.now() - ultimaBusqueda);
+    if(pausa > 0) await esperar(pausa);
+    ultimaBusqueda = Date.now();
+    const p = new URLSearchParams({ format: 'jsonv2', limit: '1', countrycodes: 'ar', viewbox: '-70.6,-37.3,-66.4,-39.7', bounded: '1', 'accept-language': 'es' });
+    if(typeof it === 'string') p.set('q', it); else for(const [k, v] of Object.entries(it)) p.set(k, v);
+    try{
+      const r = await fetch(NOMINATIM + '?' + p.toString(), { headers: { 'Accept': 'application/json' } });
+      if(!r.ok) continue;
+      const j = await r.json();
+      if(j && j[0]) return { lat: Number(j[0].lat), lng: Number(j[0].lon), exacta: /house|building|amenity|shop|office/.test(j[0].type + j[0].category) || j[0].addresstype === 'building' };
+    } catch(_){ }
+  }
+  void sinNumero;
+  return null;
+}
+let dirCache = null;
+async function cargarDirecciones(){
+  if(dirCache) return dirCache;
+  const filas = await traerTodo('log_direcciones', 'clave, lat, lng, verificada, cliente_id', 'clave');
+  dirCache = new Map(filas.map(f => [f.clave, f]));
+  return dirCache;
+}
+async function guardarUbicacion(dom, loc, lat, lng, verificada, cliente){
+  try{ await q(sb.rpc('log_ubicar', { p_domicilio: dom, p_localidad: loc || null, p_lat: lat, p_lng: lng, p_verificada: !!verificada, p_cliente: cliente || null })); } catch(_){ }
+  if(dirCache){ const k = claveDir(dom, loc), v = dirCache.get(k); if(!v || verificada || !v.verificada) dirCache.set(k, { clave: k, lat, lng, verificada: !!verificada || !!(v && v.verificada), cliente_id: cliente }); }
+}
+
+// ===== Recorrido (OSRM: orden óptimo desde el depósito y vuelta) =====
+async function ordenarRecorrido(paradas){
+  const con = paradas.filter(p => p.lat != null && p.lng != null), sin = paradas.filter(p => p.lat == null || p.lng == null);
+  if(!con.length) return { orden: paradas, ruta: null, km: null, tiempos: [] };
+  const d = deposito();
+  const coords = [[d.lng, d.lat], ...con.map(p => [p.lng, p.lat])].map(c => c[0].toFixed(6) + ',' + c[1].toFixed(6)).join(';');
+  let j;
+  try{
+    const r = await fetch(`${OSRM}/trip/v1/driving/${coords}?source=first&roundtrip=true&overview=full&geometries=geojson`);
+    j = await r.json();
+  } catch(e){ j = null; }
+  if(!j || j.code !== 'Ok' || !j.trips || !j.trips[0]){
+    // sin servicio: orden por cercanía
+    const orden = [], resto = con.slice(); let cur = d;
+    while(resto.length){ resto.sort((a, b) => dist(cur, a) - dist(cur, b)); cur = resto.shift(); orden.push(cur); }
+    return { orden: orden.concat(sin), ruta: null, km: null, tiempos: orden.map(() => 600), aprox: true };
+  }
+  const pos = j.waypoints.slice(1).map((w, i) => ({ p: con[i], k: w.waypoint_index }));
+  pos.sort((a, b) => a.k - b.k);
+  const legs = j.trips[0].legs || [];
+  return { orden: pos.map(x => x.p).concat(sin), ruta: j.trips[0].geometry, km: Math.round(j.trips[0].distance / 100) / 10, tiempos: legs.slice(0, con.length).map(l => l.duration) };
+}
+function dist(a, b){ const dx = (a.lng - b.lng) * Math.cos(a.lat * Math.PI / 180), dy = a.lat - b.lat; return dx * dx + dy * dy; }
+// Hora estimada de llegada a cada parada: salida + manejo + minutos por parada
+function calcularEtas(fecha, inicio, tiempos, n){
+  const [hh, mm] = String(S.cfg.hora_salida || '09:00').split(':').map(Number);
+  let t = inicio ? new Date(inicio) : new Date(`${fecha}T${String(hh).padStart(2, '0')}:${String(mm || 0).padStart(2, '0')}:00`);
+  const parada = (Number(S.cfg.minutos_por_parada) || 10) * 60000, out = [];
+  for(let i = 0; i < n; i++){
+    t = new Date(t.getTime() + (tiempos[i] != null ? tiempos[i] * 1000 : 600000));
+    out.push(t.toISOString());
+    t = new Date(t.getTime() + parada);
+  }
+  return out;
+}
+
+// ===== Cola sin señal (IndexedDB) =====
+const DB_NOMBRE = 'segulimp-logistica';
+function idb(){
+  return new Promise((ok, mal) => {
+    const r = indexedDB.open(DB_NOMBRE, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('cola', { keyPath: 'k' });
+    r.onsuccess = () => ok(r.result); r.onerror = () => mal(r.error);
+  });
+}
+async function colaTodo(){ try{ const db = await idb(); return await new Promise(ok => { const t = db.transaction('cola').objectStore('cola').getAll(); t.onsuccess = () => ok(t.result || []); t.onerror = () => ok([]); }); } catch(_){ return []; } }
+async function colaPoner(item){ try{ const db = await idb(); await new Promise(ok => { const t = db.transaction('cola', 'readwrite'); t.objectStore('cola').put(item); t.oncomplete = ok; t.onerror = ok; }); } catch(_){ } }
+async function colaSacar(k){ try{ const db = await idb(); await new Promise(ok => { const t = db.transaction('cola', 'readwrite'); t.objectStore('cola').delete(k); t.oncomplete = ok; t.onerror = ok; }); } catch(_){ } }
+let enviando = false;
+async function enviarCola(){
+  if(enviando) return;
+  enviando = true;
+  try{
+    const items = (await colaTodo()).sort((a, b) => a.t - b.t);
+    for(const it of items){
+      if(!navigator.onLine) break;
+      try{
+        let foto = it.args.p_foto || null;
+        if(it.foto && !foto){
+          const blob = await (await fetch(it.foto)).blob();
+          const ruta = `${it.hoja}/${it.entrega}-${it.t}.jpg`;
+          const up = await sb.storage.from('remitos').upload(ruta, blob, { contentType: 'image/jpeg', upsert: true });
+          if(up.error && !/exists|Duplicate/i.test(up.error.message || '')) throw up.error;
+          foto = ruta;
+          it.args.p_foto = ruta; await colaPoner(it);
+        }
+        await q(sb.rpc('log_entrega_registrar', { ...it.args, p_foto: foto }));
+        await colaSacar(it.k);
+      } catch(e){
+        if(e && /no es tuya|rendió|inválido|motivo/i.test(e.message || '')){ await colaSacar(it.k); aviso('error', 'No se guardó una entrega: ' + errorDe(e)); }
+        else break;   // sin señal o error del servidor: se reintenta después
+      }
+    }
+  } finally {
+    enviando = false;
+    S.cola = await colaTodo();
+    const c = $('colaInfo'); if(c) c.innerHTML = colaTexto();
+  }
+}
+function colaTexto(){ return S.cola.length ? `<span class="cola">${S.cola.length} sin enviar · se mandan con señal</span>` : ''; }
+window.addEventListener('online', () => enviarCola());
+setInterval(() => { if(S.cola.length) enviarCola(); }, 30000);
+
+// Foto del remito: se achica a 1280 px para que suba rápido con poca señal
+function achicarFoto(archivo){
+  return new Promise((ok, mal) => {
+    const img = new Image(), url = URL.createObjectURL(archivo);
+    img.onload = () => {
+      const max = 1280, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      ok(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('No se pudo leer la foto.')); };
+    img.src = url;
+  });
+}
+async function urlFoto(path){
+  if(!path) return '';
+  if(S.fotos.has(path)) return S.fotos.get(path);
+  try{ const r = await sb.storage.from('remitos').createSignedUrl(path, 3600); const u = r.data && r.data.signedUrl || ''; S.fotos.set(path, u); return u; } catch(_){ return ''; }
+}
+
+// ===== Acceso =====
+function renderLogin(mensaje){
+  S.perfil = null;
+  $('session').classList.add('hidden'); $('tabs').classList.add('hidden');
+  content().innerHTML = `
+    <form class="form-card" id="formLogin">
+      <h2>Ingresar</h2>
+      <p class="sub">Usá el mismo usuario y contraseña del Hub.</p>
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" autocomplete="username" required>
+      <label for="loginClave">Contraseña</label>
+      <input type="password" id="loginClave" autocomplete="current-password" required>
+      <button class="btn-primary" type="submit">Ingresar</button>
+      <div class="msg-error">${esc(mensaje || '')}</div>
+    </form>`;
+  $('formLogin').onsubmit = async e => {
+    e.preventDefault();
+    e.target.querySelector('button').disabled = true;
+    const { data, error } = await sb.auth.signInWithPassword({ email: $('loginEmail').value.trim(), password: $('loginClave').value });
+    if(error){ renderLogin('Email o contraseña incorrectos.'); return; }
+    iniciar(data.session);
+  };
+}
+
+async function iniciar(session){
+  let perfil;
+  try{ perfil = await q(sb.from('perfiles').select('user_id, email, nombre, roles, activo, debe_cambiar_clave').eq('user_id', session.user.id).maybeSingle()); }
+  catch(e){
+    const cache = leerCacheRep();
+    if(cache){ S.perfil = cache.perfil; Object.assign(S, { cfg: cache.cfg, reps: cache.reps, vehs: cache.vehs, miRep: cache.miRep, hojas: cache.hojas, entregas: cache.entregas, modo: 'rep' }); document.body.classList.add('rep'); renderRep(); return; }
+    content().innerHTML = `<div class="msg-box error">No hay conexión: ${errorDe(e)}</div>`; return;
+  }
+  if(!perfil || !perfil.activo){ await sb.auth.signOut(); renderLogin('Tu usuario no tiene acceso. Consultá con un administrador.'); return; }
+  S.perfil = perfil;
+  $('session').classList.remove('hidden');
+  $('sessionNombre').textContent = perfil.nombre;
+  if(perfil.debe_cambiar_clave){ content().innerHTML = `<div class="msg-box info">Antes de seguir tenés que elegir tu contraseña. <a class="link-btn" href="hub.html">Entrá al Hub</a> y volvé a esta herramienta.</div>`; return; }
+  const r = perfil.roles;
+  S.gestiona = r.includes('administrador') || r.includes('logistica');
+  S.veTodo = S.gestiona || r.includes('consulta');
+  try{
+    const [cfg, reps, vehs] = await Promise.all([
+      q(sb.from('log_config').select('clave, valor')),
+      q(sb.from('log_repartidores').select('id, nombre, alias, user_id, telefono, vehiculo_id, activo').order('nombre')),
+      q(sb.from('log_vehiculos').select('id, nombre, patente, activo').order('nombre'))
+    ]);
+    S.cfg = Object.fromEntries(cfg.map(c => [c.clave, c.valor])); S.reps = reps; S.vehs = vehs;
+  } catch(e){ content().innerHTML = `<div class="msg-box error">No se pudo cargar Logística: ${errorDe(e)}</div>`; return; }
+  S.miRep = S.reps.find(x => x.user_id === perfil.user_id && x.activo) || null;
+  S.cola = await colaTodo();
+  if(!S.veTodo && !S.miRep){
+    content().innerHTML = `<div class="msg-box info">Tu usuario no tiene acceso a Logística. Pedile a logística que te vincule como repartidor, o a un administrador el rol Logística.</div>`;
+    return;
+  }
+  S.modo = S.veTodo && !(S.miRep && localStorage.getItem('log_modo') === 'rep') ? 'gestion' : 'rep';
+  if(!S.veTodo) S.modo = 'rep';
+  arrancarModo();
+}
+function arrancarModo(){
+  document.body.classList.toggle('rep', S.modo === 'rep');
+  document.querySelector('header .name').textContent = S.modo === 'rep' ? 'Mi reparto' : 'Logística y Reparto';
+  if(S.modo === 'rep'){ $('tabs').classList.add('hidden'); cargarRep(); enviarCola(); }
+  else { $('tabs').classList.remove('hidden'); ir(S.tab); }
+}
+
+// ===== Navegación (gestión) =====
+function pestanas(){
+  const t = [['dia', 'Día'], ['cargar', 'Cargar hoja'], ['reprogramar', 'Para reprogramar'], ['rendir', 'Rendir'], ['historial', 'Por cliente']];
+  if(S.gestiona) t.push(['equipo', 'Repartidores y depósito']);
+  if(!S.gestiona) return t.filter(x => !['cargar'].includes(x[0]));
+  return t;
+}
+function pintarTabs(){
+  const nRep = S.nPendientes || 0, nRend = S.nRendir || 0;
+  $('tabs').innerHTML = pestanas().map(([id, n]) => `<button type="button" data-tab="${id}" class="${S.tab === id ? 'active' : ''}">${n}${id === 'reprogramar' && nRep ? `<span class="n">${nRep}</span>` : ''}${id === 'rendir' && nRend ? `<span class="n">${nRend}</span>` : ''}</button>`).join('')
+    + (S.miRep ? `<button type="button" data-modo="rep" style="margin-left:auto">Modo repartidor</button>` : '');
+}
+async function ir(tab){
+  S.tab = tab; S.hojaId = tab === 'hoja' ? S.hojaId : null;
+  pintarTabs();
+  contarAvisos();
+  const a = sacarAviso();
+  try{
+    if(tab === 'dia') await renderDia(a);
+    else if(tab === 'hoja') await renderHoja(a);
+    else if(tab === 'cargar') await renderCargar(a);
+    else if(tab === 'reprogramar') await renderReprogramar(a);
+    else if(tab === 'rendir') await renderRendir(a);
+    else if(tab === 'historial') await renderHistorial(a);
+    else if(tab === 'equipo') await renderEquipo(a);
+  } catch(e){ content().innerHTML = a + `<div class="msg-box error">No se pudo cargar: ${errorDe(e)}</div>`; }
+}
+async function contarAvisos(){
+  try{
+    const [p, r] = await Promise.all([
+      sb.from('log_entregas').select('id', { count: 'exact', head: true }).eq('estado', 'no_entregada'),
+      sb.from('log_hojas').select('id', { count: 'exact', head: true }).eq('estado', 'terminada')
+    ]);
+    const a = p.count || 0, b = r.count || 0;
+    if(a !== S.nPendientes || b !== S.nRendir){ S.nPendientes = a; S.nRendir = b; pintarTabs(); }
+  } catch(_){ }
+}
+async function abrirHoja(id){ S.hojaId = Number(id); S.tab = 'hoja'; pintarTabs(); const a = sacarAviso(); try{ await renderHoja(a); } catch(e){ content().innerHTML = `<div class="msg-box error">${errorDe(e)}</div>`; } }
+
+// ===== Día =====
+async function cargarDia(fecha){
+  const hojas = await q(sb.from('log_hojas').select('*').eq('fecha', fecha).order('id'));
+  const ids = hojas.map(h => h.id);
+  const entregas = ids.length ? await q(sb.from('log_entregas').select('*').in('hoja_id', ids).order('orden')) : [];
+  return { hojas, entregas };
+}
+function resumenEntregas(lista){
+  const c = k => lista.filter(e => e.estado === k).length;
+  const activas = lista.filter(e => !['cancelada', 'reprogramada'].includes(e.estado));
+  return { total: activas.length, ok: c('entregada'), no: c('no_entregada') + c('reprogramada'), pend: c('pendiente'),
+    efectivo: lista.filter(e => e.cobro_forma === 'efectivo').reduce((t, e) => t + Number(e.cobro_importe || 0), 0),
+    cobrado: lista.reduce((t, e) => t + Number(e.cobro_importe || 0), 0) };
+}
+function medidor(r){
+  const t = r.total || 1;
+  return `<div class="meter"><div class="track"><div class="fill" style="width:${r.ok / t * 100}%"></div><div class="fill no" style="width:${r.no / t * 100}%"></div></div><span class="pct">${r.ok}/${r.total}</span></div>`;
+}
+async function renderDia(a){
+  const f = S.fecha;
+  content().innerHTML = a + `<p class="sub">Cargando ${fechaLarga(f)}…</p>`;
+  const { hojas, entregas } = await cargarDia(f);
+  S.hojas = hojas; S.entregas = entregas;
+  const r = resumenEntregas(entregas);
+  content().innerHTML = a + `
+    <div class="fila entre">
+      <div class="fila"><button class="btn-ghost small" data-dia="-1" aria-label="Día anterior">‹</button>
+        <h1 class="titulo">${f === hoyISO() ? 'Hoy' : ''} ${fechaLarga(f)}</h1>
+        <button class="btn-ghost small" data-dia="1" aria-label="Día siguiente">›</button>
+        ${f !== hoyISO() ? `<button class="btn-ghost small" data-dia="0">Ir a hoy</button>` : ''}
+        <input type="date" id="diaFecha" value="${f}" class="btn-ghost small" style="padding:5px 8px">
+      </div>
+      ${S.gestiona ? `<button class="btn-primary" data-tab="cargar">+ Cargar hoja de ruta</button>` : ''}
+    </div>
+    <div class="tiles" style="margin-top:14px">
+      <div class="tile"><div class="label">Hojas de ruta</div><div class="value">${hojas.length}</div><div class="note">${hojas.filter(h => h.estado === 'en_reparto').length} en reparto</div></div>
+      <div class="tile"><div class="label">Entregas</div><div class="value">${r.total}</div><div class="note">${r.pend} pendientes</div></div>
+      <div class="tile"><div class="label">Entregadas</div><div class="value">${r.ok}</div><div class="note">${r.total ? Math.round(r.ok / r.total * 100) : 0}% del día</div></div>
+      <div class="tile"><div class="label">No entregadas</div><div class="value" style="${r.no ? 'color:var(--bad)' : ''}">${r.no}</div><div class="note">Van a "Para reprogramar"</div></div>
+      <div class="tile"><div class="label">Cobrado</div><div class="value">${pesos(r.cobrado)}</div><div class="note">${pesos(r.efectivo)} en efectivo</div></div>
+    </div>
+    <h2 class="sec">Hojas de ruta</h2>
+    ${hojas.length ? `<div class="hojas">${hojas.map(h => {
+      const es = entregas.filter(e => e.hoja_id === h.id), rr = resumenEntregas(es);
+      const pos = h.pos_en && (Date.now() - new Date(h.pos_en)) < 30 * 60000 ? ` · ubicación ${hora(h.pos_en)}` : '';
+      return `<button type="button" class="hoja" data-hoja="${h.id}">
+        <div class="fila entre"><h3>${esc(nombreRep(h.repartidor_id))}</h3>${chip(ESTADOS_HOJA[h.estado])}</div>
+        <div class="d">${esc(nombreVeh(h.vehiculo_id) || 'Sin vehículo')}${h.km ? ` · ${num(h.km)} km` : ''}${h.iniciada_en ? ` · salió ${hora(h.iniciada_en)}` : ''}${pos}</div>
+        ${medidor(rr)}
+        <div class="d" style="margin:8px 0 0">${rr.pend} pendientes${rr.no ? ` · <b style="color:var(--bad)">${rr.no} no entregadas</b>` : ''}${rr.cobrado ? ` · ${pesos(rr.cobrado)} cobrados` : ''}</div>
+      </button>`; }).join('')}</div>`
+      : `<div class="card"><p class="sub" style="margin:0">No hay hojas de ruta para este día.${S.gestiona ? ' Cargá la que sale del sistema o armala a mano.' : ''}</p></div>`}
+    ${entregas.length ? `<h2 class="sec">Mapa del día</h2><div id="mapaDia" class="mapa"></div>` : ''}`;
+  if(entregas.length){
+    const m = crearMapa('mapaDia');
+    const puntos = entregas.filter(e => e.estado !== 'cancelada').map(e => ({ lat: e.lat, lng: e.lng, etiqueta: e.orden, clase: e.estado,
+      popup: `<b>${esc(e.cliente_nombre)}</b><br>${esc(e.domicilio)}<br>${esc(nombreRep(hojas.find(h => h.id === e.hoja_id).repartidor_id))} · ${ESTADOS[e.estado][0]}` }));
+    const g = pintarPuntos(m, puntos);
+    for(const h of hojas) if(h.pos_lat && h.estado === 'en_reparto' && g) L.marker([h.pos_lat, h.pos_lng], { icon: iconoPin('🚚', 'camion') }).bindPopup(`${esc(nombreRep(h.repartidor_id))} · ${hora(h.pos_en)}`).addTo(g);
+  }
+}
+
+// ===== Detalle de una hoja =====
+async function renderHoja(a){
+  const h = await q(sb.from('log_hojas').select('*').eq('id', S.hojaId).maybeSingle());
+  if(!h){ aviso('error', 'Esa hoja ya no existe.'); return ir('dia'); }
+  const es = await q(sb.from('log_entregas').select('*').eq('hoja_id', h.id).order('orden'));
+  S.hoja = h; S.hojaEntregas = es;
+  const r = resumenEntregas(es), armada = h.estado === 'armada', g = S.gestiona;
+  const sinUbicar = es.filter(e => e.lat == null && e.estado === 'pendiente').length;
+  const sinTel = es.filter(e => !waNumero(e.telefono) && e.estado === 'pendiente').length;
+  content().innerHTML = a + `
+    <div class="fila no-print"><button class="link-btn" data-volver-dia="${h.fecha}">← ${fechaLarga(h.fecha)}</button></div>
+    <div class="fila entre" style="margin-top:8px">
+      <div><h1 class="titulo">${esc(nombreRep(h.repartidor_id))}</h1>
+        <div class="muted">Hoja de ruta del ${fechaLarga(h.fecha)} · ${esc(nombreVeh(h.vehiculo_id) || 'sin vehículo')}${h.km ? ` · ${num(h.km)} km` : ''}${h.archivo ? ` · ${esc(h.archivo)}` : ''}</div></div>
+      <div class="fila">${chip(ESTADOS_HOJA[h.estado])}${medidor(r)}</div>
+    </div>
+    ${h.observaciones ? `<div class="msg-box info" style="margin-top:12px">${esc(h.observaciones)}</div>` : ''}
+    ${sinUbicar ? `<div class="msg-box aviso" style="margin-top:12px">${sinUbicar} ${sinUbicar === 1 ? 'entrega no tiene' : 'entregas no tienen'} ubicación: no entran en el orden del recorrido. Marcalas en el mapa con "Ubicar".</div>` : ''}
+    ${g ? `<div class="fila no-print" style="margin:14px 0">
+      ${h.estado !== 'rendida' ? `<button class="btn-ghost" id="btnReordenar">Ordenar recorrido</button><button class="btn-ghost" id="btnAgregar">+ Agregar entrega</button>` : ''}
+      <button class="btn-ghost" onclick="window.print()">Imprimir</button>
+      <button class="btn-ghost" id="btnLinkRep">Copiar link para el repartidor</button>
+      ${sinTel < es.filter(e => e.estado === 'pendiente').length ? `<button class="btn-ghost" id="btnAvisos">Avisar a los clientes</button>` : ''}
+      ${['terminada', 'en_reparto'].includes(h.estado) ? `<button class="btn-primary" data-rendir="${h.id}">Rendir</button>` : ''}
+      ${h.estado === 'terminada' ? `<button class="btn-ghost" id="btnReabrir">Reabrir</button>` : ''}
+      ${armada && es.every(e => e.estado === 'pendiente') ? `<button class="btn-ghost peligro" id="btnBorrarHoja">Borrar hoja</button>` : ''}
+    </div>` : ''}
+    <div id="mapaHoja" class="mapa no-print"></div>
+    <div class="solo-print"><h2>Hoja de ruta · ${esc(nombreRep(h.repartidor_id))} · ${fechaLarga(h.fecha)}</h2></div>
+    <h2 class="sec">Entregas</h2>
+    <div class="table-wrap"><table class="apilar">
+      <thead><tr><th>#</th><th>Cliente</th><th>Llega</th><th>Estado</th><th class="num">Cobro</th><th class="no-print">Remito</th><th class="no-print">Cliente</th>${g ? '<th class="no-print"></th>' : ''}</tr></thead>
+      <tbody>${es.map((e, i) => filaEntregaGestion(e, i, es.length, h)).join('')}</tbody>
+    </table></div>
+    <div class="tiles" style="margin-top:14px">
+      <div class="tile"><div class="label">Efectivo</div><div class="value">${pesos(r.efectivo)}</div></div>
+      <div class="tile"><div class="label">Cheques</div><div class="value">${pesos(es.filter(e => e.cobro_forma === 'cheque').reduce((t, e) => t + Number(e.cobro_importe || 0), 0))}</div></div>
+      <div class="tile"><div class="label">Transferencias</div><div class="value">${pesos(es.filter(e => e.cobro_forma === 'transferencia').reduce((t, e) => t + Number(e.cobro_importe || 0), 0))}</div></div>
+    </div>`;
+  const m = crearMapa('mapaHoja');
+  S.ubicando = null;
+  if(m){
+    pintarPuntos(m, es.filter(e => e.estado !== 'cancelada').map(e => ({ lat: e.lat, lng: e.lng, etiqueta: e.orden, clase: e.estado,
+      titulo: e.cliente_nombre, popup: `<b>${e.orden}. ${esc(e.cliente_nombre)}</b><br>${esc(e.domicilio)}`,
+      arrastrar: g && h.estado !== 'rendida' ? ll => moverUbicacion(e, ll) : null })),
+      { ruta: h.ruta, camion: h.pos_lat && h.estado === 'en_reparto' ? { lat: h.pos_lat, lng: h.pos_lng, titulo: `${nombreRep(h.repartidor_id)} · ${hora(h.pos_en)}` } : null });
+    m.on('click', ev => { if(S.ubicando){ const e = S.hojaEntregas.find(x => x.id === S.ubicando); S.ubicando = null; $('mapaHoja').style.cursor = ''; if(e) moverUbicacion(e, ev.latlng); } });
+  }
+  es.filter(e => e.foto_path).forEach(async e => { const u = await urlFoto(e.foto_path), el = document.querySelector(`[data-foto="${e.id}"]`); if(el && u) el.href = u; });
+}
+function filaEntregaGestion(e, i, n, h){
+  const g = S.gestiona, viva = !['cancelada', 'reprogramada'].includes(e.estado), wa = waNumero(e.telefono);
+  const llega = e.entregada_en ? `<b>${hora(e.entregada_en)}</b>` : (e.eta ? `~${hora(e.eta)}` : '');
+  return `<tr style="${viva ? '' : 'opacity:.55'}">
+    <td data-label="#"><b>${e.orden}</b>${g && h.estado === 'armada' ? `<div class="no-print" style="white-space:nowrap">${i ? `<button class="btn-ghost small" data-subir="${e.id}" aria-label="Subir">↑</button>` : ''}${i < n - 1 ? `<button class="btn-ghost small" data-bajar="${e.id}" aria-label="Bajar">↓</button>` : ''}</div>` : ''}</td>
+    <td data-label="Cliente"><b>${esc(e.cliente_nombre)}</b><div>${esc(e.domicilio)}${e.localidad && norm(e.localidad) !== 'NEUQUEN' ? ', ' + esc(locLinda(e.localidad)) : ''}</div>
+      <div class="muted">${e.nro ? 'N° ' + esc(e.nro) + ' · ' : ''}${e.cant_op} ${e.cant_op === 1 ? 'comprobante' : 'comprobantes'}${e.franja ? ' · ' + esc(e.franja) : ''}${e.notas ? ' · ' + esc(e.notas) : ''}${e.lat == null ? ' · <b style="color:var(--mid)">sin ubicar</b>' : ''}</div></td>
+    <td data-label="Llega">${llega}</td>
+    <td data-label="Estado">${chip(ESTADOS[e.estado])}${e.motivo ? `<div class="muted">${esc(e.motivo)}${e.motivo_nota ? ': ' + esc(e.motivo_nota) : ''}</div>` : ''}${e.receptor ? `<div class="muted">Recibió ${esc(e.receptor)}</div>` : ''}</td>
+    <td data-label="Cobro" class="num">${e.cobro_importe ? `${pesos(e.cobro_importe)}<div class="muted">${esc(e.cobro_forma)}${e.cobro_forma === 'transferencia' ? (e.transferencia_ok ? ' ✓' : ' a confirmar') : ''}${e.cobro_detalle ? ' · ' + esc(e.cobro_detalle) : ''}</div>` : '—'}</td>
+    <td data-label="Remito" class="no-print">${e.foto_path ? `<a class="link-btn" data-foto="${e.id}" href="#" target="_blank" rel="noopener">Ver foto</a>` : '—'}</td>
+    <td data-label="Cliente" class="no-print">${wa ? `<a class="btn-ghost small btn-wa" target="_blank" rel="noopener" data-aviso="${e.id}" href="${esc(waLink(e.telefono, msgAviso(e, h)))}">WhatsApp</a>${e.aviso_en ? `<div class="muted">avisado ${hora(e.aviso_en)}</div>` : ''}` : (g ? `<button class="btn-ghost small" data-tel="${e.id}">+ Teléfono</button>` : '')}</td>
+    ${g ? `<td class="no-print" style="white-space:nowrap">${viva && h.estado !== 'rendida' ? `
+      ${e.lat == null || h.estado === 'armada' ? `<button class="btn-ghost small" data-ubicar="${e.id}">Ubicar</button>` : ''}
+      ${e.estado === 'pendiente' ? `<button class="btn-ghost small" data-mover="${e.id}">Mover</button><button class="btn-ghost small peligro" data-cancelar="${e.id}">Quitar</button>` : ''}
+      ${e.estado !== 'pendiente' ? `<button class="btn-ghost small" data-registrar="${e.id}">Corregir</button>` : `<button class="btn-ghost small" data-registrar="${e.id}">Marcar</button>`}` : ''}</td>` : ''}
+  </tr>`;
+}
+async function moverUbicacion(e, ll){
+  try{
+    await q(sb.from('log_entregas').update({ lat: ll.lat, lng: ll.lng, actualizado_en: new Date().toISOString() }).eq('id', e.id));
+    await guardarUbicacion(e.domicilio, e.localidad, ll.lat, ll.lng, true, e.cliente_id);
+    aviso('ok', `Ubicación de ${esc(e.cliente_nombre)} corregida. Queda guardada para las próximas veces.`);
+  } catch(err){ aviso('error', 'No se pudo mover: ' + errorDe(err)); }
+  abrirHoja(S.hojaId);
+}
+async function reordenarHoja(h, es){
+  const vivas = es.filter(e => e.estado === 'pendiente'), hechas = es.filter(e => e.estado !== 'pendiente');
+  const r = await ordenarRecorrido(vivas.map(e => ({ ...e })));
+  const etas = calcularEtas(h.fecha, h.estado === 'en_reparto' ? new Date().toISOString() : null, r.tiempos, r.orden.length);
+  let n = hechas.length;
+  const cambios = hechas.sort((x, y) => x.orden - y.orden).map((e, i) => ({ id: e.id, orden: i + 1 }))
+    .concat(r.orden.map((e, i) => ({ id: e.id, orden: n + i + 1, eta: e.lat != null ? etas[i] : null })));
+  for(const c of cambios) await q(sb.from('log_entregas').update({ orden: c.orden, ...(c.eta !== undefined ? { eta: c.eta } : {}) }).eq('id', c.id));
+  await q(sb.from('log_hojas').update({ ruta: r.ruta, km: r.km }).eq('id', h.id));
+  return r;
+}
+
+// ===== Leer la hoja de ruta del sistema (PDF) =====
+function cargarScript(src){ return new Promise((ok, mal) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar ' + src)); document.head.appendChild(s); }); }
+async function pdfjs(){
+  if(!window.pdfjsLib){ await cargarScript(PDFJS + 'pdf.min.js'); window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; }
+  return window.pdfjsLib;
+}
+async function textosPdf(buf){
+  const lib = await pdfjs();
+  const doc = await lib.getDocument({ data: buf }).promise, items = [];
+  for(let p = 1; p <= doc.numPages; p++){
+    const pg = await doc.getPage(p), tc = await pg.getTextContent();
+    for(const it of tc.items) if(it.str && it.str.trim()) items.push({ p, x: it.transform[4], y: it.transform[5], w: it.width, s: it.str });
+  }
+  return items;
+}
+// Arma las filas a partir de los textos con su posición. Las columnas salen de los títulos (Cliente, Domicilio, Un.Neg., Cant.Op, Notas).
+// Cuando el nombre del cliente es largo, el PDF lo pega con el domicilio en un solo texto: se corta donde empieza la columna Domicilio.
+function interpretarHoja(items, clientes){
+  const busca = re => items.find(i => re.test(i.s.trim()));
+  const col = {};
+  for(const [k, re] of [['cli', /^Cliente$/i], ['dom', /^Domicilio$/i], ['un', /^Un\.?\s*Neg/i], ['cant', /^Cant/i], ['notas', /^Notas$/i]]){ const t = busca(re); if(t) col[k] = t.x; }
+  if(col.cli == null || col.dom == null) throw new Error('No parece una hoja de ruta del sistema: no encuentro las columnas Cliente y Domicilio.');
+  const tituloY = busca(/^Cliente$/i).y, pag1 = busca(/^Cliente$/i).p;
+  const obsT = busca(/^OBSERVACIONES$/i);
+  const valorDe = (re, maxDx = 300) => { const t = busca(re); if(!t) return ''; const v = items.filter(i => i.p === t.p && Math.abs(i.y - t.y) < 2 && i.x > t.x + 1 && i.x < t.x + maxDx && !/^(Patente|Transporte|Fecha:|Empleado:)$/i.test(i.s.trim())).sort((a, b) => a.x - b.x); return v.map(i => i.s.trim()).join(' ').trim(); };
+  const fechaTxt = valorDe(/^Fecha:?$/i, 160);
+  const m = fechaTxt.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const fecha = m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+  const empleado = valorDe(/^Empleado:?$/i);
+  const transporte = valorDe(/^Transporte$/i, (busca(/^Patente$/i) || { x: 9999 }).x - (busca(/^Transporte$/i) || { x: 0 }).x - 4);
+  const patente = valorDe(/^Patente$/i, 200);
+  // Los datos no arrancan justo debajo de cada título: la columna Domicilio empieza donde arranca la mayoría de los domicilios
+  const cuerpo = items.filter(i => !(i.p === pag1 && i.y >= tituloY - 1) && !(obsT && i.p === obsT.p && i.y <= obsT.y + 1));
+  const frec = new Map();
+  for(const i of cuerpo) if(i.x > col.cli + 40 && i.x < (col.un ?? col.dom + 200) - 5){ const k = Math.round(i.x); frec.set(k, (frec.get(k) || 0) + 1); }
+  const modaDom = [...frec.entries()].sort((a, b) => b[1] - a[1])[0];
+  const xDom = modaDom && modaDom[1] >= 2 ? modaDom[0] : col.dom - 20;
+  const lim = { dom: xDom - 2, un: (col.un ?? 9999) - 4, cant: (col.cant ?? 9999) - 12, notas: (col.notas ?? 9999) - 30 };
+  const nombresN = (clientes || []).map(c => ({ c, n: norm(c.nombre) }));
+  const filasPorY = new Map();
+  for(const it of items){
+    if(it.p === pag1 && it.y >= tituloY - 1) continue;
+    if(obsT && it.p === obsT.p && it.y <= obsT.y + 1) continue;
+    const k = it.p + ':' + Math.round(it.y);
+    let clave = [...filasPorY.keys()].find(x => { const [p, y] = x.split(':').map(Number); return p === it.p && Math.abs(y - it.y) < 2.5; }) || k;
+    if(!filasPorY.has(clave)) filasPorY.set(clave, []);
+    filasPorY.get(clave).push(it);
+  }
+  const filas = [];
+  const claves = [...filasPorY.keys()].sort((a, b) => { const [pa, ya] = a.split(':').map(Number), [pb, yb] = b.split(':').map(Number); return pa - pb || yb - ya; });
+  for(const k of claves){
+    const its = filasPorY.get(k).sort((a, b) => a.x - b.x);
+    const f = { nro: '', cli: '', dom: '', un: '', cant: '', notas: '' };
+    for(const it of its){
+      const s = it.s.trim();
+      if(it.x < col.cli - 4){ f.nro += s; continue; }
+      if(it.x < lim.dom){
+        if(it.x + it.w > lim.dom + 6 && s.length > 3){ const [a, b] = partir(s, it, lim.dom, nombresN); f.cli += ' ' + a; f.dom += ' ' + b; }
+        else f.cli += ' ' + s;
+        continue;
+      }
+      if(it.x < lim.un) f.dom += ' ' + s;
+      else if(it.x < lim.cant) f.un += ' ' + s;
+      else if(it.x < lim.notas) f.cant += ' ' + s;
+      else f.notas += ' ' + s;
+    }
+    for(const c in f) f[c] = f[c].replace(/\s+/g, ' ').trim();
+    if(!f.cli || !/^\d+$/.test(f.nro)) continue;
+    let dom = f.dom, loc = '';
+    const ml = dom.match(/Localidad:\s*(.*)$/i);
+    if(ml){ loc = completarLocalidad(ml[1]); dom = dom.slice(0, ml.index).trim(); }
+    const cli = buscarCliente(f.cli, nombresN);
+    if(!loc && cli && cli.localidad && LOCALIDADES[norm(cli.localidad)]) loc = norm(cli.localidad);
+    filas.push({ nro: f.nro, cliente_nombre: cli ? cli.nombre : f.cli, cliente_hoja: f.cli, cliente_id: cli ? cli.id : null, telefono: cli ? cli.telefono || '' : '',
+      domicilio: dom, localidad: loc || 'NEUQUEN', cant_op: Math.max(1, parseInt(f.cant, 10) || 1), unidad_negocio: f.un || null, notas: f.notas || '' });
+  }
+  return { fecha, empleado, transporte, patente, filas };
+}
+function partir(s, it, xCorte, nombresN){
+  const prop = Math.max(1, Math.min(s.length - 1, Math.round(s.length * (xCorte - it.x) / it.w)));
+  const espacios = []; for(let i = 1; i < s.length; i++) if(s[i] === ' ') espacios.push(i);
+  if(!espacios.length) return [s.slice(0, prop), s.slice(prop)];
+  const conCliente = espacios.filter(i => { const a = norm(s.slice(0, i)); return a.length >= 6 && nombresN.some(x => x.n.startsWith(a)); });
+  const cand = conCliente.length ? conCliente : espacios;
+  const i = cand.reduce((b, x) => Math.abs(x - prop) < Math.abs(b - prop) ? x : b, cand[0]);
+  return [s.slice(0, i).trim(), s.slice(i).trim()];
+}
+function buscarCliente(nombre, nombresN){
+  const n = norm(nombre), sinPref = norm(nombre.replace(/^\([A-Z]\)\s*/, ''));
+  if(!n || !nombresN.length) return null;
+  let c = nombresN.find(x => x.n === n) || nombresN.find(x => x.n === sinPref);
+  if(c) return c.c;
+  const pref = nombresN.filter(x => n.length >= 8 && (x.n.startsWith(n) || x.n.startsWith(sinPref)));
+  if(pref.length) return pref.sort((a, b) => a.n.length - b.n.length)[0].c;
+  return null;
+}
+
+// ===== Cargar hoja (PDF o a mano): borrador → ubicar → ordenar → guardar =====
+let pidiendoClientes = null;
+function asegurarClientes(){
+  if(S.clientes) return Promise.resolve(S.clientes);
+  if(!pidiendoClientes) pidiendoClientes = (async () => {
+    const out = [];
+    for(let d = 0; d < 50000; d += 1000){ const f = await q(sb.rpc('log_clientes').range(d, d + 999)); out.push(...f); if(f.length < 1000) break; }
+    S.clientes = out;
+    return out;
+  })().finally(() => { pidiendoClientes = null; });
+  return pidiendoClientes;
+}
+function repPorNombre(nombre){
+  const n = norm(nombre);
+  if(!n) return null;
+  return S.reps.find(r => norm(r.nombre) === n || (r.alias || []).some(a => norm(a) === n)) || null;
+}
+async function renderCargar(a){
+  const b = S.borrador;
+  if(!b){
+    content().innerHTML = a + `
+      <h1 class="titulo">Cargar hoja de ruta</h1>
+      <p class="sub">Subí el PDF de la hoja de ruta que sale del sistema: se lee el repartidor, la fecha y los clientes, se ubica cada dirección en el mapa y se arma el orden del recorrido. También podés armarla a mano.</p>
+      <label class="drop" id="dropHoja"><input type="file" id="fileHoja" accept="application/pdf" multiple hidden>
+        <b>Elegí o soltá acá la hoja de ruta (PDF)</b><br><span class="muted">Podés subir varias a la vez, una por repartidor.</span></label>
+      <div class="fila" style="margin-top:14px"><button class="btn-ghost" id="btnAMano">Armar una hoja a mano</button></div>
+      <div id="cargaEstado" style="margin-top:12px"></div>`;
+    return;
+  }
+  const existente = S.hojaExistente;
+  content().innerHTML = a + `
+    <div class="fila entre"><h1 class="titulo">${b.origen === 'pdf' ? 'Hoja de ruta leída' : 'Hoja de ruta a mano'}</h1>
+      <button class="btn-ghost" id="btnDescartar">Descartar</button></div>
+    ${b.cola && b.cola.length ? `<div class="msg-box info">Después de esta quedan ${b.cola.length} ${b.cola.length === 1 ? 'hoja' : 'hojas'} más para revisar.</div>` : ''}
+    ${b.archivo ? `<p class="sub">${esc(b.archivo)}${b.empleado ? ' · Empleado: ' + esc(b.empleado) : ''}${b.transporte ? ' · Transporte: ' + esc(b.transporte) : ''}${b.patente ? ' · Patente: ' + esc(b.patente) : ''}</p>` : ''}
+    <div class="card"><div class="campos">
+      <div class="campo"><label for="bFecha">Fecha de reparto</label><input type="date" id="bFecha" value="${b.fecha}"></div>
+      <div class="campo"><label for="bRep">Repartidor</label><select id="bRep">
+        <option value="">Elegí…</option>
+        ${b.empleado && !repPorNombre(b.empleado) ? `<option value="nuevo" ${b.repartidor_id === 'nuevo' ? 'selected' : ''}>Nuevo: ${esc(b.empleado)}</option>` : ''}
+        ${S.reps.filter(r => r.activo).map(r => `<option value="${r.id}" ${String(b.repartidor_id) === String(r.id) ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('')}</select></div>
+      <div class="campo"><label for="bVeh">Vehículo</label><select id="bVeh"><option value="">Sin vehículo</option>
+        ${S.vehs.filter(v => v.activo).map(v => `<option value="${v.id}" ${String(b.vehiculo_id) === String(v.id) ? 'selected' : ''}>${esc(v.nombre)}${v.patente ? ' · ' + esc(v.patente) : ''}</option>`).join('')}</select></div>
+      <div class="campo" style="grid-column:1/-1"><label for="bObs">Observaciones para el repartidor</label><input id="bObs" value="${esc(b.observaciones || '')}" placeholder="Opcional"></div>
+    </div>
+    ${existente ? `<div class="msg-box aviso" style="margin:12px 0 0">Ese repartidor ya tiene una hoja ese día (${existente.n} entregas, ${ESTADOS_HOJA[existente.estado][0].toLowerCase()}). Estas entregas se suman a esa hoja.</div>` : ''}
+    </div>
+    <h2 class="sec">Entregas (${b.filas.length})</h2>
+    <p class="sub" id="ubicEstado">${textoUbicacion(b)}</p>
+    <div class="table-wrap"><table class="apilar" id="tablaBorrador">
+      <thead><tr><th>N°</th><th>Cliente</th><th>Domicilio</th><th>Localidad</th><th class="num">Comp.</th><th>Notas</th><th>Ubicación</th><th></th></tr></thead>
+      <tbody>${b.filas.map((f, i) => filaBorrador(f, i)).join('')}</tbody></table></div>
+    <datalist id="dlClientes">${(S.clientes || []).slice(0, 6000).map(c => `<option value="${esc(c.nombre)}">`).join('')}</datalist>
+    <datalist id="dlLocalidades">${Object.keys(LOCALIDADES).map(l => `<option value="${esc(l)}">`).join('')}</datalist>
+    <div class="fila" style="margin-top:10px"><button class="btn-ghost" id="btnFilaNueva">+ Agregar entrega</button></div>
+    <h2 class="sec">Mapa</h2>
+    <p class="sub">Arrastrá un punto si quedó mal ubicado. Para una entrega sin ubicar, tocá "Marcar" y después el lugar en el mapa. Lo que corrijas queda guardado para las próximas hojas.</p>
+    <div id="mapaBorrador" class="mapa"></div>
+    <div class="fila" style="margin-top:16px"><button class="btn-primary" id="btnGuardarHoja" ${b.ubicando ? 'disabled' : ''}>Ordenar recorrido y guardar</button><span class="muted" id="guardarEstado"></span></div>`;
+  pintarMapaBorrador();
+}
+function textoUbicacion(b){
+  const con = b.filas.filter(f => f.lat != null).length, total = b.filas.length;
+  if(b.ubicando) return `Ubicando direcciones en el mapa… ${con} de ${total}.`;
+  return con === total ? `Las ${total} direcciones están ubicadas. Revisalas en el mapa.` : `${con} de ${total} ubicadas. ${total - con} sin ubicar: marcalas en el mapa o corregí la dirección.`;
+}
+function filaBorrador(f, i){
+  const est = f.lat == null ? ['Sin ubicar', 'media'] : (f.ubic === 'verificada' ? ['Confirmada', 'ok'] : (f.ubic === 'guardada' ? ['Ya conocida', 'ok'] : ['Aproximada', 'azul']));
+  return `<tr data-fila="${i}">
+    <td data-label="N°"><input class="corto" data-campo="nro" value="${esc(f.nro)}"></td>
+    <td data-label="Cliente"><input data-campo="cliente_nombre" list="dlClientes" value="${esc(f.cliente_nombre)}">${f.cliente_id ? '' : '<div class="muted">No está en la cartera</div>'}</td>
+    <td data-label="Domicilio"><input data-campo="domicilio" value="${esc(f.domicilio)}"></td>
+    <td data-label="Localidad"><input data-campo="localidad" list="dlLocalidades" value="${esc(locLinda(f.localidad))}"></td>
+    <td data-label="Comprobantes" class="num"><input class="corto" type="number" min="1" data-campo="cant_op" value="${f.cant_op}"></td>
+    <td data-label="Notas"><input data-campo="notas" value="${esc(f.notas || '')}"></td>
+    <td data-label="Ubicación">${chip(est)}${f.lat == null ? ` <button class="btn-ghost small" data-marcar="${i}">Marcar</button>` : ''}</td>
+    <td><button class="btn-ghost small peligro" data-quitar-fila="${i}" aria-label="Quitar">✕</button></td></tr>`;
+}
+function pintarMapaBorrador(){
+  const b = S.borrador; if(!b || !$('mapaBorrador')) return;
+  const m = crearMapa('mapaBorrador');
+  pintarPuntos(m, b.filas.map((f, i) => ({ lat: f.lat, lng: f.lng, etiqueta: f.nro || i + 1, clase: f.lat == null ? 'sin' : '', titulo: f.cliente_nombre,
+    popup: `<b>${esc(f.cliente_nombre)}</b><br>${esc(f.domicilio)}`, arrastrar: ll => { f.lat = ll.lat; f.lng = ll.lng; f.ubic = 'verificada'; f.mover = true; actualizarFilaBorrador(i); } })));
+  m.on('click', ev => {
+    if(S.marcando == null) return;
+    const f = b.filas[S.marcando]; if(!f) return;
+    f.lat = ev.latlng.lat; f.lng = ev.latlng.lng; f.ubic = 'verificada'; f.mover = true;
+    S.marcando = null; $('mapaBorrador').style.cursor = '';
+    renderCargar('');
+  });
+}
+function actualizarFilaBorrador(i){
+  const tr = document.querySelector(`#tablaBorrador tr[data-fila="${i}"]`);
+  if(tr) tr.outerHTML = filaBorrador(S.borrador.filas[i], i);
+  const u = $('ubicEstado'); if(u) u.textContent = textoUbicacion(S.borrador);
+}
+async function ubicarBorrador(){
+  const b = S.borrador; if(!b) return;
+  const dirs = await cargarDirecciones().catch(() => new Map());
+  for(const f of b.filas){
+    if(f.lat != null) continue;
+    const c = dirs.get(claveDir(f.domicilio, f.localidad));
+    if(c){ f.lat = c.lat; f.lng = c.lng; f.ubic = c.verificada ? 'verificada' : 'guardada'; }
+  }
+  b.ubicando = true;
+  if(S.tab === 'cargar') renderCargar('');
+  for(let i = 0; i < b.filas.length; i++){
+    if(S.borrador !== b) return;
+    const f = b.filas[i];
+    if(f.lat != null || !f.domicilio) continue;
+    const r = await buscarDireccion(f.domicilio, f.localidad);
+    if(S.borrador !== b) return;
+    if(r){ f.lat = r.lat; f.lng = r.lng; f.ubic = 'buscada'; f.mover = true; }
+    actualizarFilaBorrador(i);
+  }
+  b.ubicando = false;
+  if(S.tab === 'cargar' && S.borrador === b){ const btn = $('btnGuardarHoja'); if(btn) btn.disabled = false; const u = $('ubicEstado'); if(u) u.textContent = textoUbicacion(b); pintarMapaBorrador(); }
+}
+async function revisarExistente(){
+  const b = S.borrador; S.hojaExistente = null;
+  if(!b || !b.fecha || !b.repartidor_id || b.repartidor_id === 'nuevo') return;
+  const h = await q(sb.from('log_hojas').select('id, estado').eq('fecha', b.fecha).eq('repartidor_id', b.repartidor_id).neq('estado', 'rendida').limit(1));
+  if(h[0]){ const n = await sb.from('log_entregas').select('id', { count: 'exact', head: true }).eq('hoja_id', h[0].id); S.hojaExistente = { ...h[0], n: n.count || 0 }; }
+}
+async function leerArchivos(archivos){
+  const est = $('cargaEstado');
+  if(est) est.innerHTML = `<p class="sub">Leyendo ${archivos.length === 1 ? 'la hoja' : archivos.length + ' hojas'}…</p>`;
+  try{ await asegurarClientes(); } catch(_){ S.clientes = []; }
+  const leidas = [];
+  for(const f of archivos){
+    try{
+      const items = await textosPdf(await f.arrayBuffer());
+      const h = interpretarHoja(items, S.clientes);
+      if(!h.filas.length) throw new Error('no encontré entregas en la hoja');
+      leidas.push({ ...h, archivo: f.name });
+    } catch(e){ if(est) est.innerHTML += `<div class="msg-box error">${esc(f.name)}: ${errorDe(e)}</div>`; }
+  }
+  if(!leidas.length) return;
+  const [primera, ...resto] = leidas;
+  abrirBorrador(primera, resto);
+}
+function abrirBorrador(h, cola){
+  const rep = repPorNombre(h.empleado), veh = h.patente ? S.vehs.find(v => norm(v.patente) === norm(h.patente)) : null;
+  S.borrador = { origen: h.filas ? 'pdf' : 'manual', archivo: h.archivo || null, empleado: h.empleado || '', transporte: h.transporte || '', patente: h.patente || '',
+    fecha: h.fecha || hoyISO(), repartidor_id: rep ? rep.id : (h.empleado ? 'nuevo' : ''), vehiculo_id: veh ? veh.id : (rep && rep.vehiculo_id) || '',
+    observaciones: '', filas: (h.filas || []).map(f => ({ ...f })), cola: cola || [] };
+  revisarExistente().then(() => { if(S.tab === 'cargar') renderCargar(''); });
+  S.tab = 'cargar'; pintarTabs(); renderCargar('');
+  ubicarBorrador();
+}
+function leerBorradorDePantalla(){
+  const b = S.borrador; if(!b) return;
+  if($('bFecha')) b.fecha = $('bFecha').value;
+  if($('bRep')) b.repartidor_id = $('bRep').value;
+  if($('bVeh')) b.vehiculo_id = $('bVeh').value;
+  if($('bObs')) b.observaciones = $('bObs').value;
+}
+function cambioFilaBorrador(input){
+  const tr = input.closest('tr[data-fila]'), b = S.borrador; if(!tr || !b) return;
+  const f = b.filas[Number(tr.dataset.fila)], campo = input.dataset.campo; if(!f) return;
+  let v = input.value;
+  if(campo === 'cant_op') v = Math.max(1, parseInt(v, 10) || 1);
+  if(campo === 'localidad') v = completarLocalidad(v) || 'NEUQUEN';
+  const antes = f[campo]; f[campo] = v;
+  if(campo === 'cliente_nombre'){
+    const c = (S.clientes || []).find(x => x.nombre === v) || buscarCliente(v, (S.clientes || []).map(c => ({ c, n: norm(c.nombre) })));
+    f.cliente_id = c ? c.id : null; if(c){ f.cliente_nombre = c.nombre; f.telefono = c.telefono || f.telefono || ''; if(!f.domicilio) autocompletarDomicilio(f); }
+    actualizarFilaBorrador(Number(tr.dataset.fila));
+  }
+  if((campo === 'domicilio' || campo === 'localidad') && antes !== v){
+    f.lat = null; f.lng = null; f.ubic = null;
+    const i = Number(tr.dataset.fila);
+    cargarDirecciones().then(async dirs => {
+      const c = dirs.get(claveDir(f.domicilio, f.localidad));
+      if(c){ f.lat = c.lat; f.lng = c.lng; f.ubic = c.verificada ? 'verificada' : 'guardada'; }
+      else { const r = await buscarDireccion(f.domicilio, f.localidad); if(r){ f.lat = r.lat; f.lng = r.lng; f.ubic = 'buscada'; f.mover = true; } }
+      actualizarFilaBorrador(i); pintarMapaBorrador();
+    });
+  }
+}
+async function autocompletarDomicilio(f){
+  try{
+    const ult = await q(sb.from('log_entregas').select('domicilio, localidad, lat, lng, telefono').eq('cliente_id', f.cliente_id).order('id', { ascending: false }).limit(1));
+    if(ult[0] && !f.domicilio){ Object.assign(f, { domicilio: ult[0].domicilio, localidad: ult[0].localidad || 'NEUQUEN', lat: ult[0].lat, lng: ult[0].lng, ubic: 'guardada', telefono: f.telefono || ult[0].telefono || '' }); renderCargar(''); }
+  } catch(_){ }
+}
+async function guardarBorrador(){
+  leerBorradorDePantalla();
+  const b = S.borrador, est = $('guardarEstado'), btn = $('btnGuardarHoja');
+  if(!b.fecha){ est.textContent = 'Elegí la fecha.'; return; }
+  if(!b.repartidor_id){ est.textContent = 'Elegí el repartidor.'; return; }
+  const filas = b.filas.filter(f => f.cliente_nombre.trim());
+  if(!filas.length){ est.textContent = 'No hay entregas para guardar.'; return; }
+  btn.disabled = true; est.textContent = 'Ordenando el recorrido…';
+  try{
+    let repId = b.repartidor_id;
+    if(repId === 'nuevo'){
+      const nombre = b.empleado.split(',').map(x => x.trim()).reverse().join(' ').toLowerCase().replace(/(^|\s)\S/g, m => m.toUpperCase());
+      const r = await q(sb.from('log_repartidores').insert({ nombre, alias: [b.empleado] }).select().single());
+      S.reps.push(r); repId = r.id;
+    } else repId = Number(repId);
+    const rep = S.reps.find(r => r.id === repId);
+    if(rep && b.empleado && !repPorNombre(b.empleado)){ const alias = [...new Set([...(rep.alias || []), b.empleado])]; await q(sb.from('log_repartidores').update({ alias }).eq('id', repId)); rep.alias = alias; }
+    for(const f of filas) if(f.lat != null && f.mover) await guardarUbicacion(f.domicilio, f.localidad, f.lat, f.lng, f.ubic === 'verificada', f.cliente_id);
+    let hoja = (await q(sb.from('log_hojas').select('*').eq('fecha', b.fecha).eq('repartidor_id', repId).neq('estado', 'rendida').limit(1)))[0];
+    if(!hoja) hoja = await q(sb.from('log_hojas').insert({ fecha: b.fecha, repartidor_id: repId, vehiculo_id: b.vehiculo_id ? Number(b.vehiculo_id) : null, origen: b.origen, archivo: b.archivo, observaciones: b.observaciones || null }).select().single());
+    else if(b.observaciones || b.archivo) await q(sb.from('log_hojas').update({ observaciones: [hoja.observaciones, b.observaciones].filter(Boolean).join(' · ') || null, archivo: [hoja.archivo, b.archivo].filter(Boolean).join(', ') || null, vehiculo_id: hoja.vehiculo_id || (b.vehiculo_id ? Number(b.vehiculo_id) : null) }).eq('id', hoja.id));
+    const previas = await q(sb.from('log_entregas').select('orden').eq('hoja_id', hoja.id));
+    const base = previas.reduce((m, x) => Math.max(m, x.orden), 0);
+    await q(sb.from('log_entregas').insert(filas.map((f, i) => ({ hoja_id: hoja.id, orden: base + i + 1, nro: f.nro || null, cliente_id: f.cliente_id, cliente_nombre: f.cliente_nombre.trim(),
+      domicilio: f.domicilio.trim(), localidad: f.localidad || null, lat: f.lat, lng: f.lng, cant_op: f.cant_op, unidad_negocio: f.unidad_negocio || null, notas: f.notas || null,
+      telefono: f.telefono || null, franja: f.franja || null }))));
+    const es = await q(sb.from('log_entregas').select('*').eq('hoja_id', hoja.id).order('orden'));
+    const r = await reordenarHoja(hoja, es);
+    const sigue = b.cola && b.cola.length ? b.cola : null;
+    S.borrador = null; S.hojaExistente = null;
+    aviso('ok', `Hoja guardada: ${filas.length} ${filas.length === 1 ? 'entrega' : 'entregas'}${r.km ? `, ${num(r.km)} km de recorrido` : ''}.${r.aprox ? ' El servicio de rutas no respondió: el orden es por cercanía, podés volver a ordenarla después.' : ''}${sigue ? ` Quedan ${sigue.length} para revisar.` : ''}`);
+    if(sigue){ const [p, ...resto] = sigue; abrirBorrador(p, resto); return; }
+    abrirHoja(hoja.id);
+  } catch(e){ btn.disabled = false; est.innerHTML = `<span style="color:var(--bad)">No se pudo guardar: ${errorDe(e)}</span>`; }
+}
+
+// ===== Ventanas =====
+function modal(html){ $('modal').innerHTML = `<div class="hoja-modal" id="fondoModal"><div class="panel" role="dialog" aria-modal="true">${html}</div></div>`; const p = $('modal').querySelector('input, select, textarea'); if(p && !p.matches('[type=file]')) setTimeout(() => p.focus(), 50); }
+function cerrarModal(){ $('modal').innerHTML = ''; }
+
+function modalTelefono(e){
+  modal(`<h3>Teléfono de ${esc(e.cliente_nombre)}</h3><p class="sub">Para mandarle el aviso por WhatsApp. Queda guardado en el cliente.</p>
+    <div class="campo"><label for="mTel">Celular</label><input id="mTel" inputmode="tel" value="${esc(e.telefono || '')}" placeholder="299 15 412 3456"></div>
+    <div class="msg-error" id="mErr"></div>
+    <div class="fila" style="margin-top:14px"><button class="btn-primary" data-guardar-tel="${e.id}">Guardar</button><button class="btn-ghost" data-cerrar>Cancelar</button></div>`);
+}
+async function guardarTelefono(id){
+  const t = $('mTel').value.trim();
+  if(t && !waNumero(t)){ $('mErr').textContent = 'Revisá el número: poné el código de área (ej. 299) y el número.'; return; }
+  try{ await q(sb.rpc('log_telefono', { p_entrega: id, p_telefono: t })); cerrarModal(); if(S.clientes){ const e = (S.hojaEntregas || S.entregas || []).find(x => x.id === id); const c = e && S.clientes.find(x => x.id === e.cliente_id); if(c && !c.telefono) c.telefono = t; } }
+  catch(err){ $('mErr').textContent = errorDe(err); return; }
+  if(S.modo === 'rep'){ const e = S.entregas.find(x => x.id === id); if(e) e.telefono = t; guardarCacheRep(); renderRep(); } else abrirHoja(S.hojaId);
+}
+
+function modalAgregar(){
+  modal(`<h3>Agregar entrega</h3>
+    <div class="campo"><label for="aCli">Cliente</label><input id="aCli" list="dlClientesM" placeholder="Escribí el nombre"></div>
+    <datalist id="dlClientesM">${(S.clientes || []).map(c => `<option value="${esc(c.nombre)}">`).join('')}</datalist>
+    <div class="campos"><div class="campo"><label for="aDom">Domicilio</label><input id="aDom"></div>
+      <div class="campo"><label for="aLoc">Localidad</label><input id="aLoc" list="dlLocM" value="Neuquén"></div></div>
+    <datalist id="dlLocM">${Object.keys(LOCALIDADES).map(l => `<option value="${esc(l)}">`).join('')}</datalist>
+    <div class="campos"><div class="campo"><label for="aCant">Comprobantes</label><input id="aCant" type="number" min="1" value="1"></div>
+      <div class="campo"><label for="aFranja">Horario</label><input id="aFranja" placeholder="Ej. antes de las 12"></div></div>
+    <div class="campo"><label for="aNotas">Notas</label><input id="aNotas"></div>
+    <div class="msg-error" id="mErr"></div>
+    <div class="fila" style="margin-top:14px"><button class="btn-primary" id="btnAgregarOk">Agregar</button><button class="btn-ghost" data-cerrar>Cancelar</button></div>`);
+  $('aCli').addEventListener('change', async () => {
+    const c = (S.clientes || []).find(x => x.nombre === $('aCli').value); if(!c) return;
+    try{ const u = await q(sb.from('log_entregas').select('domicilio, localidad').eq('cliente_id', c.id).order('id', { ascending: false }).limit(1)); if(u[0] && !$('aDom').value){ $('aDom').value = u[0].domicilio; $('aLoc').value = locLinda(u[0].localidad); } } catch(_){ }
+  });
+}
+async function agregarEntrega(){
+  const nombre = $('aCli').value.trim(), dom = $('aDom').value.trim(), loc = completarLocalidad($('aLoc').value) || 'NEUQUEN';
+  if(!nombre || !dom){ $('mErr').textContent = 'Completá el cliente y el domicilio.'; return; }
+  $('btnAgregarOk').disabled = true; $('mErr').textContent = 'Ubicando la dirección…';
+  const c = (S.clientes || []).find(x => x.nombre === nombre);
+  let ub = (await cargarDirecciones().catch(() => new Map())).get(claveDir(dom, loc));
+  if(!ub){ ub = await buscarDireccion(dom, loc); if(ub) await guardarUbicacion(dom, loc, ub.lat, ub.lng, false, c && c.id); }
+  try{
+    const orden = S.hojaEntregas.reduce((m, x) => Math.max(m, x.orden), 0) + 1;
+    await q(sb.from('log_entregas').insert({ hoja_id: S.hojaId, orden, cliente_id: c ? c.id : null, cliente_nombre: c ? c.nombre : nombre, domicilio: dom, localidad: loc,
+      lat: ub ? ub.lat : null, lng: ub ? ub.lng : null, cant_op: Math.max(1, parseInt($('aCant').value, 10) || 1), franja: $('aFranja').value.trim() || null, notas: $('aNotas').value.trim() || null, telefono: c && c.telefono || null }));
+    cerrarModal(); aviso('ok', `Entrega agregada${ub ? '' : ' sin ubicar: marcala en el mapa'}. Tocá "Ordenar recorrido" para ubicarla en el orden.`); abrirHoja(S.hojaId);
+  } catch(err){ $('btnAgregarOk').disabled = false; $('mErr').textContent = errorDe(err); }
+}
+
+// Mover una entrega pendiente (o reprogramar una no entregada) a la hoja de otro día o repartidor
+function modalMover(ids, titulo){
+  modal(`<h3>${esc(titulo)}</h3><p class="sub">Si ese repartidor ya tiene hoja ese día, se suma al final; si no, se arma una hoja nueva.</p>
+    <div class="campos"><div class="campo"><label for="mvFecha">Día</label><input type="date" id="mvFecha" value="${sumarDias(hoyISO(), 1)}"></div>
+      <div class="campo"><label for="mvRep">Repartidor</label><select id="mvRep">${S.reps.filter(r => r.activo).map(r => `<option value="${r.id}">${esc(r.nombre)}</option>`).join('')}</select></div></div>
+    <div class="msg-error" id="mErr"></div>
+    <div class="fila" style="margin-top:14px"><button class="btn-primary" data-mover-ok="${ids.join(',')}">Pasar</button><button class="btn-ghost" data-cerrar>Cancelar</button></div>`);
+}
+async function moverEntregas(ids){
+  const fecha = $('mvFecha').value, rep = Number($('mvRep').value);
+  if(!fecha || !rep){ $('mErr').textContent = 'Elegí día y repartidor.'; return; }
+  try{
+    let h = (await q(sb.from('log_hojas').select('*').eq('fecha', fecha).eq('repartidor_id', rep).in('estado', ['armada', 'en_reparto']).limit(1)))[0];
+    if(!h) h = await q(sb.from('log_hojas').insert({ fecha, repartidor_id: rep, vehiculo_id: (S.reps.find(r => r.id === rep) || {}).vehiculo_id || null, origen: 'manual' }).select().single());
+    const previas = await q(sb.from('log_entregas').select('orden').eq('hoja_id', h.id));
+    let orden = previas.reduce((m, x) => Math.max(m, x.orden), 0);
+    const origen = await q(sb.from('log_entregas').select('*').in('id', ids));
+    for(const e of origen){
+      if(e.estado === 'pendiente'){ await q(sb.from('log_entregas').update({ hoja_id: h.id, orden: ++orden, eta: null }).eq('id', e.id)); }
+      else {
+        await q(sb.from('log_entregas').insert({ hoja_id: h.id, orden: ++orden, nro: e.nro, cliente_id: e.cliente_id, cliente_nombre: e.cliente_nombre, domicilio: e.domicilio, localidad: e.localidad,
+          lat: e.lat, lng: e.lng, cant_op: e.cant_op, unidad_negocio: e.unidad_negocio, notas: [e.notas, e.motivo ? 'Reprogramada: ' + e.motivo : null].filter(Boolean).join(' · '), telefono: e.telefono, franja: e.franja, reprogramada_de: e.id }));
+        await q(sb.from('log_entregas').update({ estado: 'reprogramada', actualizado_en: new Date().toISOString() }).eq('id', e.id));
+      }
+    }
+    cerrarModal();
+    aviso('ok', `${ids.length === 1 ? 'Entrega pasada' : ids.length + ' entregas pasadas'} a la hoja de ${esc(nombreRep(rep))} del ${fechaLarga(fecha)}.`);
+    if(S.tab === 'hoja') abrirHoja(S.hojaId); else ir(S.tab);
+  } catch(err){ $('mErr').textContent = errorDe(err); }
+}
+
+// ===== Para reprogramar =====
+async function renderReprogramar(a){
+  const es = await q(sb.from('log_entregas').select('*').eq('estado', 'no_entregada').order('actualizado_en', { ascending: false }).limit(500));
+  const hojas = es.length ? await q(sb.from('log_hojas').select('id, fecha, repartidor_id').in('id', [...new Set(es.map(e => e.hoja_id))])) : [];
+  const hh = new Map(hojas.map(h => [h.id, h]));
+  content().innerHTML = a + `<h1 class="titulo">Para reprogramar</h1>
+    <p class="sub">Entregas que no se pudieron hacer. Pasalas a la hoja de otro día o quitalas si ya no van.</p>
+    ${es.length ? `<div class="fila" style="margin-bottom:10px">${S.gestiona ? `<button class="btn-primary" id="btnReprogSel" disabled>Pasar las marcadas</button>` : ''}<span class="muted" id="selInfo"></span></div>
+    <div class="table-wrap"><table class="apilar"><thead><tr>${S.gestiona ? '<th></th>' : ''}<th>Cliente</th><th>Día</th><th>Repartidor</th><th>Motivo</th>${S.gestiona ? '<th></th>' : ''}</tr></thead><tbody>
+    ${es.map(e => { const h = hh.get(e.hoja_id) || {}; return `<tr>${S.gestiona ? `<td><input type="checkbox" data-sel="${e.id}" aria-label="Marcar"></td>` : ''}
+      <td data-label="Cliente"><b>${esc(e.cliente_nombre)}</b><div class="muted">${esc(e.domicilio)}</div></td>
+      <td data-label="Día">${h.fecha ? fechaLarga(h.fecha) : ''}</td><td data-label="Repartidor">${esc(nombreRep(h.repartidor_id))}</td>
+      <td data-label="Motivo">${esc(e.motivo || '')}${e.motivo_nota ? `<div class="muted">${esc(e.motivo_nota)}</div>` : ''}${e.foto_path ? `<div><a class="link-btn" data-foto-abrir="${esc(e.foto_path)}" href="#">Ver foto</a></div>` : ''}</td>
+      ${S.gestiona ? `<td style="white-space:nowrap"><button class="btn-ghost small" data-mover="${e.id}">Pasar a otro día</button><button class="btn-ghost small peligro" data-cancelar="${e.id}">Quitar</button></td>` : ''}</tr>`; }).join('')}
+    </tbody></table></div>` : `<div class="card"><p class="sub" style="margin:0">No hay entregas pendientes de reprogramar.</p></div>`}`;
+}
+
+// ===== Rendir =====
+async function renderRendir(a){
+  const hojas = await q(sb.from('log_hojas').select('*').in('estado', ['terminada', 'en_reparto']).order('fecha'));
+  const viejas = hojas.filter(h => h.estado === 'terminada' || h.fecha < hoyISO());
+  const es = viejas.length ? await q(sb.from('log_entregas').select('*').in('hoja_id', viejas.map(h => h.id)).order('orden')) : [];
+  content().innerHTML = a + `<h1 class="titulo">Rendir</h1>
+    <p class="sub">Hojas terminadas para cerrar: el repartidor entrega el efectivo y los cheques, y administración confirma las transferencias.</p>
+    ${viejas.length ? viejas.map(h => {
+      const mias = es.filter(e => e.hoja_id === h.id), r = resumenEntregas(mias);
+      const cheques = mias.filter(e => e.cobro_forma === 'cheque'), transf = mias.filter(e => e.cobro_forma === 'transferencia');
+      return `<div class="card" style="margin-bottom:14px">
+        <div class="fila entre"><div><b style="font-size:16px">${esc(nombreRep(h.repartidor_id))}</b> · ${fechaLarga(h.fecha)} ${chip(ESTADOS_HOJA[h.estado])}</div><button class="link-btn" data-hoja="${h.id}">Ver hoja</button></div>
+        <p class="sub" style="margin:6px 0 10px">${r.ok} entregadas, ${r.no} no entregadas${r.pend ? `, <b style="color:var(--bad)">${r.pend} sin marcar</b>` : ''}.</p>
+        <div class="tiles"><div class="tile"><div class="label">Efectivo a rendir</div><div class="value">${pesos(r.efectivo)}</div></div>
+          <div class="tile"><div class="label">Cheques</div><div class="value">${cheques.length}</div><div class="note">${pesos(cheques.reduce((t, e) => t + Number(e.cobro_importe), 0))}</div></div>
+          <div class="tile"><div class="label">Transferencias</div><div class="value">${transf.length}</div><div class="note">${pesos(transf.reduce((t, e) => t + Number(e.cobro_importe), 0))}</div></div></div>
+        ${cheques.length ? `<p class="sub" style="margin:10px 0 4px"><b>Cheques:</b> ${cheques.map(e => `${esc(e.cliente_nombre)} ${pesos(e.cobro_importe)}${e.cobro_detalle ? ' (' + esc(e.cobro_detalle) + ')' : ''}`).join(' · ')}</p>` : ''}
+        ${transf.length ? `<div style="margin:10px 0 4px"><b class="sub">Transferencias a confirmar:</b>${transf.map(e => `<label style="display:flex; gap:8px; align-items:center; font-size:13.5px; margin-top:6px"><input type="checkbox" data-transf="${e.id}" ${e.transferencia_ok ? 'checked' : ''} ${S.gestiona ? '' : 'disabled'}> ${esc(e.cliente_nombre)} · ${pesos(e.cobro_importe)}${e.cobro_detalle ? ' · ' + esc(e.cobro_detalle) : ''}</label>`).join('')}</div>` : ''}
+        ${S.gestiona ? `<div class="campos" style="margin-top:6px"><div class="campo"><label for="ef${h.id}">Efectivo recibido</label><input id="ef${h.id}" inputmode="decimal" value="${Math.round(r.efectivo)}"></div>
+          <div class="campo"><label for="no${h.id}">Nota</label><input id="no${h.id}" placeholder="Diferencias, cheques que faltan…"></div></div>
+          <div class="fila" style="margin-top:12px"><button class="btn-primary" data-rendir-ok="${h.id}" data-esperado="${r.efectivo}">Marcar rendida</button></div>` : ''}
+      </div>`; }).join('') : `<div class="card"><p class="sub" style="margin:0">No hay hojas para rendir.</p></div>`}`;
+}
+async function rendirHoja(id, esperado){
+  const ef = Number(String($('ef' + id).value).replace(/\./g, '').replace(',', '.')) || 0, nota = $('no' + id).value.trim();
+  try{
+    await q(sb.from('log_hojas').update({ estado: 'rendida', rendida_en: new Date().toISOString(), rendida_por: S.perfil.user_id, efectivo_recibido: ef,
+      rendicion_nota: nota || (Math.round(ef) !== Math.round(esperado) ? `Diferencia de ${pesos(ef - esperado)}` : null), terminada_en: new Date().toISOString() }).eq('id', id));
+    aviso(Math.round(ef) === Math.round(esperado) ? 'ok' : 'aviso', `Hoja rendida${Math.round(ef) !== Math.round(esperado) ? `, con una diferencia de ${pesos(ef - esperado)} contra lo cobrado en efectivo` : ''}.`);
+  } catch(e){ aviso('error', 'No se pudo rendir: ' + errorDe(e)); }
+  ir('rendir');
+}
+
+// ===== Por cliente =====
+async function renderHistorial(a){
+  content().innerHTML = a + `<h1 class="titulo">Entregas por cliente</h1>
+    <p class="sub">Buscá un cliente para ver sus entregas de los últimos 3 meses, con el remito y lo cobrado.</p>
+    <div class="campo" style="max-width:420px"><input type="search" id="histQ" placeholder="Nombre del cliente" value="${esc(S.histQ || '')}"></div>
+    <div id="histRes" style="margin-top:12px"></div>`;
+  if(S.histQ) buscarHistorial();
+}
+async function buscarHistorial(){
+  const txt = S.histQ = $('histQ').value.trim(), caja = $('histRes');
+  if(txt.length < 3){ caja.innerHTML = '<p class="muted">Escribí al menos 3 letras.</p>'; return; }
+  caja.innerHTML = '<p class="muted">Buscando…</p>';
+  const es = await q(sb.from('log_entregas').select('*').ilike('cliente_nombre', `%${txt}%`).gte('creado_en', sumarDias(hoyISO(), -92)).order('id', { ascending: false }).limit(200));
+  if(S.histQ !== txt) return;
+  const hojas = es.length ? await q(sb.from('log_hojas').select('id, fecha, repartidor_id').in('id', [...new Set(es.map(e => e.hoja_id))])) : [];
+  const hh = new Map(hojas.map(h => [h.id, h]));
+  caja.innerHTML = es.length ? `<div class="table-wrap"><table class="apilar"><thead><tr><th>Día</th><th>Cliente</th><th>Repartidor</th><th>Estado</th><th class="num">Cobro</th><th>Remito</th></tr></thead><tbody>
+    ${es.map(e => { const h = hh.get(e.hoja_id) || {}; return `<tr><td data-label="Día">${h.fecha ? fechaLarga(h.fecha) : ''}</td><td data-label="Cliente"><b>${esc(e.cliente_nombre)}</b><div class="muted">${esc(e.domicilio)}</div></td>
+      <td data-label="Repartidor">${esc(nombreRep(h.repartidor_id))}</td><td data-label="Estado">${chip(ESTADOS[e.estado])}${e.entregada_en ? `<div class="muted">${hora(e.entregada_en)}${e.receptor ? ' · ' + esc(e.receptor) : ''}</div>` : ''}${e.motivo ? `<div class="muted">${esc(e.motivo)}</div>` : ''}</td>
+      <td data-label="Cobro" class="num">${e.cobro_importe ? pesos(e.cobro_importe) + `<div class="muted">${esc(e.cobro_forma)}</div>` : '—'}</td>
+      <td data-label="Remito">${e.foto_path ? `<a class="link-btn" data-foto-abrir="${esc(e.foto_path)}" href="#">Ver foto</a>` : '—'}</td></tr>`; }).join('')}</tbody></table></div>`
+    : '<p class="muted">No hay entregas de ese cliente en los últimos 3 meses.</p>';
+}
+
+// ===== Repartidores, vehículos y depósito =====
+async function renderEquipo(a){
+  if(!S.usuariosRep){ try{ S.usuariosRep = await q(sb.rpc('log_usuarios_reparto')); } catch(_){ S.usuariosRep = []; } }
+  const us = S.usuariosRep;
+  content().innerHTML = a + `<h1 class="titulo">Repartidores y depósito</h1>
+    <h2 class="sec">Repartidores</h2>
+    <p class="sub">Para que un repartidor use la app en el celular: creale un usuario en el Hub con el rol <b>Reparto</b> y vinculalo acá. "Cómo figura en la hoja" es el nombre que trae la hoja de ruta del sistema.</p>
+    <div class="table-wrap"><table class="apilar"><thead><tr><th>Nombre</th><th>Cómo figura en la hoja</th><th>Usuario del Hub</th><th>Teléfono</th><th>Vehículo</th><th>Activo</th><th></th></tr></thead><tbody>
+    ${S.reps.map(r => `<tr data-rep="${r.id}">
+      <td data-label="Nombre"><input data-c="nombre" value="${esc(r.nombre)}"></td>
+      <td data-label="Cómo figura en la hoja"><input data-c="alias" value="${esc((r.alias || []).join('; '))}" placeholder="APELLIDO, NOMBRE"></td>
+      <td data-label="Usuario del Hub"><select data-c="user_id"><option value="">Sin usuario</option>${us.map(u => `<option value="${u.user_id}" ${u.user_id === r.user_id ? 'selected' : ''}>${esc(u.nombre)} · ${esc(u.email)}</option>`).join('')}${r.user_id && !us.some(u => u.user_id === r.user_id) ? `<option value="${r.user_id}" selected>Usuario actual</option>` : ''}</select></td>
+      <td data-label="Teléfono"><input data-c="telefono" value="${esc(r.telefono || '')}" inputmode="tel"></td>
+      <td data-label="Vehículo"><select data-c="vehiculo_id"><option value="">—</option>${S.vehs.map(v => `<option value="${v.id}" ${v.id === r.vehiculo_id ? 'selected' : ''}>${esc(v.nombre)}</option>`).join('')}</select></td>
+      <td data-label="Activo"><input type="checkbox" data-c="activo" ${r.activo ? 'checked' : ''} style="width:auto"></td>
+      <td><button class="btn-ghost small" data-guardar-rep="${r.id}">Guardar</button></td></tr>`).join('')}
+    <tr data-rep="nuevo"><td data-label="Nombre"><input data-c="nombre" placeholder="Nuevo repartidor"></td><td data-label="Cómo figura en la hoja"><input data-c="alias" placeholder="APELLIDO, NOMBRE"></td>
+      <td data-label="Usuario del Hub"><select data-c="user_id"><option value="">Sin usuario</option>${us.map(u => `<option value="${u.user_id}">${esc(u.nombre)}</option>`).join('')}</select></td>
+      <td data-label="Teléfono"><input data-c="telefono" inputmode="tel"></td><td data-label="Vehículo"><select data-c="vehiculo_id"><option value="">—</option>${S.vehs.map(v => `<option value="${v.id}">${esc(v.nombre)}</option>`).join('')}</select></td>
+      <td></td><td><button class="btn-primary small" data-guardar-rep="nuevo">Agregar</button></td></tr>
+    </tbody></table></div>
+    <h2 class="sec">Vehículos</h2>
+    <div class="table-wrap"><table class="apilar"><thead><tr><th>Nombre</th><th>Patente</th><th>Activo</th><th></th></tr></thead><tbody>
+    ${S.vehs.map(v => `<tr data-veh="${v.id}"><td data-label="Nombre"><input data-c="nombre" value="${esc(v.nombre)}"></td><td data-label="Patente"><input data-c="patente" value="${esc(v.patente || '')}"></td>
+      <td data-label="Activo"><input type="checkbox" data-c="activo" ${v.activo ? 'checked' : ''} style="width:auto"></td><td><button class="btn-ghost small" data-guardar-veh="${v.id}">Guardar</button></td></tr>`).join('')}
+    <tr data-veh="nuevo"><td data-label="Nombre"><input data-c="nombre" placeholder="Ej. Kangoo blanca"></td><td data-label="Patente"><input data-c="patente"></td><td></td><td><button class="btn-primary small" data-guardar-veh="nuevo">Agregar</button></td></tr>
+    </tbody></table></div>
+    <h2 class="sec">Depósito y tiempos</h2>
+    <p class="sub">El recorrido sale del depósito y vuelve. Tocá el mapa para marcar dónde está.</p>
+    <div class="card"><div class="campos">
+      <div class="campo"><label for="cDepNom">Nombre</label><input id="cDepNom" value="${esc(S.cfg.deposito_nombre || '')}"></div>
+      <div class="campo"><label for="cDepDir">Dirección</label><input id="cDepDir" value="${esc(S.cfg.deposito_direccion || '')}"></div>
+      <div class="campo"><label for="cSalida">Hora de salida</label><input id="cSalida" type="time" value="${esc(S.cfg.hora_salida || '09:00')}"></div>
+      <div class="campo"><label for="cMin">Minutos por entrega</label><input id="cMin" type="number" min="1" value="${esc(S.cfg.minutos_por_parada || '10')}"></div>
+      <div class="campo"><label for="cEmp">Nombre en los mensajes</label><input id="cEmp" value="${esc(S.cfg.empresa || 'Segulimp')}"></div>
+    </div>
+    <div id="mapaDep" class="mapa chico" style="margin-top:14px"></div>
+    <div class="fila" style="margin-top:12px"><button class="btn-primary" id="btnGuardarCfg">Guardar</button><span class="muted" id="cfgEstado"></span></div></div>`;
+  const m = crearMapa('mapaDep'), d = deposito();
+  if(m){
+    const mk = L.marker([d.lat, d.lng], { icon: iconoPin('S', 'dep'), draggable: true }).addTo(m); m.setView([d.lat, d.lng], 14);
+    const fijar = ll => { mk.setLatLng(ll); S.depNuevo = { lat: ll.lat, lng: ll.lng }; $('cfgEstado').textContent = 'Ubicación cambiada: tocá Guardar.'; };
+    m.on('click', ev => fijar(ev.latlng)); mk.on('dragend', ev => fijar(ev.target.getLatLng()));
+  }
+}
+async function guardarRep(id){
+  const tr = document.querySelector(`tr[data-rep="${id}"]`), v = c => tr.querySelector(`[data-c="${c}"]`);
+  const fila = { nombre: v('nombre').value.trim(), alias: v('alias').value.split(';').map(x => x.trim()).filter(Boolean), user_id: v('user_id').value || null,
+    telefono: v('telefono').value.trim() || null, vehiculo_id: v('vehiculo_id').value ? Number(v('vehiculo_id').value) : null };
+  if(v('activo')) fila.activo = v('activo').checked;
+  if(!fila.nombre){ aviso('error', 'Poné el nombre del repartidor.'); return ir('equipo'); }
+  try{
+    if(id === 'nuevo') S.reps.push(await q(sb.from('log_repartidores').insert(fila).select().single()));
+    else { const r = await q(sb.from('log_repartidores').update(fila).eq('id', Number(id)).select().single()); S.reps = S.reps.map(x => x.id === r.id ? r : x); }
+    aviso('ok', 'Repartidor guardado.');
+  } catch(e){ aviso('error', /unique|duplicate/i.test(e.message || '') ? 'Ese usuario ya está vinculado a otro repartidor.' : 'No se pudo guardar: ' + errorDe(e)); }
+  S.reps.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  ir('equipo');
+}
+async function guardarVeh(id){
+  const tr = document.querySelector(`tr[data-veh="${id}"]`), v = c => tr.querySelector(`[data-c="${c}"]`);
+  const fila = { nombre: v('nombre').value.trim(), patente: v('patente').value.trim().toUpperCase() || null };
+  if(v('activo')) fila.activo = v('activo').checked;
+  if(!fila.nombre){ aviso('error', 'Poné un nombre para el vehículo.'); return ir('equipo'); }
+  try{
+    if(id === 'nuevo') S.vehs.push(await q(sb.from('log_vehiculos').insert(fila).select().single()));
+    else { const r = await q(sb.from('log_vehiculos').update(fila).eq('id', Number(id)).select().single()); S.vehs = S.vehs.map(x => x.id === r.id ? r : x); }
+    aviso('ok', 'Vehículo guardado.');
+  } catch(e){ aviso('error', 'No se pudo guardar: ' + errorDe(e)); }
+  ir('equipo');
+}
+async function guardarCfg(){
+  const vals = { deposito_nombre: $('cDepNom').value.trim(), deposito_direccion: $('cDepDir').value.trim(), hora_salida: $('cSalida').value || '09:00',
+    minutos_por_parada: String(Math.max(1, parseInt($('cMin').value, 10) || 10)), empresa: $('cEmp').value.trim() || 'Segulimp' };
+  if(S.depNuevo){ vals.deposito_lat = String(S.depNuevo.lat); vals.deposito_lng = String(S.depNuevo.lng); }
+  try{
+    await q(sb.from('log_config').upsert(Object.entries(vals).map(([clave, valor]) => ({ clave, valor })), { onConflict: 'clave' }));
+    Object.assign(S.cfg, vals); S.depNuevo = null; aviso('ok', 'Depósito y tiempos guardados.');
+  } catch(e){ aviso('error', 'No se pudo guardar: ' + errorDe(e)); }
+  ir('equipo');
+}
+
+// Logística también puede registrar o corregir una entrega (ej. el repartidor avisó por teléfono)
+function modalRegistrar(e, desdeRep){
+  const forma = e.cobro_forma || '';
+  S.reg = { id: e.id, estado: e.estado === 'no_entregada' ? 'no_entregada' : 'entregada', motivo: e.motivo || '', forma, foto: null, desdeRep: !!desdeRep };
+  modal(`<h3>${esc(e.cliente_nombre)}</h3><div class="muted">${esc(e.domicilio)}${e.cant_op > 1 ? ` · ${e.cant_op} comprobantes` : ''}</div>
+    <div class="opciones" id="regEstado">
+      <button type="button" data-reg-estado="entregada" aria-pressed="${S.reg.estado === 'entregada'}">Entregada</button>
+      <button type="button" data-reg-estado="no_entregada" aria-pressed="${S.reg.estado === 'no_entregada'}">No se entregó</button>
+      ${!desdeRep && e.estado !== 'pendiente' ? `<button type="button" data-reg-estado="pendiente" aria-pressed="false">Volver a pendiente</button>` : ''}
+    </div>
+    <div id="regCuerpo"></div>
+    <div class="msg-error" id="mErr"></div>
+    <div class="fila" style="margin-top:14px"><button class="btn-primary" id="btnRegOk" style="min-height:48px; flex:1">Guardar</button><button class="btn-ghost" data-cerrar style="min-height:48px">Cancelar</button></div>`);
+  pintarRegCuerpo(e);
+}
+function pintarRegCuerpo(e){
+  const r = S.reg, caja = $('regCuerpo'); if(!caja) return;
+  document.querySelectorAll('[data-reg-estado]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.regEstado === r.estado)));
+  const fotoHtml = `<label class="foto-btn"><input type="file" id="regFoto" accept="image/*" capture="environment" hidden>📷 ${r.foto ? 'Cambiar la foto' : (r.estado === 'entregada' ? 'Sacar foto del remito firmado' : 'Foto (opcional)')}</label>${r.foto ? `<img class="foto-prev" src="${r.foto}" alt="Foto del remito">` : (e.foto_path ? '<p class="muted">Ya tiene foto cargada.</p>' : '')}`;
+  if(r.estado === 'entregada') caja.innerHTML = `${fotoHtml}
+    <div class="campo"><label for="regRec">Quién recibió</label><input id="regRec" value="${esc(e.receptor || '')}" placeholder="Nombre (opcional)"></div>
+    <label style="display:block; font-size:12.5px; font-weight:600; margin:12px 0 0">Cobro</label>
+    <div class="opciones">${FORMAS.map(([k, n]) => `<button type="button" data-reg-forma="${k}" aria-pressed="${r.forma === k}">${n}</button>`).join('')}</div>
+    ${r.forma ? `<div class="campos"><div class="campo"><label for="regImp">Importe</label><input id="regImp" inputmode="decimal" value="${e.cobro_importe != null ? Math.round(e.cobro_importe) : ''}" placeholder="$"></div>
+      <div class="campo"><label for="regDet">${r.forma === 'cheque' ? 'Banco y número' : r.forma === 'transferencia' ? 'Referencia (opcional)' : 'Detalle (opcional)'}</label><input id="regDet" value="${esc(e.cobro_detalle || '')}"></div></div>` : ''}`;
+  else if(r.estado === 'no_entregada') caja.innerHTML = `<label style="display:block; font-size:12.5px; font-weight:600; margin:12px 0 0">Motivo</label>
+    <div class="opciones">${MOTIVOS.map(m => `<button type="button" data-reg-motivo="${esc(m)}" aria-pressed="${r.motivo === m}">${esc(m)}</button>`).join('')}</div>
+    <div class="campo"><label for="regNota">Detalle</label><input id="regNota" value="${esc(e.motivo_nota || '')}" placeholder="${r.motivo === 'Otro' ? 'Contá qué pasó' : 'Opcional'}"></div>${fotoHtml}`;
+  else caja.innerHTML = '<p class="sub">Vuelve a quedar pendiente en la hoja.</p>';
+}
+async function guardarRegistro(){
+  const r = S.reg, lista = S.modo === 'rep' ? S.entregas : S.hojaEntregas, e = lista.find(x => x.id === r.id);
+  if(!e) return;
+  const err = $('mErr');
+  if(r.estado === 'no_entregada' && !r.motivo){ err.textContent = 'Elegí el motivo.'; return; }
+  if(r.estado === 'no_entregada' && r.motivo === 'Otro' && !$('regNota').value.trim()){ err.textContent = 'Contá qué pasó.'; return; }
+  let importe = null;
+  if(r.estado === 'entregada' && r.forma){
+    importe = Number(String($('regImp').value).replace(/\$|\s/g, '').replace(/\./g, '').replace(',', '.'));
+    if(!(importe > 0)){ err.textContent = 'Poné el importe cobrado, o elegí "No cobra".'; return; }
+  }
+  if(r.estado === 'entregada' && !r.foto && !e.foto_path && r.desdeRep && !r.sinFoto){
+    err.innerHTML = 'Sacale foto al remito firmado. <button class="link-btn" id="btnSinFoto">Seguir sin foto</button>'; return;
+  }
+  const args = { p_entrega: e.id, p_estado: r.estado, p_motivo: r.estado === 'no_entregada' ? r.motivo : null,
+    p_nota: r.estado === 'no_entregada' ? $('regNota').value.trim() || null : null, p_receptor: r.estado === 'entregada' ? $('regRec').value.trim() || null : null,
+    p_foto: null, p_cobro_forma: r.estado === 'entregada' ? r.forma || null : null, p_cobro_importe: importe, p_cobro_detalle: r.estado === 'entregada' && r.forma ? $('regDet').value.trim() || null : null,
+    p_lat: S.pos ? S.pos.lat : null, p_lng: S.pos ? S.pos.lng : null, p_cuando: new Date().toISOString() };
+  const t = Date.now();
+  // se guarda primero en el teléfono y se manda cuando haya señal
+  Object.assign(e, { estado: r.estado, motivo: args.p_motivo, motivo_nota: args.p_nota, receptor: args.p_receptor, cobro_forma: importe ? r.forma : null, cobro_importe: importe, cobro_detalle: args.p_cobro_detalle, entregada_en: r.estado === 'pendiente' ? null : args.p_cuando, _foto: r.foto || e._foto });
+  await colaPoner({ k: `${e.id}-${t}`, t, entrega: e.id, hoja: e.hoja_id, args, foto: r.foto || null });
+  S.cola = await colaTodo();
+  cerrarModal();
+  if(S.modo === 'rep'){ guardarCacheRep(); renderRep(); await enviarCola(); renderRep(); }
+  else { await enviarCola(); abrirHoja(S.hojaId); }
+}
+async function abrirFoto(path){ const u = await urlFoto(path); if(u) window.open(u, '_blank', 'noopener'); }
+
+// ===== Repartidor (celular) =====
+function guardarCacheRep(){
+  try{ localStorage.setItem('log_rep_cache', JSON.stringify({ perfil: S.perfil, cfg: S.cfg, reps: S.reps, vehs: S.vehs, miRep: S.miRep, hojas: S.hojas, entregas: S.entregas.map(e => ({ ...e, _foto: undefined })), t: Date.now() })); } catch(_){ }
+}
+function leerCacheRep(){ try{ const c = JSON.parse(localStorage.getItem('log_rep_cache') || 'null'); return c && Date.now() - c.t < 3 * 86400000 ? c : null; } catch(_){ return null; } }
+async function cargarRep(){
+  if(!S.miRep){ content().innerHTML = `<div class="msg-box info">Tu usuario no está vinculado a un repartidor.</div>`; return; }
+  content().innerHTML = `<p class="sub">Cargando tu recorrido…</p>`;
+  try{
+    const hojas = await q(sb.from('log_hojas').select('*').eq('repartidor_id', S.miRep.id).gte('fecha', sumarDias(hoyISO(), -3)).lte('fecha', sumarDias(hoyISO(), 3)).neq('estado', 'rendida').order('fecha'));
+    const entregas = hojas.length ? await q(sb.from('log_entregas').select('*').in('hoja_id', hojas.map(h => h.id)).order('orden')) : [];
+    // lo que todavía está en la cola del teléfono manda sobre lo que vino del servidor
+    const cola = await colaTodo();
+    for(const it of cola.sort((a, b) => a.t - b.t)){ const e = entregas.find(x => x.id === it.entrega); if(e) Object.assign(e, { estado: it.args.p_estado, motivo: it.args.p_motivo, cobro_forma: it.args.p_cobro_importe ? it.args.p_cobro_forma : null, cobro_importe: it.args.p_cobro_importe, entregada_en: it.args.p_cuando, _foto: it.foto }); }
+    S.hojas = hojas; S.entregas = entregas; S.cola = cola;
+    guardarCacheRep();
+  } catch(e){
+    const c = leerCacheRep();
+    if(c){ S.hojas = c.hojas; S.entregas = c.entregas; aviso('aviso', 'Sin conexión: estás viendo lo último que se cargó. Lo que marques se manda cuando vuelva la señal.'); }
+    else { content().innerHTML = `<div class="msg-box error">No se pudo cargar tu recorrido: ${errorDe(e)}</div>`; return; }
+  }
+  const hoy = S.hojas.filter(h => h.fecha === hoyISO() && h.estado !== 'terminada');
+  if(!S.rep.hojaId || !S.hojas.some(h => h.id === S.rep.hojaId)) S.rep.hojaId = hoy.length === 1 ? hoy[0].id : null;
+  renderRep();
+}
+function renderRep(){
+  const a = sacarAviso();
+  const h = S.hojas.find(x => x.id === S.rep.hojaId);
+  const modoBtn = S.veTodo ? `<button class="link-btn" data-modo="gestion">Volver a Logística</button>` : '';
+  if(!h){
+    content().innerHTML = a + `<div class="fila entre"><h1 class="titulo">Hola, ${esc(S.miRep.nombre.split(' ')[0])}</h1>${modoBtn}</div>
+      ${S.hojas.length ? `<p class="sub">Tus hojas de ruta:</p>${S.hojas.map(x => { const es = S.entregas.filter(e => e.hoja_id === x.id), r = resumenEntregas(es); return `
+        <button type="button" class="hoja" style="width:100%; margin-bottom:10px" data-rep-hoja="${x.id}"><div class="fila entre"><h3>${x.fecha === hoyISO() ? 'Hoy' : fechaLarga(x.fecha)}</h3>${chip(ESTADOS_HOJA[x.estado])}</div>
+        <div class="d">${r.total} entregas · ${r.ok} entregadas${r.no ? ` · ${r.no} no entregadas` : ''}</div>${medidor(r)}</button>`; }).join('')}`
+      : `<div class="card"><p class="sub" style="margin:0">No tenés hojas de ruta para estos días. Cuando logística cargue la tuya, aparece acá.</p></div>`}
+      <div class="fila" style="margin-top:12px"><button class="btn-ghost" data-rep-recargar>Actualizar</button><span id="colaInfo">${colaTexto()}</span></div>`;
+    return;
+  }
+  const es = S.entregas.filter(e => e.hoja_id === h.id).sort((x, y) => x.orden - y.orden);
+  const r = resumenEntregas(es), actual = es.find(e => e.estado === 'pendiente');
+  const abierta = S.rep.abierta;
+  content().innerHTML = a + `
+    <div class="fila entre"><button class="link-btn" data-rep-hoja="">← Mis hojas</button>${modoBtn}</div>
+    <div class="fila entre" style="margin:6px 0 10px"><h1 class="titulo">${h.fecha === hoyISO() ? 'Hoy' : fechaLarga(h.fecha)}</h1>${chip(ESTADOS_HOJA[h.estado])}</div>
+    ${h.observaciones ? `<div class="msg-box info">${esc(h.observaciones)}</div>` : ''}
+    ${h.estado === 'armada' ? `<button class="btn-primary" style="width:100%; min-height:52px; font-size:16px; margin-bottom:12px" data-rep-iniciar="${h.id}">Iniciar reparto</button>` : ''}
+    <div class="fila" style="margin-bottom:10px"><button class="btn-ghost small" data-rep-mapa>${S.rep.verMapa ? 'Ver lista' : 'Ver mapa'}</button><span id="colaInfo">${colaTexto()}</span></div>
+    ${S.rep.verMapa ? `<div id="mapaRep" class="mapa" style="height:60vh"></div>` : es.map(e => tarjetaParada(e, h, e === actual || e.id === abierta)).join('')}
+    <div class="barra-rep"><div class="info"><b>${r.ok + r.no} de ${r.total}</b> hechas${r.efectivo ? ` · ${pesos(r.efectivo)} en efectivo` : ''}</div>
+      ${['en_reparto', 'armada'].includes(h.estado) ? `<button class="btn-primary" data-rep-terminar="${h.id}" style="min-height:46px">Terminar</button>` : ''}</div>`;
+  if(S.rep.verMapa){
+    const m = crearMapa('mapaRep');
+    pintarPuntos(m, es.filter(e => e.estado !== 'cancelada').map(e => ({ lat: e.lat, lng: e.lng, etiqueta: e.orden, clase: e.estado,
+      popup: `<b>${e.orden}. ${esc(e.cliente_nombre)}</b><br>${esc(e.domicilio)}<br><a href="${navegarA(e)}" target="_blank" rel="noopener">Navegar</a>` })), { ruta: h.ruta, camion: S.pos ? { ...S.pos, titulo: 'Vos' } : null });
+  }
+  if(h.estado === 'en_reparto') seguirPosicion(h.id);
+}
+function navegarA(e){
+  return e.lat != null ? `https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${e.domicilio}, ${locLinda(e.localidad)}, Argentina`)}&travelmode=driving`;
+}
+function tarjetaParada(e, h, abierta){
+  const hecha = e.estado === 'entregada', fallo = ['no_entregada', 'reprogramada'].includes(e.estado), cancelada = e.estado === 'cancelada';
+  const wa = waNumero(e.telefono), cerrada = h.estado === 'terminada';
+  return `<div class="parada ${abierta && e.estado === 'pendiente' ? 'actual' : ''} ${hecha ? 'hecha' : ''} ${fallo ? 'fallo hecha' : ''}" ${cancelada ? 'style="display:none"' : ''}>
+    <div class="top" data-rep-abrir="${e.id}"><div class="nro">${hecha ? '✓' : (fallo ? '✕' : e.orden)}</div>
+      <div class="grow"><h3>${esc(e.cliente_nombre)}</h3><div class="dir">${esc(e.domicilio)}${e.localidad && norm(e.localidad) !== 'NEUQUEN' ? ', ' + esc(locLinda(e.localidad)) : ''}</div>
+        <div class="meta">${e.cant_op} ${e.cant_op === 1 ? 'comprobante' : 'comprobantes'}${e.franja ? ' · ' + esc(e.franja) : ''}${e.eta && e.estado === 'pendiente' ? ' · ~' + hora(e.eta) : ''}${e.notas ? ' · ' + esc(e.notas) : ''}</div>
+        ${hecha ? `<div class="meta">Entregada ${hora(e.entregada_en)}${e.cobro_importe ? ` · cobró ${pesos(e.cobro_importe)} (${esc(e.cobro_forma)})` : ''}</div>` : ''}
+        ${fallo ? `<div class="meta" style="color:var(--bad)">${esc(e.motivo || 'No entregada')}</div>` : ''}</div></div>
+    ${abierta && !cancelada && !cerrada ? `<div class="acciones">
+      ${e.estado === 'pendiente' ? `
+        <a class="btn-ghost" href="${navegarA(e)}" target="_blank" rel="noopener">Navegar</a>
+        ${wa ? `<a class="btn-ghost btn-wa" href="${esc(waLink(e.telefono, msgLlegando(e, h)))}" target="_blank" rel="noopener" data-aviso="${e.id}">Estoy llegando</a>` : `<button class="btn-ghost" data-tel="${e.id}">+ Teléfono</button>`}
+        <button class="btn-primary" data-rep-entregar="${e.id}">Entregado</button>
+        <button class="btn-ghost peligro" data-rep-fallo="${e.id}">No se entregó</button>`
+      : `<button class="btn-ghost ancho" data-rep-corregir="${e.id}">Corregir</button>`}
+    </div>` : ''}
+  </div>`;
+}
+let vigilancia = null, ultimoEnvio = 0;
+function seguirPosicion(hojaId){
+  if(vigilancia != null || !navigator.geolocation) return;
+  vigilancia = navigator.geolocation.watchPosition(p => {
+    S.pos = { lat: p.coords.latitude, lng: p.coords.longitude };
+    if(Date.now() - ultimoEnvio > 90000 && navigator.onLine){ ultimoEnvio = Date.now(); sb.rpc('log_posicion', { p_hoja: hojaId, p_lat: S.pos.lat, p_lng: S.pos.lng }).then(() => {}, () => {}); }
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 });
+}
+async function iniciarReparto(id){
+  const h = S.hojas.find(x => x.id === id);
+  try{ await q(sb.rpc('log_hoja_estado', { p_hoja: id, p_estado: 'en_reparto', p_lat: S.pos ? S.pos.lat : null, p_lng: S.pos ? S.pos.lng : null })); h.estado = 'en_reparto'; h.iniciada_en = new Date().toISOString(); }
+  catch(e){ aviso('error', 'No se pudo iniciar: ' + errorDe(e) + '. Igual podés ir marcando las entregas.'); h.estado = 'en_reparto'; }
+  guardarCacheRep(); renderRep();
+}
+function modalTerminar(id){
+  const h = S.hojas.find(x => x.id === id), es = S.entregas.filter(e => e.hoja_id === id), r = resumenEntregas(es);
+  const cheques = es.filter(e => e.cobro_forma === 'cheque'), transf = es.filter(e => e.cobro_forma === 'transferencia');
+  modal(`<h3>Terminar el reparto</h3>
+    ${r.pend ? `<div class="msg-box aviso">Te ${r.pend === 1 ? 'queda 1 entrega' : `quedan ${r.pend} entregas`} sin marcar. Si terminás, ${r.pend === 1 ? 'queda' : 'quedan'} como "No llegamos" para reprogramar.</div>` : ''}
+    <div class="tiles"><div class="tile"><div class="label">Entregadas</div><div class="value">${r.ok}</div></div><div class="tile"><div class="label">No entregadas</div><div class="value">${r.no + r.pend}</div></div></div>
+    <h2 class="sec" style="font-size:18px">Para rendir</h2>
+    <div class="tiles"><div class="tile"><div class="label">Efectivo</div><div class="value">${pesos(r.efectivo)}</div></div>
+      <div class="tile"><div class="label">Cheques</div><div class="value">${cheques.length}</div><div class="note">${pesos(cheques.reduce((t, e) => t + Number(e.cobro_importe), 0))}</div></div>
+      <div class="tile"><div class="label">Transferencias</div><div class="value">${transf.length}</div><div class="note">${pesos(transf.reduce((t, e) => t + Number(e.cobro_importe), 0))}</div></div></div>
+    ${S.cola.length ? `<div class="msg-box aviso" style="margin-top:12px">Hay ${S.cola.length} sin enviar. Se mandan solos cuando haya señal.</div>` : ''}
+    <div class="msg-error" id="mErr"></div>
+    <div class="fila" style="margin-top:14px"><button class="btn-primary" data-rep-terminar-ok="${id}" style="min-height:48px; flex:1">Terminar</button><button class="btn-ghost" data-cerrar style="min-height:48px">Seguir</button></div>`);
+  void h;
+}
+async function terminarReparto(id){
+  const es = S.entregas.filter(e => e.hoja_id === id && e.estado === 'pendiente');
+  for(const e of es){
+    const t = Date.now() + e.orden;
+    const args = { p_entrega: e.id, p_estado: 'no_entregada', p_motivo: 'No llegamos (queda para otro día)', p_nota: null, p_receptor: null, p_foto: null, p_cobro_forma: null, p_cobro_importe: null, p_cobro_detalle: null, p_lat: null, p_lng: null, p_cuando: new Date().toISOString() };
+    e.estado = 'no_entregada'; e.motivo = args.p_motivo;
+    await colaPoner({ k: `${e.id}-${t}`, t, entrega: e.id, hoja: id, args, foto: null });
+  }
+  await enviarCola();
+  try{ await q(sb.rpc('log_hoja_estado', { p_hoja: id, p_estado: 'terminada' })); const h = S.hojas.find(x => x.id === id); h.estado = 'terminada'; cerrarModal(); aviso('ok', 'Reparto terminado. Rendí el efectivo y los cheques en administración.'); }
+  catch(e){ $('mErr').textContent = 'No se pudo terminar (¿sin señal?): ' + errorDe(e) + '. Probá de nuevo en un rato.'; return; }
+  if(vigilancia != null){ navigator.geolocation.clearWatch(vigilancia); vigilancia = null; }
+  guardarCacheRep(); renderRep();
+}
+
+// ===== Seguimiento público =====
+async function renderSeguimiento(token){
+  document.querySelector('header .name').textContent = 'Seguimiento de tu pedido';
+  document.querySelector('header .tag').textContent = 'Segulimp';
+  let d = null;
+  try{ d = await q(sb.rpc('log_seguimiento', { p_token: token })); } catch(_){ }
+  if(!d){ content().innerHTML = `<div class="seg card"><p class="sub" style="margin:0">No encontramos ese pedido. Puede que el link sea de una entrega de hace más de una semana.</p></div>`; return; }
+  const txt = d.estado === 'entregada' ? ['Entregado', `Se entregó ${d.entregada_en ? 'a las ' + hora(d.entregada_en) : ''}.`]
+    : d.estado === 'no_entregada' || d.estado === 'reprogramada' ? ['Lo reprogramamos', 'Hoy no pudimos entregarlo. Te vamos a avisar el nuevo día.']
+    : d.hoja === 'en_reparto' ? ['En camino', d.antes > 0 ? `${d.repartidor} tiene ${d.antes} ${d.antes === 1 ? 'entrega' : 'entregas'} antes de la tuya.${d.eta ? ' Llegaría cerca de las ' + hora(d.eta) + '.' : ''}` : `Sos la próxima entrega de ${d.repartidor}.`]
+    : ['Programado', `Lo llevamos el ${fechaLarga(d.fecha)}${d.eta ? ', cerca de las ' + hora(d.eta) : ''}.`];
+  content().innerHTML = `<div class="seg card"><div class="muted">${esc(d.cliente)}</div><div class="estado">${txt[0]}</div><p class="sub">${esc(txt[1])}</p>
+    <p class="muted">${esc(d.domicilio)}${d.localidad ? ', ' + esc(locLinda(d.localidad)) : ''}</p></div>`;
+  if(d.estado === 'pendiente') setTimeout(() => renderSeguimiento(token), 60000);
+}
+
+// ===== Eventos =====
+document.addEventListener('click', async ev => {
+  const t = ev.target; let el;
+  if(t.id === 'fondoModal'){ cerrarModal(); return; }
+  if(t.closest('[data-cerrar]')){ cerrarModal(); return; }
+  if((el = t.closest('[data-modo]'))){ S.modo = el.dataset.modo; try{ localStorage.setItem('log_modo', S.modo); } catch(_){ } arrancarModo(); return; }
+  if((el = t.closest('[data-tab]'))){ if(el.dataset.tab === 'cargar' && S.tab !== 'cargar' && !S.borrador){ asegurarClientes().catch(() => {}); } ir(el.dataset.tab); return; }
+  if((el = t.closest('[data-dia]'))){ const n = Number(el.dataset.dia); S.fecha = n === 0 ? hoyISO() : sumarDias(S.fecha, n); ir('dia'); return; }
+  if((el = t.closest('[data-volver-dia]'))){ S.fecha = el.dataset.volverDia; ir('dia'); return; }
+  if((el = t.closest('[data-hoja]'))){ abrirHoja(el.dataset.hoja); return; }
+  if((el = t.closest('[data-foto-abrir]'))){ ev.preventDefault(); abrirFoto(el.dataset.fotoAbrir); return; }
+  if((el = t.closest('[data-aviso]'))){ sb.rpc('log_aviso', { p_entrega: Number(el.dataset.aviso) }).then(() => {}, () => {}); return; }
+  if((el = t.closest('[data-tel]'))){ const id = Number(el.dataset.tel), e = (S.modo === 'rep' ? S.entregas : S.hojaEntregas).find(x => x.id === id); if(e) modalTelefono(e); return; }
+  if((el = t.closest('[data-guardar-tel]'))){ guardarTelefono(Number(el.dataset.guardarTel)); return; }
+  // hoja (gestión)
+  if(t.id === 'btnReordenar'){ t.disabled = true; t.textContent = 'Ordenando…'; try{ const r = await reordenarHoja(S.hoja, S.hojaEntregas); aviso(r.aprox ? 'aviso' : 'ok', r.aprox ? 'El servicio de rutas no respondió: se ordenó por cercanía.' : `Recorrido ordenado${r.km ? `: ${num(r.km)} km` : ''}.`); } catch(e){ aviso('error', 'No se pudo ordenar: ' + errorDe(e)); } abrirHoja(S.hojaId); return; }
+  if(t.id === 'btnAgregar'){ await asegurarClientes().catch(() => {}); modalAgregar(); return; }
+  if(t.id === 'btnAgregarOk'){ agregarEntrega(); return; }
+  if(t.id === 'btnLinkRep'){ const u = location.origin + location.pathname; try{ await navigator.clipboard.writeText(u); t.textContent = 'Link copiado'; } catch(_){ prompt('Link para el repartidor:', u); } return; }
+  if(t.id === 'btnAvisos'){ const pend = S.hojaEntregas.filter(e => e.estado === 'pendiente' && waNumero(e.telefono) && !e.aviso_en); modal(`<h3>Avisar a los clientes</h3><p class="sub">Tocá cada uno: se abre WhatsApp con el mensaje listo y el link de seguimiento.</p>${pend.length ? pend.map(e => `<a class="btn-ghost btn-wa" style="width:100%; margin-bottom:8px; justify-content:flex-start" target="_blank" rel="noopener" data-aviso="${e.id}" href="${esc(waLink(e.telefono, msgAviso(e, S.hoja)))}">${e.orden}. ${esc(e.cliente_nombre)}</a>`).join('') : '<p class="sub">Ya se avisó a todos los que tienen teléfono.</p>'}<div class="fila" style="margin-top:10px"><button class="btn-ghost" data-cerrar>Listo</button></div>`); return; }
+  if(t.id === 'btnReabrir'){ try{ await q(sb.rpc('log_hoja_estado', { p_hoja: S.hojaId, p_estado: 'armada' })); } catch(e){ aviso('error', errorDe(e)); } abrirHoja(S.hojaId); return; }
+  if(t.id === 'btnBorrarHoja'){ if(!confirm('¿Borrar esta hoja de ruta con todas sus entregas?')) return; try{ await q(sb.from('log_hojas').delete().eq('id', S.hojaId)); aviso('ok', 'Hoja borrada.'); } catch(e){ aviso('error', errorDe(e)); } ir('dia'); return; }
+  if((el = t.closest('[data-subir],[data-bajar]'))){
+    const id = Number(el.dataset.subir || el.dataset.bajar), es = S.hojaEntregas, i = es.findIndex(e => e.id === id), j = el.dataset.subir ? i - 1 : i + 1;
+    if(j < 0 || j >= es.length) return;
+    try{ await q(sb.from('log_entregas').update({ orden: es[j].orden }).eq('id', es[i].id)); await q(sb.from('log_entregas').update({ orden: es[i].orden }).eq('id', es[j].id)); } catch(e){ aviso('error', errorDe(e)); }
+    abrirHoja(S.hojaId); return;
+  }
+  if((el = t.closest('[data-ubicar]'))){ S.ubicando = Number(el.dataset.ubicar); $('mapaHoja').style.cursor = 'crosshair'; $('mapaHoja').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if((el = t.closest('[data-mover]'))){ modalMover([Number(el.dataset.mover)], 'Pasar a otra hoja'); return; }
+  if((el = t.closest('[data-mover-ok]'))){ moverEntregas(el.dataset.moverOk.split(',').map(Number)); return; }
+  if((el = t.closest('[data-cancelar]'))){ if(!confirm('¿Quitar esta entrega? Queda como cancelada en el historial.')) return; try{ await q(sb.from('log_entregas').update({ estado: 'cancelada', actualizado_en: new Date().toISOString() }).eq('id', Number(el.dataset.cancelar))); } catch(e){ aviso('error', errorDe(e)); } if(S.tab === 'hoja') abrirHoja(S.hojaId); else ir(S.tab); return; }
+  if((el = t.closest('[data-registrar]'))){ const e = S.hojaEntregas.find(x => x.id === Number(el.dataset.registrar)); if(e) modalRegistrar(e, false); return; }
+  if((el = t.closest('[data-rendir]'))){ ir('rendir'); return; }
+  if((el = t.closest('[data-rendir-ok]'))){ el.disabled = true; rendirHoja(Number(el.dataset.rendirOk), Number(el.dataset.esperado)); return; }
+  if(t.id === 'btnReprogSel'){ const ids = [...document.querySelectorAll('[data-sel]:checked')].map(x => Number(x.dataset.sel)); if(ids.length) modalMover(ids, `Pasar ${ids.length} ${ids.length === 1 ? 'entrega' : 'entregas'} a otra hoja`); return; }
+  // registrar entrega (modal)
+  if((el = t.closest('[data-reg-estado]'))){ S.reg.estado = el.dataset.regEstado; pintarRegCuerpo(regEntrega()); return; }
+  if((el = t.closest('[data-reg-forma]'))){ S.reg.forma = el.dataset.regForma; pintarRegCuerpo(regEntrega()); return; }
+  if((el = t.closest('[data-reg-motivo]'))){ S.reg.motivo = el.dataset.regMotivo; pintarRegCuerpo(regEntrega()); return; }
+  if(t.id === 'btnRegOk'){ guardarRegistro(); return; }
+  if(t.id === 'btnSinFoto'){ S.reg.sinFoto = true; guardarRegistro(); return; }
+  // cargar
+  if(t.id === 'btnAMano'){ try{ await asegurarClientes(); } catch(_){ S.clientes = []; } abrirBorrador({ fecha: hoyISO(), filas: [{ nro: '1', cliente_nombre: '', cliente_id: null, domicilio: '', localidad: 'NEUQUEN', cant_op: 1, notas: '' }] }, []); S.borrador.origen = 'manual'; renderCargar(''); return; }
+  if(t.id === 'btnDescartar'){ S.borrador = null; S.hojaExistente = null; renderCargar(''); return; }
+  if(t.id === 'btnFilaNueva'){ leerBorradorDePantalla(); S.borrador.filas.push({ nro: String(S.borrador.filas.length + 1), cliente_nombre: '', cliente_id: null, domicilio: '', localidad: 'NEUQUEN', cant_op: 1, notas: '' }); renderCargar(''); return; }
+  if((el = t.closest('[data-quitar-fila]'))){ leerBorradorDePantalla(); S.borrador.filas.splice(Number(el.dataset.quitarFila), 1); renderCargar(''); return; }
+  if((el = t.closest('[data-marcar]'))){ S.marcando = Number(el.dataset.marcar); $('mapaBorrador').style.cursor = 'crosshair'; $('mapaBorrador').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if(t.id === 'btnGuardarHoja'){ guardarBorrador(); return; }
+  // equipo
+  if((el = t.closest('[data-guardar-rep]'))){ guardarRep(el.dataset.guardarRep); return; }
+  if((el = t.closest('[data-guardar-veh]'))){ guardarVeh(el.dataset.guardarVeh); return; }
+  if(t.id === 'btnGuardarCfg'){ guardarCfg(); return; }
+  // repartidor
+  if((el = t.closest('[data-rep-hoja]'))){ S.rep.hojaId = el.dataset.repHoja ? Number(el.dataset.repHoja) : null; S.rep.abierta = null; S.rep.verMapa = false; renderRep(); return; }
+  if(t.closest('[data-rep-recargar]')){ cargarRep(); return; }
+  if(t.closest('[data-rep-mapa]')){ S.rep.verMapa = !S.rep.verMapa; renderRep(); return; }
+  if((el = t.closest('[data-rep-abrir]'))){ const id = Number(el.dataset.repAbrir); S.rep.abierta = S.rep.abierta === id ? null : id; renderRep(); return; }
+  if((el = t.closest('[data-rep-iniciar]'))){ el.disabled = true; pedirPosicion(); iniciarReparto(Number(el.dataset.repIniciar)); return; }
+  if((el = t.closest('[data-rep-entregar],[data-rep-fallo],[data-rep-corregir]'))){
+    const id = Number(el.dataset.repEntregar || el.dataset.repFallo || el.dataset.repCorregir), e = S.entregas.find(x => x.id === id); if(!e) return;
+    pedirPosicion();
+    modalRegistrar({ ...e, estado: el.dataset.repFallo ? 'no_entregada' : (el.dataset.repEntregar ? 'entregada' : e.estado) }, true);
+    return;
+  }
+  if((el = t.closest('[data-rep-terminar]'))){ modalTerminar(Number(el.dataset.repTerminar)); return; }
+  if((el = t.closest('[data-rep-terminar-ok]'))){ el.disabled = true; terminarReparto(Number(el.dataset.repTerminarOk)); return; }
+});
+function regEntrega(){ const lista = S.modo === 'rep' ? S.entregas : S.hojaEntregas; return lista.find(x => x.id === S.reg.id) || {}; }
+function pedirPosicion(){ if(navigator.geolocation) navigator.geolocation.getCurrentPosition(p => { S.pos = { lat: p.coords.latitude, lng: p.coords.longitude }; }, () => {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }); }
+document.addEventListener('change', async ev => {
+  const t = ev.target;
+  if(t.id === 'fileHoja' && t.files.length){ leerArchivos([...t.files]); t.value = ''; return; }
+  if(t.id === 'diaFecha' && t.value){ S.fecha = t.value; ir('dia'); return; }
+  if(t.id === 'regFoto' && t.files[0]){ try{ S.reg.foto = await achicarFoto(t.files[0]); } catch(e){ $('mErr').textContent = errorDe(e); } pintarRegCuerpo(regEntrega()); return; }
+  if(t.dataset && t.dataset.campo){ cambioFilaBorrador(t); return; }
+  if(t.id === 'bFecha' || t.id === 'bRep' || t.id === 'bVeh'){ leerBorradorDePantalla(); if(t.id !== 'bVeh'){ await revisarExistente(); renderCargar(''); } return; }
+  if((t.dataset || {}).sel !== undefined){ const n = document.querySelectorAll('[data-sel]:checked').length; $('btnReprogSel').disabled = !n; $('selInfo').textContent = n ? `${n} marcadas` : ''; return; }
+  if((t.dataset || {}).transf !== undefined){ try{ await q(sb.from('log_entregas').update({ transferencia_ok: t.checked }).eq('id', Number(t.dataset.transf))); } catch(e){ t.checked = !t.checked; alert('No se pudo guardar: ' + (e.message || e)); } return; }
+});
+let esperaHist = null;
+document.addEventListener('input', ev => { if(ev.target.id === 'histQ'){ clearTimeout(esperaHist); esperaHist = setTimeout(() => buscarHistorial().catch(() => {}), 350); } });
+['dragover', 'dragleave', 'drop'].forEach(tipo => document.addEventListener(tipo, ev => {
+  const d = ev.target.closest && ev.target.closest('#dropHoja'); if(!d) return;
+  ev.preventDefault();
+  d.classList.toggle('sobre', tipo === 'dragover');
+  if(tipo === 'drop' && ev.dataTransfer.files.length) leerArchivos([...ev.dataTransfer.files].filter(f => /pdf$/i.test(f.name) || f.type === 'application/pdf'));
+}));
+$('btnSalir').onclick = async () => { await sb.auth.signOut(); try{ localStorage.removeItem('log_rep_cache'); } catch(_){ } renderLogin(); };
+
+// ===== Arranque =====
+fetch('./').then(r => r.ok ? r.text() : '').then(t => { const m = t.match(/<img src="(data:image\/[^"]+)"/); if(m){ $('logo').src = m[1]; $('logo').classList.remove('hidden'); } }).catch(() => {});
+const token = new URLSearchParams(location.search).get('seguimiento');
+if(token) renderSeguimiento(token);
+else sb.auth.getSession().then(({ data }) => { if(data.session) iniciar(data.session); else renderLogin(); }, () => renderLogin());
+window.__log = { S, interpretarHoja, waNumero, buscarCliente, completarLocalidad };
+})();
+
+</script>
+</body>
+</html>

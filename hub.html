@@ -173,6 +173,8 @@ const ROLES = {
   rrhh: 'RRHH / Selección',
   comercial: 'Comercial',
   mantenimiento: 'Mantenimiento',
+  logistica: 'Logística',
+  reparto: 'Reparto (repartidor)',
   consulta: 'Solo consulta'
 };
 
@@ -273,6 +275,22 @@ const AREAS = [
         desc: 'Cálculo y visualización de comisiones por vendedor según ventas del período.',
         url: null,
         badge: 'Próximamente'
+      }
+    ]
+  },
+  {
+    id: 'logistica',
+    nombre: 'Logística y Reparto',
+    icono: '🚚',
+    descripcion: 'Hojas de ruta de cada repartidor, entregas con foto del remito, cobros y rendición.',
+    roles: ['administrador', 'logistica', 'reparto', 'consulta'],
+    artefactos: [
+      {
+        titulo: 'Logística y Reparto',
+        icono: '🚚',
+        desc: 'Se sube la hoja de ruta del sistema (o se arma a mano), se ordena el recorrido en el mapa y el repartidor la sigue en el celular: entrega con foto, motivo si no entrega, cobro, aviso por WhatsApp y rendición.',
+        url: './logistica.html',
+        badge: 'Uso interno'
       }
     ]
   },

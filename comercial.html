@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Seguimiento Comercial · Segulimp Hub · v3.11 (2026-11-16) -->
+<!-- Seguimiento Comercial · Segulimp Hub · v3.12 (2026-11-16) -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -498,7 +498,7 @@ const S = {
   comodatos: [], comCli: [], comExtra: [], comPorCli: new Map(), comResumen: new Map(),
   com: { q: '', vendedor: '', filtro: 'todos', abierto: null, mostrar: 60 },
   mc: { q: '', filtro: 'todos', mostrar: 30, abierto: null, com: null, ret: null, entregas: null, qc: null },
-  pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null },
+  pil: { q: '', filas: [], total: null, resumen: null, error: null, imp: null, vista: 'lista', seg: null, segVend: '', segEstado: '', zona: null, zFilas: [], zTotal: 0 },
   nuevoDato: false,
   op: { filas: null, error: null, cargando: null, vendedor: '', tipo: '', q: '', mostrar: 30, vista: 'rfm', celda: null, rfm: null, rfmErr: null, esp: new Map(), espFiltro: 'todos', espQ: '', espMostrar: 40, espTodos: false },
   pr: { filas: null, embudo: null, error: null, filtro: 'abiertos', vendedor: '', q: '', abierto: null },
@@ -2434,8 +2434,16 @@ function pintarPileta(){
 }
 function renderPileta(aviso){
   const im = S.pil.imp;
+  const vistas = S.veTodo ? `<div class="op-vistas" role="tablist">${[['lista', 'Clientes en la pileta'], ['seguimiento', 'Atacados y sin atacar']].map(([id, n]) =>
+    `<button type="button" role="tab" data-pil-vista="${id}" aria-selected="${S.pil.vista === id}">${n}</button>`).join('')}</div>` : '';
+  if(S.veTodo && S.pil.vista === 'seguimiento'){
+    content().innerHTML = aviso + `<div class="mv-top"><h1 class="mv-hola">Pileta</h1></div>${vistas}<div id="pilSeg"><p class="sub">Cargando el seguimiento…</p></div>`;
+    cargarSeguimientoPileta();
+    return;
+  }
   content().innerHTML = aviso + `
     <div class="mv-top"><h1 class="mv-hola">Pileta</h1>${S.esAdmin && !S.nuevoDato ? `<button type="button" class="btn-primary" id="btnNuevoDato" style="min-height:44px">+ Dato nuevo</button>` : ''}</div>
+    ${vistas}
     <p class="mv-pista" style="margin:0 0 10px">Clientes sin vendedor, o que nadie contactó en 3 meses ni les vendió en 6. ${S.misVendedores.size ? 'El que lo toma, lo trabaja.' : 'Los vendedores los toman desde su celular.'}</p>
     ${S.nuevoDato ? formNuevoDato() : ''}
     ${S.esAdmin ? `<div class="dropzone" id="dropDatos" style="padding:18px 16px; margin:0 0 12px">${im && im.error ? `<span class="vencido">${esc(im.error)}</span><br>` : ''}
@@ -2451,6 +2459,120 @@ function renderPileta(aviso){
   cargarPileta(false);
   if(S.nuevoDato) $('ndNombre').focus();
 }
+// ====== SEGUIMIENTO DE LA PILETA (v3.12) ======
+// Atacado = salió de la pileta a manos de un vendedor (lo tomó, le vendió o se lo asignaron). Sin atacar = sigue en la pileta.
+const VIA_PIL = { tomado: 'Lo tomó', venta: 'Le vendió', asignado: 'Asignado', otro: 'Otro' };
+function estadoAtacado(a){
+  if(Number(a.ventas) > 0) return ['Con venta', 'ok'];
+  if(Number(a.contactos) > 0) return ['Contactado', 'media'];
+  if(!a.sigue) return ['Volvió a la pileta', 'alta'];
+  return ['Sin trabajar', 'alta'];
+}
+async function cargarSeguimientoPileta(){
+  let res;
+  try{ res = await sb.rpc('comercial_pileta_seguimiento'); } catch(e){ res = { error: e }; }
+  if(!$('pilSeg')) return;
+  if(res.error || !res.data){ $('pilSeg').innerHTML = `<div class="msg-box error">No se pudo cargar el seguimiento: ${esc(res.error ? res.error.message || res.error : 'sin datos')}</div>`; return; }
+  S.pil.seg = res.data;
+  pintarSeguimientoPileta();
+}
+function nombreVend(id){ const v = S.vendedores.find(x => x.id === id); return v ? v.nombre.trim() : 'Vendedor ' + id; }
+function pintarSeguimientoPileta(){
+  const caja = $('pilSeg'), g = S.pil.seg, p = S.pil;
+  if(!caja || !g) return;
+  const at = g.atacados || [];
+  const conEstado = at.map(a => ({ ...a, est: estadoAtacado(a) }));
+  const trabajados = conEstado.filter(a => a.est[0] === 'Con venta' || a.est[0] === 'Contactado');
+  const conVenta = conEstado.filter(a => a.est[0] === 'Con venta');
+  const vendido = conVenta.reduce((t, a) => t + Number(a.ventas || 0), 0);
+  const ids = [...new Set(S.vendedores.filter(esVend).map(v => v.id).concat(at.map(a => a.vendedor_id)))];
+  const fila = id => {
+    const m = conEstado.filter(a => a.vendedor_id === id), c = k => m.filter(a => a.est[0] === k).length;
+    return { id, n: m.length, tomados: m.filter(a => a.via === 'tomado').length, venta: m.filter(a => a.via === 'venta').length,
+      cont: c('Contactado'), cv: c('Con venta'), vendido: m.reduce((t, a) => t + Number(a.ventas || 0), 0), sin: c('Sin trabajar'), volvio: c('Volvió a la pileta') };
+  };
+  const filas = ids.map(fila).sort((a, b) => b.n - a.n || nombreVend(a.id).localeCompare(nombreVend(b.id)));
+  const tot = filas.reduce((t, f) => { for(const k of ['n', 'tomados', 'venta', 'cont', 'cv', 'vendido', 'sin', 'volvio']) t[k] += f[k]; return t; }, { n: 0, tomados: 0, venta: 0, cont: 0, cv: 0, vendido: 0, sin: 0, volvio: 0 });
+  const lista = conEstado.filter(a => (!p.segVend || String(a.vendedor_id) === p.segVend) && (!p.segEstado || a.est[0] === p.segEstado));
+  const estados = ['Con venta', 'Contactado', 'Sin trabajar', 'Volvió a la pileta'].filter(e => conEstado.some(a => a.est[0] === e));
+  caja.innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="label">Sin atacar</div><div class="value">${num(g.sin_atacar)}</div><div class="note">Siguen en la pileta hoy</div></div>
+      <div class="tile"><div class="label">Atacados</div><div class="value">${num(at.length)}</div><div class="note">${g.desde ? 'Desde el ' + diaMes(g.desde) + ' · ' : ''}${tot.tomados} tomados, ${tot.venta} por una venta</div></div>
+      <div class="tile"><div class="label">Trabajados</div><div class="value">${num(trabajados.length)}</div><div class="note">Con contacto o venta después de atacarlos</div></div>
+      <div class="tile"><div class="label">Con venta</div><div class="value">${num(conVenta.length)}</div><div class="note">${pesos(vendido)} vendidos desde que se atacaron</div></div>
+    </div>
+
+    <h2 class="sec">Por vendedor</h2>
+    <div class="table-wrap"><table class="apilar resumen" id="pilPorVend">
+      <thead><tr><th>Vendedor</th><th class="num">Atacados</th><th class="num">Tomados</th><th class="num">Por venta</th><th class="num">Contactados</th><th class="num">Con venta</th><th class="num">Vendido</th><th class="num">Sin trabajar</th><th class="num">Volvieron a la pileta</th></tr></thead>
+      <tbody>${filas.map(f => `
+        <tr class="clickable" data-pil-vend="${f.id}"><td data-label="Vendedor"><strong>${esc(nombreVend(f.id))}</strong></td>
+          <td data-label="Atacados" class="num">${f.n}</td><td data-label="Tomados" class="num">${f.tomados}</td><td data-label="Por venta" class="num">${f.venta}</td>
+          <td data-label="Contactados" class="num">${f.cont}</td><td data-label="Con venta" class="num">${f.cv}</td><td data-label="Vendido" class="num">${pesos(f.vendido)}</td>
+          <td data-label="Sin trabajar" class="num">${f.sin ? `<strong class="vencido">${f.sin}</strong>` : 0}</td><td data-label="Volvieron a la pileta" class="num">${f.volvio}</td></tr>`).join('')}
+        <tr class="total"><td data-label=""><strong>Total</strong></td><td data-label="Atacados" class="num">${tot.n}</td><td data-label="Tomados" class="num">${tot.tomados}</td><td data-label="Por venta" class="num">${tot.venta}</td><td data-label="Contactados" class="num">${tot.cont}</td><td data-label="Con venta" class="num">${tot.cv}</td><td data-label="Vendido" class="num">${pesos(tot.vendido)}</td><td data-label="Sin trabajar" class="num">${tot.sin}</td><td data-label="Volvieron a la pileta" class="num">${tot.volvio}</td></tr>
+      </tbody></table></div>
+
+    <h2 class="sec" id="pilAtacados">Clientes atacados</h2>
+    <div class="mc-filtros">
+      <button type="button" data-pil-fv="" aria-pressed="${!p.segVend}">Todos</button>
+      ${ids.filter(id => at.some(a => a.vendedor_id === id)).map(id => `<button type="button" data-pil-fv="${id}" aria-pressed="${p.segVend === String(id)}">${esc(nombreVend(id).split(/\s+/)[0])}</button>`).join('')}
+    </div>
+    ${estados.length > 1 ? `<div class="mc-filtros"><button type="button" data-pil-fe="" aria-pressed="${!p.segEstado}">Todos los estados</button>${estados.map(e => `<button type="button" data-pil-fe="${e}" aria-pressed="${p.segEstado === e}">${e}</button>`).join('')}</div>` : ''}
+    ${lista.length ? `<div class="table-wrap"><table class="apilar resumen" id="pilListaAt">
+      <thead><tr><th>Cliente</th><th>Vendedor</th><th>Cómo y cuándo</th><th>Estado</th><th class="num">Contactos</th><th class="num">Vendido</th></tr></thead>
+      <tbody>${lista.map(a => `
+        <tr><td data-label="Cliente"><strong>${esc(a.nombre)}</strong>${a.localidad ? `<div class="muted">${esc(a.localidad)}</div>` : ''}</td>
+          <td data-label="Vendedor">${esc(nombreVend(a.vendedor_id))}</td>
+          <td data-label="Cómo y cuándo">${VIA_PIL[a.via] || a.via} el ${diaMes(a.fecha)}</td>
+          <td data-label="Estado"><span class="chip ${a.est[1]}">${a.est[0]}</span></td>
+          <td data-label="Contactos" class="num">${a.contactos}${a.ultimo_contacto ? `<div class="muted">último ${diaMes(a.ultimo_contacto)}</div>` : ''}</td>
+          <td data-label="Vendido" class="num">${Number(a.ventas) ? pesos(a.ventas) : '—'}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="card"><p class="sub" style="margin:0">${at.length ? 'No hay clientes con ese filtro.' : 'Todavía nadie atacó clientes de la pileta.'}</p></div>`}
+
+    <h2 class="sec">Sin atacar</h2>
+    <p class="sub">Clientes que siguen en la pileta, por zona de cada vendedor según la localidad. Neuquén capital la comparten varios vendedores. Tocá una zona para ver los clientes.</p>
+    <div class="table-wrap"><table class="apilar resumen" id="pilZonas">
+      <thead><tr><th>Zona</th><th class="num">Clientes</th><th class="num">Con compras registradas</th></tr></thead>
+      <tbody>${(g.por_zona || []).map(z => `
+        <tr class="clickable ${p.zona === z.zona ? 'actual' : ''}" data-pil-zona="${esc(z.zona)}"><td data-label="Zona"><strong>${esc(z.zona)}</strong></td><td data-label="Clientes" class="num">${num(z.n)}</td><td data-label="Con compras registradas" class="num">${num(z.con_compras)}</td></tr>`).join('')}
+        <tr class="total"><td data-label=""><strong>Total</strong></td><td data-label="Clientes" class="num">${num(g.sin_atacar)}</td><td data-label="Con compras registradas" class="num">${num((g.por_zona || []).reduce((t, z) => t + Number(z.con_compras || 0), 0))}</td></tr>
+      </tbody></table></div>
+    ${(g.por_motivo || []).length ? `<p class="sub" style="margin-top:8px">Por qué están en la pileta: ${(g.por_motivo || []).map(m => `${esc(m.motivo)} ${num(m.n)}`).join(' · ')}.</p>` : ''}
+    <div id="pilZonaLista">${pintarZonaPileta()}</div>`;
+}
+function pintarZonaPileta(){
+  const p = S.pil;
+  if(!p.zona) return '';
+  if(p.zCargando && !p.zFilas.length) return `<p class="sub">Cargando ${esc(p.zona)}…</p>`;
+  return `<h2 class="sec">${esc(p.zona)} · sin atacar</h2>
+    ${p.zFilas.length ? `<div class="table-wrap"><table class="apilar resumen">
+      <thead><tr><th>Cliente</th><th>Localidad</th><th>Por qué está</th><th>Última compra</th><th class="num">Compras registradas</th></tr></thead>
+      <tbody>${p.zFilas.map(r => `<tr><td data-label="Cliente"><strong>${esc(r.nombre)}</strong>${r.vendedor_anterior ? `<div class="muted">Lo tenía ${esc(r.vendedor_anterior)}</div>` : ''}</td>
+        <td data-label="Localidad">${esc(r.localidad || '—')}</td><td data-label="Por qué está">${esc(r.motivo)}</td>
+        <td data-label="Última compra">${r.ultima_compra ? fechaCorta(r.ultima_compra) : 'sin compras'}</td>
+        <td data-label="Compras registradas" class="num">${Number(r.ventas) > 0 ? pesos(r.ventas) : '—'}</td></tr>`).join('')}</tbody></table></div>
+      ${p.zFilas.length < p.zTotal ? `<button type="button" class="btn-ghost mas" id="pilZonaMas">Ver más (${num(p.zTotal - p.zFilas.length)})</button>` : ''}`
+    : '<div class="card"><p class="sub" style="margin:0">No hay clientes en esa zona.</p></div>'}`;
+}
+async function cargarZonaPileta(zona, mas){
+  const p = S.pil;
+  if(!mas){ p.zona = zona; p.zFilas = []; p.zTotal = 0; }
+  p.zCargando = true;
+  const caja = $('pilZonaLista'); if(caja) caja.innerHTML = pintarZonaPileta();
+  let res;
+  try{ res = await sb.rpc('comercial_pileta_lista', { p_zona: zona, p_q: null, p_limite: 50, p_desde: mas ? p.zFilas.length : 0 }); } catch(e){ res = { error: e }; }
+  p.zCargando = false;
+  if(p.zona !== zona) return;
+  if(res.error){ if($('pilZonaLista')) $('pilZonaLista').innerHTML = `<div class="msg-box error">No se pudo cargar la zona: ${esc(res.error.message || res.error)}</div>`; return; }
+  p.zFilas = p.zFilas.concat(res.data || []);
+  p.zTotal = res.data && res.data.length ? Number(res.data[0].total) : p.zFilas.length;
+  if($('pilZonaLista')) $('pilZonaLista').innerHTML = pintarZonaPileta();
+  document.querySelectorAll('[data-pil-zona]').forEach(tr => tr.classList.toggle('actual', tr.dataset.pilZona === zona));
+  if(!mas && $('pilZonaLista')) $('pilZonaLista').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function tomarCliente(card){
   const id = Number(card.dataset.cliente), btn = card.querySelector('[data-tomar]'), err = card.querySelector('.mc-err');
   btn.disabled = true; err.textContent = '';
@@ -3857,6 +3979,12 @@ content().addEventListener('click', e => {
   if((el = t.closest('#mcLista [data-soltar]'))){ soltarCliente(el.closest('.mc')); return; }
   if((el = t.closest('#pilLista [data-tomar]'))){ tomarCliente(el.closest('.mc')); return; }
   if(t.id === 'pilMas'){ t.disabled = true; cargarPileta(true); return; }
+  if((el = t.closest('[data-pil-vista]'))){ S.pil.vista = el.dataset.pilVista; ir('pileta'); return; }
+  if((el = t.closest('[data-pil-fv]'))){ S.pil.segVend = el.dataset.pilFv; pintarSeguimientoPileta(); return; }
+  if((el = t.closest('[data-pil-fe]'))){ S.pil.segEstado = el.dataset.pilFe; pintarSeguimientoPileta(); return; }
+  if((el = t.closest('[data-pil-vend]'))){ S.pil.segVend = el.dataset.pilVend; S.pil.segEstado = ''; pintarSeguimientoPileta(); const h = $('pilAtacados'); if(h) h.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  if((el = t.closest('[data-pil-zona]'))){ cargarZonaPileta(el.dataset.pilZona, false); return; }
+  if(t.id === 'pilZonaMas'){ t.disabled = true; cargarZonaPileta(S.pil.zona, true); return; }
   if(t.id === 'btnCargarDatos'){ cargarDatosNuevos(); return; }
   if(t.id === 'btnCancelarDatos'){ S.pil.imp = null; ir('pileta'); return; }
   if(t.closest('#dropDatos') && t.id !== 'datosArchivo' && !(S.pil.imp && S.pil.imp.filas)){ $('datosArchivo').click(); return; }
